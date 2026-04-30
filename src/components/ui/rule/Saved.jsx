@@ -55,7 +55,7 @@ export function Rule({ rule, onApply, onEdit, onDelete }) {
                         }}
                         className="text-xs px-2 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
                     >
-                        Apply
+                        Apply{applying && "..."}
                     </button>
 
                     <button
