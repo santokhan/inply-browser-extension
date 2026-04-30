@@ -1,12 +1,6 @@
 import { createContext, useCallback, useEffect, useState } from "react";
 
-export const RulesContext = createContext({
-  rules: [],
-  loadRules: () => { },
-  deleteRule: () => { },
-  editingRule: null,
-  setEditingRule: () => { },
-})
+export const RulesContext = createContext(null)
 
 export function RulesProvider({ children }) {
   const [rules, setRules] = useState([]);

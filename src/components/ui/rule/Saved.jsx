@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useRules } from "../../../hooks/useRules";
 
 export function Rule({ rule, onApply, onEdit, onDelete }) {
@@ -55,8 +54,35 @@ export function Rule({ rule, onApply, onEdit, onDelete }) {
 export default function SavedRules() {
     const { rules, deleteRule, setEditingRule } = useRules();
 
+    function applyRule(rule) {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const tabId = tabs?.[0]?.id;
+
+            if (!tabId) {
+                console.warn("No active tab available to apply rule:", rule);
+                return;
+            }
+
+            chrome.tabs.sendMessage(
+                tabId,
+                {
+                    action: "applyRule",
+                    rule
+                },
+                () => {
+                    if (chrome.runtime.lastError) {
+                        console.warn(
+                            "Failed to send applyRule message:",
+                            chrome.runtime.lastError.message
+                        );
+                    }
+                }
+            );
+        });
+    }
+
     return (
-        <div className="space-y-2 px-3 py-1.5">
+        <div className="space-y-2 px-3 py-2">
             <h2 className="text-sm font-semibold text-gray-700">
                 Saved Rules
             </h2>
@@ -73,6 +99,7 @@ export default function SavedRules() {
                     rule={rule}
                     onDelete={deleteRule}
                     onEdit={setEditingRule}
+                    onApply={applyRule}
                 />
             ))}
         </div>

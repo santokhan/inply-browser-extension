@@ -17,7 +17,7 @@
                 "<all_urls>"
             ],
             "js": [
-                "content.js"
+                "src/content/index.js"
             ],
             "run_at": "document_idle"
         }

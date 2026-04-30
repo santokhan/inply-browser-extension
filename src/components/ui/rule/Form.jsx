@@ -14,7 +14,12 @@ export default function RuleForm() {
             setType(editingRule.type || "name");
             setSelector(editingRule.selector || "");
             setValue(editingRule.value || "");
+            return;
         }
+
+        setType("name");
+        setSelector("");
+        setValue("");
     }, [editingRule]);
 
     const resetForm = () => {

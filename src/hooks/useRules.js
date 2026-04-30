@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useContext } from "react";
+import { useContext } from "react";
 import { RulesContext } from "../contexts/RulesContext";
 
 export function useRules() {
