@@ -199,7 +199,10 @@ export default function SavedRules() {
                     key={rule.id}
                     rule={rule}
                     onDelete={deleteRule}
-                    onEdit={setEditingRule}
+                    onEdit={function () {
+                        setEditingRule(rule);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
                     onApply={applyRule}
                 />
             ))}
