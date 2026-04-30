@@ -92,6 +92,7 @@ function applyRules(rules) {
   rules.forEach(applyRule);
 }
 
+// https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onMessage
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "applyRule") {
     applyRule(message.rule);

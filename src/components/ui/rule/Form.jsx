@@ -51,6 +51,7 @@ export default function RuleForm() {
             });
         }
 
+        // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage/StorageArea/set
         await chrome.storage.local.set({ rules: updatedRules });
         loadRules();
         resetForm();

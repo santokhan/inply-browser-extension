@@ -1,13 +1,17 @@
-function getElements(rule) {
-  if (!rule?.selector) return [];
+export function getElementsForRule(rule) {
+  if (!rule || !rule.selector) return [];
 
-  const selectors = {
-    name: `[name="${CSS.escape(rule.selector)}"]`,
-    id: `#${CSS.escape(rule.selector)}`,
-    class: `.${CSS.escape(rule.selector)}`
-  };
+  if (rule.type === "name") {
+    return document.querySelectorAll(`[name="${CSS.escape(rule.selector)}"]`);
+  }
 
-  const selector = selectors[rule.type] || rule.selector;
+  if (rule.type === "id") {
+    return document.querySelectorAll(`#${CSS.escape(rule.selector)}`);
+  }
 
-  return document.querySelectorAll(selector);
+  if (rule.type === "class") {
+    return document.querySelectorAll(`.${CSS.escape(rule.selector)}`);
+  }
+
+  return document.querySelectorAll(rule.selector);
 }

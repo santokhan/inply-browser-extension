@@ -1,4 +1,5 @@
 import { useRules } from "../../../hooks/useRules";
+import { getElementsForRule } from "../../../utils/selector";
 
 export function Rule({ rule, onApply, onEdit, onDelete }) {
     return (
@@ -55,7 +56,7 @@ export default function SavedRules() {
     const { rules, deleteRule, setEditingRule } = useRules();
 
     function applyRuleInPage(rule) {
-        const elements = getElements(rule);
+        const elements = getElementsForRule(rule);
         if (!elements || elements.length === 0) return;
 
         const setNativeValue = (el, value) => {
