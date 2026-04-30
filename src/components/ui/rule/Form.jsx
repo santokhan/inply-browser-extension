@@ -70,7 +70,7 @@ export default function RuleForm() {
                 <select
                     value={type}
                     onChange={(e) => setType(e.target.value)}
-                    className="w-full px-2 py-2 text-sm rounded-lg border border-gray-200"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200"
                 >
                     <option value="name">Name</option>
                     <option value="id">ID</option>
@@ -81,14 +81,14 @@ export default function RuleForm() {
                     value={selector}
                     onChange={(e) => setSelector(e.target.value)}
                     placeholder="Selector"
-                    className="w-full px-2 py-2 text-sm rounded-lg border border-gray-200"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200"
                 />
 
                 <input
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
                     placeholder="Value"
-                    className="w-full px-2 py-2 text-sm rounded-lg border border-gray-200"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200"
                 />
 
                 <button className="w-full py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
