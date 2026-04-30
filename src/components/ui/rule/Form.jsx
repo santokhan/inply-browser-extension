@@ -64,7 +64,7 @@ export default function RuleForm() {
     };
 
     return (
-        <div className="w-80 px-3 py-2 space-y-4">
+        <div className="px-3 py-2 space-y-4">
 
             <div className="text-center">
                 <h1 className="text-lg font-semibold text-gray-800">
