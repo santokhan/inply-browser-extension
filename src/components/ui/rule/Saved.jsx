@@ -1,22 +1,23 @@
 import { useState } from "react";
 import { useRules } from "../../../hooks/useRules";
+import SearchForm from "./Search";
 
 export function getElementsForRule(rule) {
-  if (!rule || !rule.selector) return [];
+    if (!rule || !rule.selector) return [];
 
-  if (rule.type === "name") {
-    return document?.querySelectorAll(`[name="${CSS.escape(rule.selector)}"]`);
-  }
+    if (rule.type === "name") {
+        return document?.querySelectorAll(`[name="${CSS.escape(rule.selector)}"]`);
+    }
 
-  if (rule.type === "id") {
-    return document?.querySelectorAll(`#${CSS.escape(rule.selector)}`);
-  }
+    if (rule.type === "id") {
+        return document?.querySelectorAll(`#${CSS.escape(rule.selector)}`);
+    }
 
-  if (rule.type === "class") {
-    return document?.querySelectorAll(`.${CSS.escape(rule.selector)}`);
-  }
+    if (rule.type === "class") {
+        return document?.querySelectorAll(`.${CSS.escape(rule.selector)}`);
+    }
 
-  return document?.querySelectorAll(rule.selector);
+    return document?.querySelectorAll(rule.selector);
 }
 
 export function Rule({ rule, onApply, onEdit, onDelete }) {
@@ -205,12 +206,15 @@ export default function SavedRules() {
     return (
         <div className="space-y-2 px-3 py-2">
             <div className="flex items-center justify-between gap-4">
-                <h2 className="text-sm font-semibold text-gray-700">
+                <h2 className="text-sm font-semibold text-gray-700 shrink-0">
                     Saved Rules
                 </h2>
+                <div className="grow">
+                    <SearchForm />
+                </div>
                 <button
                     onClick={() => onApplyAll(rules)}
-                    className="text-xs px-2 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                    className="text-xs px-2 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 shrink-0"
                 >
                     Apply All {applyingAll && "..."}
                 </button>
