@@ -1,7 +1,27 @@
+import { useState } from "react";
 import { useRules } from "../../../hooks/useRules";
-import { getElementsForRule } from "../../../utils/selector";
+
+export function getElementsForRule(rule) {
+  if (!rule || !rule.selector) return [];
+
+  if (rule.type === "name") {
+    return document?.querySelectorAll(`[name="${CSS.escape(rule.selector)}"]`);
+  }
+
+  if (rule.type === "id") {
+    return document?.querySelectorAll(`#${CSS.escape(rule.selector)}`);
+  }
+
+  if (rule.type === "class") {
+    return document?.querySelectorAll(`.${CSS.escape(rule.selector)}`);
+  }
+
+  return document?.querySelectorAll(rule.selector);
+}
 
 export function Rule({ rule, onApply, onEdit, onDelete }) {
+    const [applying, setApplying] = useState(false);
+
     return (
         <div className="relative p-px rounded-xl linear-to-r from-indigo-200 via-purple-200 to-indigo-100">
             <div className="bg-white rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-200">
@@ -27,7 +47,11 @@ export function Rule({ rule, onApply, onEdit, onDelete }) {
                 {/* Line 2: Value + Actions */}
                 <div className="flex items-center justify-end gap-2 mt-3">
                     <button
-                        onClick={() => onApply(rule)}
+                        onClick={async () => {
+                            setApplying(true);
+                            await onApply(rule);
+                            setApplying(false);
+                        }}
                         className="text-xs px-2 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
                     >
                         Apply
@@ -54,6 +78,7 @@ export function Rule({ rule, onApply, onEdit, onDelete }) {
 
 export default function SavedRules() {
     const { rules, deleteRule, setEditingRule } = useRules();
+    const [applyingAll, setApplyingAll] = useState(false);
 
     function applyRuleInPage(rule) {
         const elements = getElementsForRule(rule);
@@ -169,9 +194,12 @@ export default function SavedRules() {
     }
 
     async function onApplyAll(rules) {
-        for (const rule of rules) {
-            await applyRule(rule);
-        }
+        setApplyingAll(true);
+        await Promise.all(rules.map((rule) => applyRule(rule))).then((promises) => {
+            console.log(promises);
+        }).catch((error) => { console.error(error) }).finally(() => {
+            setApplyingAll(false);
+        })
     }
 
     return (
@@ -184,7 +212,7 @@ export default function SavedRules() {
                     onClick={() => onApplyAll(rules)}
                     className="text-xs px-2 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
                 >
-                    Apply All
+                    Apply All {applyingAll && "..."}
                 </button>
             </div>
 
@@ -204,6 +232,7 @@ export default function SavedRules() {
                         window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
                     onApply={applyRule}
+                    applying={applyingAll}
                 />
             ))}
         </div>

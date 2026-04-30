@@ -76,12 +76,12 @@ function setNativeValue(el, value) {
 function applyRule(rule) {
   const elements = getElementsForRule(rule);
 
-  if (!elements.length) {
+  if (!elements?.length) {
     console.warn("Element not found for rule:", rule);
     return;
   }
 
-  elements.forEach((el) => {
+  elements?.forEach((el) => {
     setNativeValue(el, rule.value);
     el.dispatchEvent(new Event("input", { bubbles: true }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
@@ -96,13 +96,14 @@ function applyRules(rules) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "applyRule") {
     applyRule(message.rule);
-    return true;
   }
 
   if (message.action === "applyAllRules") {
     chrome.storage.local.get("rules", (res) => {
       applyRules(res.rules || []);
     });
-    return true;
   }
+
+  sendResponse({ ok: true });
+  return false;
 });
