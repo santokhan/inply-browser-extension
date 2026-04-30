@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+:root {
+    /* PRIMARY (Purple) */
+    --color-primary-100: hsl(259, 80%, 98%);
+    --color-primary-200: hsl(259, 80%, 88%);
+    --color-primary-300: hsl(259, 80%, 78%);
+    --color-primary-400: hsl(259, 80%, 68%);
+    --color-primary-500: hsl(259, 80%, 58%);
+    --color-primary-600: hsl(259, 80%, 48%);
+    --color-primary-700: hsl(259, 80%, 38%);
+    --color-primary-800: hsl(259, 80%, 28%);
+    --color-primary-900: hsl(259, 80%, 18%);
+    --color-primary-950: hsl(259, 80%, 12%);
+}
+
+@theme {
+    /* PRIMARY */
+    --color-primary-100: var(--color-primary-100);
+    --color-primary-200: var(--color-primary-200);
+    --color-primary-300: var(--color-primary-300);
+    --color-primary-400: var(--color-primary-400);
+    --color-primary-500: var(--color-primary-500);
+    --color-primary-600: var(--color-primary-600);
+    --color-primary-700: var(--color-primary-700);
+    --color-primary-800: var(--color-primary-800);
+    --color-primary-900: var(--color-primary-900);
+    --color-primary-950: var(--color-primary-950);
+}

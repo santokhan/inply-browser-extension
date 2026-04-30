@@ -1,0 +1,36 @@
+{
+  "name": "inply",
+  "version": "1.0.0",
+  "description": "<img width=\"944\" height=\"936\" alt=\"image\" src=\"https://github.com/user-attachments/assets/0a02fcc5-3149-47a7-994d-e823fc936f79\" />",
+  "keywords": [
+    "Auto",
+    "Form",
+    "Filler"
+  ],
+  "homepage": "https://github.com/santokhan/extensions#readme",
+  "bugs": {
+    "url": "https://github.com/santokhan/extensions/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/santokhan/extensions.git"
+  },
+  "license": "ISC",
+  "author": "Santo Khan",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@crxjs/vite-plugin": "^2.4.0",
+    "@tailwindcss/vite": "^4.2.4",
+    "@vitejs/plugin-react": "^6.0.1",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "tailwindcss": "^4.2.4",
+    "vite": "^8.0.10"
+  }
+}
