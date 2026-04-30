@@ -39,7 +39,7 @@ export default function TokenLoginForm() {
   };
 
   return (
-    <div className="w-80 p-3 space-y-3 my-4">
+    <div className="p-3 space-y-3 my-4">
 
       <div className="text-center">
         <h1 className="text-lg font-semibold text-gray-800">
