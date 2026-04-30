@@ -96,11 +96,12 @@ export default function RuleForm() {
                     className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200"
                 />
 
-                <input
+                <textarea
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
                     placeholder="Value"
                     className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200"
+                    rows={3}
                 />
 
                 <button className="w-full py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
