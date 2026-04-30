@@ -56,6 +56,12 @@ export default function RuleForm() {
         resetForm();
     };
 
+    const placeholderMap = {
+        name: 'Input name="selector"',
+        id: 'Input id="selector"',
+        class: 'Input class="selector"',
+    };
+
     return (
         <div className="w-80 px-3 py-2 space-y-4">
 
@@ -85,7 +91,7 @@ export default function RuleForm() {
                 <input
                     value={selector}
                     onChange={(e) => setSelector(e.target.value)}
-                    placeholder="Selector"
+                    placeholder={placeholderMap[type] || "selector"}
                     className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200"
                 />
 

@@ -81,11 +81,28 @@ export default function SavedRules() {
         });
     }
 
+    async function onApplyAll(rules) {
+        for (const rule of rules) {
+            await new Promise((resolve) => {
+                applyRule(rule);
+                setTimeout(resolve, 50); // small delay
+            });
+        }
+    }
+
     return (
         <div className="space-y-2 px-3 py-2">
-            <h2 className="text-sm font-semibold text-gray-700">
-                Saved Rules
-            </h2>
+            <div className="flex items-center justify-between gap-4">
+                <h2 className="text-sm font-semibold text-gray-700">
+                    Saved Rules
+                </h2>
+                <button
+                    onClick={() => onApplyAll(rules)}
+                    className="text-xs px-2 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                >
+                    Apply All
+                </button>
+            </div>
 
             {rules.length === 0 && (
                 <div className="text-xs text-gray-400 text-center py-4">
