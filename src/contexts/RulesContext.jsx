@@ -3,12 +3,15 @@ import { createContext, useCallback, useEffect, useState } from "react";
 export const RulesContext = createContext({
   rules: [],
   loadRules: () => { },
-  deleteRule: () => { }
+  deleteRule: () => { },
+  editingRule: null,
+  setEditingRule: () => { },
 })
 
 export function RulesProvider({ children }) {
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editingRule, setEditingRule] = useState(null);
 
   const loadRules = async () => {
     try {
@@ -32,7 +35,14 @@ export function RulesProvider({ children }) {
   }, []);
 
   return (
-    <RulesContext.Provider value={{ rules, setRules, deleteRule, loadRules }}>
+    <RulesContext.Provider value={{
+      rules,
+      setRules,
+      deleteRule,
+      loadRules,
+      editingRule,
+      setEditingRule,
+    }}>
       {children}
     </RulesContext.Provider>
   )

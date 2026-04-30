@@ -53,10 +53,10 @@ export function Rule({ rule, onApply, onEdit, onDelete }) {
 }
 
 export default function SavedRules() {
-    const { rules, deleteRule } = useRules();
+    const { rules, deleteRule, setEditingRule } = useRules();
 
     return (
-        <div className="space-y-2">
+        <div className="space-y-2 px-3 py-1.5">
             <h2 className="text-sm font-semibold text-gray-700">
                 Saved Rules
             </h2>
@@ -72,6 +72,7 @@ export default function SavedRules() {
                     key={rule.id}
                     rule={rule}
                     onDelete={deleteRule}
+                    onEdit={setEditingRule}
                 />
             ))}
         </div>

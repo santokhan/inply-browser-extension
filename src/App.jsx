@@ -2,6 +2,7 @@ import { useState } from "react";
 import Header from "./components/ui/header/Index";
 import RuleForm from "./components/ui/rule/Form";
 import { RulesProvider } from "./contexts/RulesContext";
+import AutoFillRules from "./components/ui/rule";
 
 export default function App() {
   const [value, setValue] = useState("");
@@ -18,9 +19,7 @@ export default function App() {
   return (
     <>
       <Header />
-      <RulesProvider>
-        <RuleForm />
-      </RulesProvider>
+      <AutoFillRules />
     </>
   );
 }

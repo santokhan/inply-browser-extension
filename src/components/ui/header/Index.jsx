@@ -2,7 +2,7 @@ import React from "react";
 
 const Header = () => {
     return (
-        <header className="bg-gray-50 px-3 py-1.5">
+        <header className="bg-white px-3 py-1.5">
             <div className="flex items-center">
                 <img
                     src="/assets/images/logo-white.png"
