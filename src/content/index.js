@@ -92,14 +92,16 @@ function applyRules(rules) {
   rules.forEach(applyRule);
 }
 
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "applyRule") {
     applyRule(message.rule);
+    return true;
   }
 
   if (message.action === "applyAllRules") {
     chrome.storage.local.get("rules", (res) => {
       applyRules(res.rules || []);
     });
+    return true;
   }
 });

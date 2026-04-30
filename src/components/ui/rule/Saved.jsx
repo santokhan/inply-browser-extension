@@ -54,39 +54,122 @@ export function Rule({ rule, onApply, onEdit, onDelete }) {
 export default function SavedRules() {
     const { rules, deleteRule, setEditingRule } = useRules();
 
-    function applyRule(rule) {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            const tabId = tabs?.[0]?.id;
+    function applyRuleInPage(rule) {
+        const elements = getElements(rule);
+        if (!elements || elements.length === 0) return;
 
-            if (!tabId) {
-                console.warn("No active tab available to apply rule:", rule);
+        const setNativeValue = (el, value) => {
+            const tag = el.tagName;
+
+            if (tag === "INPUT") {
+                const inputType = el.type?.toLowerCase();
+
+                if (inputType === "checkbox" || inputType === "radio") {
+                    const normalized = String(value ?? "").toLowerCase();
+                    el.checked =
+                        normalized === "true" ||
+                        normalized === "1" ||
+                        normalized === "checked" ||
+                        normalized === "on";
+                    return;
+                }
+
+                const setter = Object.getOwnPropertyDescriptor(
+                    window.HTMLInputElement.prototype,
+                    "value"
+                )?.set;
+
+                if (setter) {
+                    setter.call(el, value);
+                } else {
+                    el.value = value;
+                }
                 return;
             }
 
-            chrome.tabs.sendMessage(
-                tabId,
-                {
-                    action: "applyRule",
-                    rule
-                },
-                () => {
-                    if (chrome.runtime.lastError) {
-                        console.warn(
-                            "Failed to send applyRule message:",
-                            chrome.runtime.lastError.message
-                        );
-                    }
+            if (tag === "TEXTAREA") {
+                const setter = Object.getOwnPropertyDescriptor(
+                    window.HTMLTextAreaElement.prototype,
+                    "value"
+                )?.set;
+
+                if (setter) {
+                    setter.call(el, value);
+                } else {
+                    el.value = value;
                 }
-            );
+                return;
+            }
+
+            if (tag === "SELECT") {
+                const setter = Object.getOwnPropertyDescriptor(
+                    window.HTMLSelectElement.prototype,
+                    "value"
+                )?.set;
+
+                if (setter) {
+                    setter.call(el, value);
+                } else {
+                    el.value = value;
+                }
+            }
+        };
+
+        elements.forEach((el) => {
+            setNativeValue(el, rule.value);
+            el.dispatchEvent(new Event("input", { bubbles: true }));
+            el.dispatchEvent(new Event("change", { bubbles: true }));
         });
+    }
+
+    function sendRuleToTab(tabId, rule) {
+        return new Promise((resolve) => {
+            chrome.tabs.sendMessage(tabId, { action: "applyRule", rule })
+                .then(() => {
+                    resolve(true);
+                })
+                .catch(async () => {
+                    // fallback only when message fails
+
+                    try {
+                        await chrome.scripting.executeScript({
+                            target: { tabId },
+                            func: applyRuleInPage,
+                            args: [rule],
+                        });
+
+                        resolve(true);
+                    } catch (err) {
+                        console.warn("Failed to apply rule:", err?.message || err);
+                        resolve(false);
+                    }
+                });
+        });
+    }
+
+    async function applyRule(rule) {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        const tab = tabs?.[0];
+
+        if (!tab?.id) {
+            console.warn("No active tab available to apply rule:", rule);
+            return false;
+        }
+
+        if (
+            typeof tab.url === "string" &&
+            /^(chrome|edge|brave|opera|moz)-extension:|^chrome:|^edge:|^about:|^view-source:/i.test(tab.url)
+        ) {
+            console.warn("Cannot apply rules on this page:", tab.url);
+            return false;
+        }
+
+        return sendRuleToTab(tab.id, rule);
     }
 
     async function onApplyAll(rules) {
         for (const rule of rules) {
-            await new Promise((resolve) => {
-                applyRule(rule);
-                setTimeout(resolve, 50); // small delay
-            });
+            await applyRule(rule);
         }
     }
 
