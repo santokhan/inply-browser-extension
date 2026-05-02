@@ -19,17 +19,29 @@ export function RulesProvider({ children }) {
 
   const loadRules = async (query) => {
     try {
+      const groupResults = await chrome.storage.local.get("groups");
       const result = await chrome.storage.local.get("rules");
       if (!result?.rules) {
         console.log("No rules found");
         return
       }
+
+      // Create a map for quick lookup
+      const groups = groupResults.groups || [];
+      const groupMap = new Map(groups?.map(g => [g.id, g]));
+
+      for (const rule of rules) {
+        if (rule.group?.id && groupMap.has(rule.group.id)) {
+          rule.group = groupMap.get(rule.group.id);
+        }
+      }
+
       if (query) {
         function searchTerm(r) {
           // check for type, selector, value
           return (
-            (r.type && r.type.toLowerCase().includes(query.toLowerCase())) ||
-            (r.selector && r.selector.toLowerCase().includes(query.toLowerCase())) ||
+            (r.tagName && r.tagName.toLowerCase().includes(query.toLowerCase())) ||
+            (r.group?.name && r.group?.name?.toLowerCase().includes(query.toLowerCase())) ||
             (r.value && r.value.toLowerCase().includes(query.toLowerCase()))
           );
         }

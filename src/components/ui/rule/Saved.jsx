@@ -2,25 +2,9 @@ import { useState } from "react";
 import { useRules } from "../../../hooks/useRules";
 import SearchForm from "./Search";
 
-export function getElementsForRule(rule) {
-    if (!rule || !rule.selector) return [];
+export function Rule({ rule, onApply, onEdit, onDelete, index }) {
+    if (!rule) return null
 
-    if (rule.type === "name") {
-        return document?.querySelectorAll(`[name="${CSS.escape(rule.selector)}"]`);
-    }
-
-    if (rule.type === "id") {
-        return document?.querySelectorAll(`#${CSS.escape(rule.selector)}`);
-    }
-
-    if (rule.type === "class") {
-        return document?.querySelectorAll(`.${CSS.escape(rule.selector)}`);
-    }
-
-    return document?.querySelectorAll(rule.selector);
-}
-
-export function Rule({ rule, onApply, onEdit, onDelete }) {
     const [applying, setApplying] = useState(false);
 
     return (
@@ -29,19 +13,15 @@ export function Rule({ rule, onApply, onEdit, onDelete }) {
 
                 {/* Line 1: Type + Selector */}
                 <div className="flex items-center gap-2 text-sm mb-2">
-                    <span className="text-[10px] uppercase tracking-wide text-gray-400">
-                        {rule.type}
-                    </span>
-
-                    <span className="text-gray-800 font-medium truncate">
-                        {rule.selector}
+                    <span className="text-sm tracking-wide text-gray-400">
+                        <span className="uppercase">{rule?.tagName}</span> name="{rule?.name}"
                     </span>
                 </div>
 
                 {/* Line 2: Value + Actions */}
                 <div className="flex items-center gap-2">
                     <span className="flex-1 text-sm text-indigo-600 font-medium truncate bg-indigo-50 px-2 py-1 rounded-md">
-                        {rule.value}
+                        {rule?.value}
                     </span>
                 </div>
 
@@ -59,14 +39,7 @@ export function Rule({ rule, onApply, onEdit, onDelete }) {
                     </button>
 
                     <button
-                        onClick={() => onEdit(rule)}
-                        className="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    >
-                        Edit
-                    </button>
-
-                    <button
-                        onClick={() => onDelete(rule.id)}
+                        onClick={() => onDelete(rule?.id)}
                         className="text-xs px-2 py-1 rounded-md bg-red-50 text-red-600 hover:bg-red-100"
                     >
                         Delete
@@ -77,18 +50,41 @@ export function Rule({ rule, onApply, onEdit, onDelete }) {
     );
 }
 
-export default function SavedRules() {
+function Accordion({ children, applyRules = (id) => { }, group }) {
+    const [applying, setApplying] = useState(false);
+
+    return (
+        <details className="border-l border-gray-200 mx-3">
+            <summary className="font-semibold text-gray-800 text-sm py-2 hover:bg-gray-100 px-3">
+                <span className="truncate">{group?.name}</span>
+                <button type="button" className="sm ml-1" onClick={async () => {
+                    setApplying(true);
+                    await applyRules();
+                    setApplying(false);
+                }}>Apply</button>
+            </summary>
+            <div className="space-y-2 ml-2">
+                {children}
+            </div>
+        </details>
+    );
+}
+
+export default function SavedRules({ groups = [] }) {
     const { rules, deleteRule, setEditingRule } = useRules();
     const [applyingAll, setApplyingAll] = useState(false);
 
     function applyRuleInPage(rule) {
-        const elements = getElementsForRule(rule);
-        if (!elements || elements.length === 0) return;
+        const element = Number(rule?.nth)
+            ? document.querySelectorAll(rule?.selector)[rule?.nth]
+            : document.querySelector(rule?.selector);
+
+        if (!element) return;
 
         const setNativeValue = (el, value) => {
             const tag = el.tagName;
 
-            if (tag === "INPUT") {
+            if (tag === "input") {
                 const inputType = el.type?.toLowerCase();
 
                 if (inputType === "checkbox" || inputType === "radio") {
@@ -114,7 +110,7 @@ export default function SavedRules() {
                 return;
             }
 
-            if (tag === "TEXTAREA") {
+            if (tag === "textarea") {
                 const setter = Object.getOwnPropertyDescriptor(
                     window.HTMLTextAreaElement.prototype,
                     "value"
@@ -128,7 +124,7 @@ export default function SavedRules() {
                 return;
             }
 
-            if (tag === "SELECT") {
+            if (tag === "select") {
                 const setter = Object.getOwnPropertyDescriptor(
                     window.HTMLSelectElement.prototype,
                     "value"
@@ -142,15 +138,16 @@ export default function SavedRules() {
             }
         };
 
-        elements.forEach((el) => {
-            setNativeValue(el, rule.value);
-            el.dispatchEvent(new Event("input", { bubbles: true }));
-            el.dispatchEvent(new Event("change", { bubbles: true }));
-        });
+        if (element) {
+            setNativeValue(element, rule?.value);
+            element.dispatchEvent(new Event("input", { bubbles: true }));
+            element.dispatchEvent(new Event("change", { bubbles: true }));
+        }
     }
 
     function sendRuleToTab(tabId, rule) {
         return new Promise((resolve) => {
+            console.log("Applying rule in tab:", { tabId, rule });
             chrome.tabs.sendMessage(tabId, { action: "applyRule", rule })
                 .then(() => {
                     resolve(true);
@@ -194,8 +191,7 @@ export default function SavedRules() {
         return sendRuleToTab(tab.id, rule);
     }
 
-    async function onApplyAll(rules) {
-        setApplyingAll(true);
+    async function onApplyRules(rules) {
         await Promise.all(rules.map((rule) => applyRule(rule))).then((promises) => {
             console.log(promises);
         }).catch((error) => { console.error(error) }).finally(() => {
@@ -203,32 +199,66 @@ export default function SavedRules() {
         })
     }
 
+    let grouped = {}
+    let common = []
+    for (const rule of rules) {
+        if (rule?.groupId) {
+            if (!grouped[rule.groupId]) {
+                grouped[rule.groupId] = []
+            }
+            grouped[rule.groupId].push(rule)
+        } else {
+            common.push(rule)
+        }
+    }
+
     return (
-        <div className="space-y-2 px-3 py-2">
-            <div className="flex items-center justify-between gap-4">
-                <h2 className="text-sm font-semibold text-gray-700 shrink-0">
-                    Saved Rules
-                </h2>
-                <div className="grow">
-                    <SearchForm />
-                </div>
+        <>
+            <div className="flex items-center justify-between gap-4 px-3 py-2">
+                <SearchForm />
                 <button
-                    onClick={() => onApplyAll(rules)}
-                    className="text-xs px-2 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 shrink-0"
+                    onClick={async () => {
+                        setApplyingAll(true);
+                        await onApplyRules(rules)
+                        setApplyingAll(false);
+                    }}
+                    className="sm"
                 >
                     Apply All {applyingAll && "..."}
                 </button>
             </div>
 
             {rules.length === 0 && (
-                <div className="text-xs text-gray-400 text-center py-4">
+                <div className="text-xs text-gray-400 text-center py-4 mt-2">
                     No rules yet
                 </div>
             )}
 
-            {rules.map((rule) => (
+            {Object.entries(grouped)?.map(([groupId, rules], index) => {
+                const group = groups?.find((g) => g?.id == groupId);
+                return (
+                    <Accordion key={index} applyRules={() => { onApplyRules(rules) }} group={group}>
+                        {rules?.map((rule, index) => (
+                            <Rule
+                                key={rule.id + "_" + index}
+                                rule={rule}
+                                onDelete={deleteRule}
+                                onEdit={function () {
+                                    setEditingRule(rule);
+                                    window.scrollTo({ top: 0, behavior: "smooth" });
+                                }}
+                                onApply={applyRule}
+                                applying={applyingAll}
+                                index={index}
+                            />
+                        ))}
+                    </Accordion>
+                )
+            })}
+
+            {common?.map((rule, index) => (
                 <Rule
-                    key={rule.id}
+                    key={rule.id + "_" + index}
                     rule={rule}
                     onDelete={deleteRule}
                     onEdit={function () {
@@ -237,8 +267,9 @@ export default function SavedRules() {
                     }}
                     onApply={applyRule}
                     applying={applyingAll}
+                    index={index}
                 />
             ))}
-        </div>
+        </>
     );
 }

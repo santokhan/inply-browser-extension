@@ -1,21 +1,3 @@
-function getElementsForRule(rule) {
-  if (!rule || !rule.selector) return [];
-
-  if (rule.type === "name") {
-    return document.querySelectorAll(`[name="${CSS.escape(rule.selector)}"]`);
-  }
-
-  if (rule.type === "id") {
-    return document.querySelectorAll(`#${CSS.escape(rule.selector)}`);
-  }
-
-  if (rule.type === "class") {
-    return document.querySelectorAll(`.${CSS.escape(rule.selector)}`);
-  }
-
-  return document.querySelectorAll(rule.selector);
-}
-
 function setNativeValue(el, value) {
   const tag = el.tagName;
 
@@ -74,18 +56,18 @@ function setNativeValue(el, value) {
 }
 
 function applyRule(rule) {
-  const elements = getElementsForRule(rule);
+  const element = Number(rule?.nth)
+    ? document.querySelectorAll(rule?.selector)[rule?.nth]
+    : document.querySelector(rule?.selector);
 
-  if (!elements?.length) {
+  if (!element) {
     console.warn("Element not found for rule:", rule);
     return;
   }
 
-  elements?.forEach((el) => {
-    setNativeValue(el, rule.value);
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  setNativeValue(element, rule.value);
+  element.dispatchEvent(new Event("input", { bubbles: true }));
+  element.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 function applyRules(rules) {

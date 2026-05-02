@@ -12,7 +12,7 @@ export default function SearchForm() {
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 grow">
       <label htmlFor={id} className="sr-only">
         Search rules
       </label>

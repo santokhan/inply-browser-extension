@@ -27,3 +27,22 @@
     --color-primary-900: var(--color-primary-900);
     --color-primary-950: var(--color-primary-950);
 }
+
+select.default,
+textarea.default,
+input.default {
+    @apply w-full px-3 py-2 text-sm rounded-lg border border-gray-200;
+}
+
+button.default {
+    @apply px-3 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg;
+}
+
+button.secondary {
+    @apply px-3 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 hover:bg-gray-100 rounded-lg;
+
+}
+
+button.sm {
+    @apply text-xs px-2 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 shrink-0;
+}
