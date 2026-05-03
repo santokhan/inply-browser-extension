@@ -1,14 +1,18 @@
 /**
  * Parse row attribute value like: row2537537_1_3
+ * This will only work for platform like EGP
  * @param {string} name
- * @returns {{ formId: number, fieldId: number } | null}
+ * @returns {{ formId: number, fieldId: number } | string}
  */
-function parseRowName(name = "") {
-  if (typeof name !== "string") return null;
+export function parseAttributeValue(name = "") {
+  if (typeof name !== "string") {
+    console.warn("Invalid attribute value:", name);
+    return "";
+  };
 
   const match = name.match(/^row\d+_(\d+)_(\d+)$/);
 
-  if (!match) return null;
+  if (!match) return name;
 
   return {
     formId: Number(match[1]),
@@ -20,11 +24,14 @@ function parseRowName(name = "") {
  * Build selector for name/id attributes
  * @param {string} attrKey
  * @param {string} attrValue
- * @returns {string | null}
+ * @returns {string}
  */
-function buildRowSelector(attrKey, attrValue) {
-  const parsed = parseRowName(attrValue);
-  if (!parsed) return null;
+function buildAttributeSelector(attrKey, attrValue) {
+  const parsed = parseAttributeValue(attrValue);
+
+  if (!parsed || typeof parsed !== "object") {
+    return `[${attrKey}="${CSS.escape(attrValue)}"]`;
+  }
 
   const { formId, fieldId } = parsed;
 
@@ -45,12 +52,16 @@ function buildRowSelector(attrKey, attrValue) {
  */
 export function buildQuerySelector(element = {}) {
   if (!element) return "";
-  
-  const { tagName, id, name, className, type } = element;
 
-  const tag = tagName?.toLowerCase();
+  const {
+    tagName,
+    // id,
+    name,
+    className,
+    type
+  } = element;
 
-  let selector = tagName;
+  let selector = tagName.toLowerCase();
 
   // 2. className (can be multiple classes)
   if (className) {
@@ -65,7 +76,7 @@ export function buildQuerySelector(element = {}) {
 
   // 3. name-based matching (important for form grouping)
   if (name) {
-    selector += buildRowSelector('name', name);
+    selector += buildAttributeSelector('name', name);
   }
 
   // 4. always avoid hidden inputs

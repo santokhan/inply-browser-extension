@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRules } from "../../../hooks/useRules";
-import { parseFormElements } from "../../../utils/parser";
+import { parseFormElement } from "../../../utils/parser";
 import { buildQuerySelector } from "../../../utils/querySelector";
 
 export default function RuleElementForm({ onOpen = () => { }, groups = [] }) {
@@ -101,9 +101,11 @@ export default function RuleElementForm({ onOpen = () => { }, groups = [] }) {
                         setElement(val);
 
                         if (val.trim()) {
-                            const [firstNode] = parseFormElements(val);
-                            firstNode.selector = buildQuerySelector(firstNode);
-                            setParsed(firstNode);
+                            const node = parseFormElement(val);
+                            if (node) {
+                                node.selector = buildQuerySelector(node);
+                                setParsed(node);
+                            }
                         }
                     }}
                     placeholder="Paste input / textarea / select element HTML"
