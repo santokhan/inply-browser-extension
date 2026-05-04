@@ -55,10 +55,13 @@ function setNativeValue(el, value) {
   }
 }
 
+function displayNoneFilter(el) {
+  return window.getComputedStyle(el).display !== "none"
+}
+
 function applyRule(rule) {
-  const element = Number(rule?.nth)
-    ? document.querySelectorAll(rule?.selector)[rule?.nth]
-    : document.querySelector(rule?.selector);
+  const elements = [...document.querySelectorAll(rule?.selector)].filter(displayNoneFilter);
+  const element = elements[rule?.nth || 0];
 
   if (!element) {
     console.warn("Element not found for rule:", rule);
@@ -75,7 +78,7 @@ function applyRules(rules) {
 }
 
 function startInspect(rule) {
-  const elements = document.querySelectorAll(rule?.selector);
+  const elements = [...document.querySelectorAll(rule?.selector)].filter(displayNoneFilter);
   const element = elements[rule?.nth || 0];
 
   if (element) {
@@ -85,7 +88,7 @@ function startInspect(rule) {
 }
 
 function stopInspect(rule) {
-  const elements = document.querySelectorAll(rule?.selector);
+  const elements = [...document.querySelectorAll(rule?.selector)].filter(displayNoneFilter);
   const element = elements[rule?.nth || 0];
 
   if (element) {

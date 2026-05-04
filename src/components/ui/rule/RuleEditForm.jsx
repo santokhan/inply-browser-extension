@@ -17,6 +17,7 @@ export default function RuleEditForm({ ruleValue, onSubmit }) {
         onChange={(e) => setValue(e.target.value)}
         placeholder="Enter value..."
         className="sm"
+        required
       />
 
       <button className="sm">

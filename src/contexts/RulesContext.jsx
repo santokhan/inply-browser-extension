@@ -60,6 +60,10 @@ export function RulesProvider({ children }) {
 
   // Delete rule
   const deleteRule = useCallback(async (id) => {
+    if (!id) {
+      console.error("No id provided");
+      return
+    }
     const result = await chrome.storage.local.get("rules");
     const updated = (result.rules || []).filter((r) => r.id !== id);
 

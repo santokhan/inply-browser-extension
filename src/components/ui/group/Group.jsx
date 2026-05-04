@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { useGroups } from "../../../hooks/useGroups";
 
-export default function RuleGroupForm({ onClose = () => { }, loadGroups = () => { } }) {
+export default function RuleGroupForm({ onClose = () => { }}) {
     const [name, setName] = useState("");
+    const { loadGroups } = useGroups();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -29,6 +31,8 @@ export default function RuleGroupForm({ onClose = () => { }, loadGroups = () => 
                 onChange={(e) => setName(e.target.value)}
                 placeholder="New Group Name (Ex: EGP Tenderer Info)"
                 className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200"
+                autoFocus
+                required
             />
 
             <div className="flex items-center gap-2 mt-1">

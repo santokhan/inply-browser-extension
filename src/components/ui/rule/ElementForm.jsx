@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { useRules } from "../../../hooks/useRules";
 import { parseFormElement } from "../../../utils/parser";
 import { buildQuerySelector } from "../../../utils/querySelector";
+import { useGroups } from "../../../hooks/useGroups";
 
-export default function RuleElementForm({ onOpen = () => { }, groups = [] }) {
-    const { loadRules, editingRule, setEditingRule } = useRules();
+export default function RuleElementForm({ onOpen = () => { } }) {
+    const { loadRules, editingRule } = useRules();
+    const { groups } = useGroups()
 
     const [groupId, setGroupId] = useState("");
     const [element, setElement] = useState("");
@@ -24,7 +26,6 @@ export default function RuleElementForm({ onOpen = () => { }, groups = [] }) {
         setElement("");
         setParsed(null);
         setValue("");
-        setEditingRule(null);
     };
 
     const handleSubmit = async (e) => {
@@ -40,37 +41,19 @@ export default function RuleElementForm({ onOpen = () => { }, groups = [] }) {
             r.selector === parsed.selector && r.groupId === groupId // Should be in the same group
         )
 
-        if (editingRule) {
-            updatedRules = updatedRules.map((r) =>
-                r.id === editingRule.id ? {
-                    ...r, tagName: parsed.tagName,
-                    type: parsed.type,
-                    id: parsed.id,
-                    name: parsed.name,
-                    className: parsed.className,
-                    onblur: parsed.onblur,
-                    selector: parsed.selector,
-                    domain: location.hostName,
-                    value,
-                    groupId: groupId
-                } : r
-            );
-        } else {
-            updatedRules.push({
-                id: Date.now(),
-                tagName: parsed.tagName,
-                type: parsed.type,
-                id: parsed.id,
-                name: parsed.name,
-                className: parsed.className,
-                onblur: parsed.onblur,
-                selector: parsed.selector,
-                nth: duplicates.length,
-                domain: location.hostName,
-                value,
-                groupId: groupId
-            });
-        }
+        updatedRules.push({
+            id: Date.now(), // generate unique ID
+            tagName: parsed.tagName,
+            type: parsed.type,
+            name: parsed.name,
+            className: parsed.className,
+            onblur: parsed.onblur,
+            selector: parsed.selector,
+            nth: duplicates.length,
+            domain: location.hostName,
+            value,
+            groupId: groupId
+        });
 
         await chrome.storage.local.set({ rules: updatedRules });
 
@@ -102,6 +85,7 @@ export default function RuleElementForm({ onOpen = () => { }, groups = [] }) {
                     placeholder="Paste input / textarea / select element HTML"
                     className="default"
                     rows={3}
+                    autoFocus
                     required
                 />
 
@@ -136,23 +120,9 @@ export default function RuleElementForm({ onOpen = () => { }, groups = [] }) {
                     />
                 )}
 
-                {/* Submit */}
-                {parsed && (
-                    <button className="w-full py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
-                        {editingRule ? "Save Changes" : "+ Add Rule"}
-                    </button>
-                )}
-
-                {/* Cancel */}
-                {editingRule && (
-                    <button
-                        type="button"
-                        onClick={resetForm}
-                        className="secondary w-full"
-                    >
-                        Cancel Edit
-                    </button>
-                )}
+                <button className="w-full py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
+                    Add Rule
+                </button>
             </form>
         </div>
     );

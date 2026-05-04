@@ -3,6 +3,8 @@ import { useRules } from "../../../hooks/useRules";
 import SearchForm from "./Search";
 import { getActiveTabSafe } from "../../../utils/chrome";
 import RuleEditForm from "./RuleEditForm";
+import { useGroups } from "../../../hooks/useGroups";
+import { displayNoneFilter } from "../../../utils/querySelector";
 
 export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { }, onDelete = () => { }, index }) {
     const [editing, setEditing] = useState(false);
@@ -46,7 +48,7 @@ export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { 
                 {/* Line 1: Type + Selector */}
                 <div className="flex items-center gap-2 text-sm mb-2">
                     <span className="text-sm tracking-wide text-gray-400">
-                        <span className="uppercase">{rule?.tagName}</span> name="{rule?.name||rule?.id}"
+                        <span className="uppercase">{rule?.tagName}</span> name="{rule?.name || rule?.id}"
                     </span>
                 </div>
 
@@ -119,14 +121,14 @@ function Accordion({ children, applyRules = (id) => { }, group }) {
     );
 }
 
-export default function SavedRules({ groups = [] }) {
+export default function SavedRules() {
+    const { groups } = useGroups()
     const { rules, deleteRule, setEditingRule, editRule } = useRules();
     const [applyingAll, setApplyingAll] = useState(false);
 
     function applyRuleInPage(rule) {
-        const element = Number(rule?.nth)
-            ? document.querySelectorAll(rule?.selector)[rule?.nth]
-            : document.querySelector(rule?.selector);
+        const elements = [...document.querySelectorAll(rule?.selector)].filter(displayNoneFilter);
+        const element = elements[rule?.nth || 0];
 
         if (!element) return;
 

@@ -7,6 +7,7 @@ import SavedRules from "./Saved";
 import { twMerge } from "tailwind-merge";
 import SavedGroups from "../group/Saved";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../shared/Tab";
+import { useGroups } from "../../../hooks/useGroups";
 
 function TabButton({ children, active, onClick }) {
   return (
@@ -22,21 +23,11 @@ function TabButton({ children, active, onClick }) {
 }
 
 export default function AutoFillRules() {
-  const [createGroup, setCreateGroup] = useState(false);
-  const [groups, setGroups] = useState([]);
   const [show, setShow] = useState('rules');
   const [whichForm, setWhichForm] = useState('rule');
 
-  async function loadGroups() {
-    const result = await chrome.storage.local.get("groups")
-    if (result.groups) {
-      setGroups(result.groups || [])
-    }
-  }
-  useEffect(() => { loadGroups() }, []);
-
   return (
-    <RulesProvider>
+    <>
       <div className="text-center py-3">
         <h1 className="text-lg font-semibold text-gray-800">
           Auto Fill Rules
@@ -53,11 +44,11 @@ export default function AutoFillRules() {
         </TabsList>
 
         <TabsContent value="group">
-          <RuleGroupForm onClose={() => setWhichForm('rule')} loadGroups={loadGroups} />
+          <RuleGroupForm onClose={() => setWhichForm('rule')} />
         </TabsContent>
 
         <TabsContent value="rule">
-          <RuleElementForm onOpen={() => setWhichForm('group')} groups={groups} />
+          <RuleElementForm onOpen={() => setWhichForm('group')} />
         </TabsContent>
       </Tabs>
 
@@ -70,13 +61,13 @@ export default function AutoFillRules() {
         </TabsList>
 
         <TabsContent value="groups">
-          <SavedGroups groups={groups} />
+          <SavedGroups />
         </TabsContent>
 
         <TabsContent value="rules">
-          <SavedRules groups={groups} />
+          <SavedRules />
         </TabsContent>
       </Tabs>
-    </RulesProvider>
+    </>
   )
 }

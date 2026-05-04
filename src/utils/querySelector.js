@@ -89,3 +89,7 @@ export function buildQuerySelector(element = {}) {
 
   return selector;
 }
+
+export function displayNoneFilter(el) {
+  return window.getComputedStyle(el).display !== "none"
+}
