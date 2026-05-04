@@ -59,7 +59,10 @@ export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { 
                             onSubmit={async (newValue) => {
                                 await onEdit(rule?.id, newValue);
                                 setEditing(false);
-                            }} />
+                            }}
+                            onCancel={() => setEditing(false)}
+                        />
+
                         :
                         <div className="flex items-center gap-2">
                             <span className="flex-1 text-sm text-indigo-600 font-medium truncate bg-indigo-50 px-2 py-1 rounded-md">
