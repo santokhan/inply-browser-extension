@@ -8,7 +8,8 @@ export const RulesContext = createContext({
   editingRule: null,
   setEditingRule: () => { },
   query: "",
-  setQuery: () => { }
+  setQuery: () => { },
+  editRule: (id, value) => { }
 })
 
 export function RulesProvider({ children }) {
@@ -66,6 +67,17 @@ export function RulesProvider({ children }) {
     setRules(updated);
   }, []);
 
+  // Edit rule
+  const editRule = useCallback(async (index, newValue) => {
+    const updated = [...rules].map((rule, i) => {
+      if (i === index) rule.value = newValue;
+      return rule;
+    });
+
+    await chrome.storage.local.set({ rules: updated });
+    setRules(updated);
+  }, []);
+
   return (
     <RulesContext.Provider value={{
       rules,
@@ -75,7 +87,8 @@ export function RulesProvider({ children }) {
       editingRule,
       setEditingRule,
       query,
-      setQuery
+      setQuery,
+      editRule
     }}>
       {children}
     </RulesContext.Provider>

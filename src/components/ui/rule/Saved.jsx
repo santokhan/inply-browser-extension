@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useRules } from "../../../hooks/useRules";
 import SearchForm from "./Search";
 import { getActiveTabSafe } from "../../../utils/chrome";
+import RuleEditForm from "./RuleEditForm";
 
-export function Rule({ rule, onApply = () => { }, onEdit = () => { }, onDelete = () => { }, index }) {
+export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { }, onDelete = () => { }, index }) {
+    const [editing, setEditing] = useState(false);
+
     async function onMouseEnter(e) {
-        e.target.style.outline = "2px solid blue";
         const tab = await getActiveTabSafe();
         if (tab?.id) {
             try {
@@ -19,7 +21,6 @@ export function Rule({ rule, onApply = () => { }, onEdit = () => { }, onDelete =
     }
 
     async function onMouseLeave(e) {
-        e.target.style.outline = "none";
         const tab = await getActiveTabSafe();
         if (tab?.id) {
             try {
@@ -39,24 +40,32 @@ export function Rule({ rule, onApply = () => { }, onEdit = () => { }, onDelete =
     return (
         <div
             className="relative p-px rounded-xl linear-to-r from-indigo-200 via-purple-200 to-indigo-100"
-            onMouseEnter={onMouseEnter}
-            onMouseLeave={onMouseLeave}
         >
             <div className="bg-white rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-200">
 
                 {/* Line 1: Type + Selector */}
                 <div className="flex items-center gap-2 text-sm mb-2">
                     <span className="text-sm tracking-wide text-gray-400">
-                        <span className="uppercase">{rule?.tagName}</span> name="{rule?.name}"
+                        <span className="uppercase">{rule?.tagName}</span> name="{rule?.name||rule?.id}"
                     </span>
                 </div>
 
-                {/* Line 2: Value + Actions */}
-                <div className="flex items-center gap-2">
-                    <span className="flex-1 text-sm text-indigo-600 font-medium truncate bg-indigo-50 px-2 py-1 rounded-md">
-                        {rule?.value}
-                    </span>
-                </div>
+                {
+                    editing ?
+                        <RuleEditForm
+                            ruleValue={rule?.value}
+                            onSubmit={async (value) => {
+                                console.log(rule, value)
+                                await onEdit(index, value);
+                                setEditing(false);
+                            }} />
+                        :
+                        <div className="flex items-center gap-2">
+                            <span className="flex-1 text-sm text-indigo-600 font-medium truncate bg-indigo-50 px-2 py-1 rounded-md">
+                                {rule?.value}
+                            </span>
+                        </div>
+                }
 
                 {/* Line 2: Value + Actions */}
                 <div className="flex items-center justify-end gap-2 mt-3">
@@ -67,10 +76,17 @@ export function Rule({ rule, onApply = () => { }, onEdit = () => { }, onDelete =
                             setApplying(false);
                         }}
                         className="text-xs px-2 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                        onMouseEnter={onMouseEnter}
+                        onMouseLeave={onMouseLeave}
                     >
                         Apply{applying && "..."}
                     </button>
-
+                    <button
+                        onClick={() => setEditing(true)}
+                        className="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    >
+                        Edit
+                    </button>
                     <button
                         onClick={() => onDelete(rule?.id)}
                         className="text-xs px-2 py-1 rounded-md bg-red-50 text-red-600 hover:bg-red-100"
@@ -104,7 +120,7 @@ function Accordion({ children, applyRules = (id) => { }, group }) {
 }
 
 export default function SavedRules({ groups = [] }) {
-    const { rules, deleteRule, setEditingRule } = useRules();
+    const { rules, deleteRule, setEditingRule, editRule } = useRules();
     const [applyingAll, setApplyingAll] = useState(false);
 
     function applyRuleInPage(rule) {
@@ -180,7 +196,6 @@ export default function SavedRules({ groups = [] }) {
 
     function sendRuleToTab(tabId, rule) {
         return new Promise((resolve) => {
-            console.log("Applying rule in tab:", { tabId, rule });
             chrome.tabs.sendMessage(tabId, { action: "applyRule", rule })
                 .then(() => {
                     resolve(true);
@@ -197,7 +212,7 @@ export default function SavedRules({ groups = [] }) {
 
                         resolve(true);
                     } catch (err) {
-                        console.warn("Failed to apply rule:", err?.message || err);
+                        console.error(err);
                         resolve(false);
                     }
                 });
@@ -205,23 +220,10 @@ export default function SavedRules({ groups = [] }) {
     }
 
     async function applyRule(rule) {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        const tab = tabs?.[0];
-
-        if (!tab?.id) {
-            console.warn("No active tab available to apply rule:", rule);
-            return false;
+        const tab = await getActiveTabSafe()
+        if (tab?.id) {
+            return sendRuleToTab(tab.id, rule);
         }
-
-        if (
-            typeof tab.url === "string" &&
-            /^(chrome|edge|brave|opera|moz)-extension:|^chrome:|^edge:|^about:|^view-source:/i.test(tab.url)
-        ) {
-            console.warn("Cannot apply rules on this page:", tab.url);
-            return false;
-        }
-
-        return sendRuleToTab(tab.id, rule);
     }
 
     async function onApplyRules(rules) {
@@ -249,7 +251,7 @@ export default function SavedRules({ groups = [] }) {
         <>
             <div className="flex items-center justify-between gap-4 px-3 py-2">
                 <SearchForm />
-                <button
+                {/* <button
                     onClick={async () => {
                         setApplyingAll(true);
                         await onApplyRules(rules)
@@ -258,7 +260,7 @@ export default function SavedRules({ groups = [] }) {
                     className="sm"
                 >
                     Apply All {applyingAll && "..."}
-                </button>
+                </button> */}
             </div>
 
             {rules.length === 0 && (
@@ -276,10 +278,7 @@ export default function SavedRules({ groups = [] }) {
                                 key={rule.id + "_" + index}
                                 rule={rule}
                                 onDelete={deleteRule}
-                                onEdit={function () {
-                                    setEditingRule(rule);
-                                    window.scrollTo({ top: 0, behavior: "smooth" });
-                                }}
+                                onEdit={editRule}
                                 onApply={applyRule}
                                 applying={applyingAll}
                                 index={index}
@@ -289,22 +288,23 @@ export default function SavedRules({ groups = [] }) {
                 )
             })}
 
-            <div className="px-3">
-                {common?.map((rule, index) => (
-                    <Rule
-                        key={rule.id + "_" + index}
-                        rule={rule}
-                        onDelete={deleteRule}
-                        onEdit={function () {
-                            setEditingRule(rule);
-                            window.scrollTo({ top: 0, behavior: "smooth" });
-                        }}
-                        onApply={applyRule}
-                        applying={applyingAll}
-                        index={index}
-                    />
-                ))}
-            </div>
+            {common?.length > 0 &&
+                <div className="px-3">
+                    <h5 className="text-sm font-medium text-gray-400 mb-1">Individual Rules</h5>
+                    {common?.map((rule, index) => (
+                        <Rule
+                            key={rule.id + "_" + index}
+                            rule={rule}
+                            onDelete={deleteRule}
+                            onEdit={editRule}
+                            onApply={applyRule}
+                            applying={applyingAll}
+                            index={index}
+                        />
+                    ))}
+                </div>
+            }
+            <div className="py-1.5"></div>
         </>
     );
 }

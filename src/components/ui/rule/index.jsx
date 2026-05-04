@@ -6,6 +6,7 @@ import RuleGroupForm from "../group/Group";
 import SavedRules from "./Saved";
 import { twMerge } from "tailwind-merge";
 import SavedGroups from "../group/Saved";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../shared/Tab";
 
 function TabButton({ children, active, onClick }) {
   return (
@@ -24,6 +25,7 @@ export default function AutoFillRules() {
   const [createGroup, setCreateGroup] = useState(false);
   const [groups, setGroups] = useState([]);
   const [show, setShow] = useState('rules');
+  const [whichForm, setWhichForm] = useState('rule');
 
   async function loadGroups() {
     const result = await chrome.storage.local.get("groups")
@@ -35,24 +37,46 @@ export default function AutoFillRules() {
 
   return (
     <RulesProvider>
-      {createGroup
-        ? <RuleGroupForm onClose={() => setCreateGroup(false)} loadGroups={loadGroups} />
-        : <RuleElementForm onOpen={() => setCreateGroup(true)} groups={groups} />
-      }
-
-      <div className="py-2">
-        <div className="flex items-center border-b border-gray-200 px-2">
-          <TabButton onClick={() => setShow('rules')} active={show === 'rules'}>
-            Saved Rules
-          </TabButton>
-          <TabButton onClick={() => setShow('groups')} active={show === 'groups'}>
-            Saved Groups
-          </TabButton>
-        </div>
-
-        {show === 'rules' && <SavedRules groups={groups} />}
-        {show === 'groups' && <SavedGroups groups={groups} />}
+      <div className="text-center py-3">
+        <h1 className="text-lg font-semibold text-gray-800">
+          Auto Fill Rules
+        </h1>
+        <p className="text-xs text-gray-500">
+          Create and manage automation rules
+        </p>
       </div>
+
+      <Tabs value={whichForm} onValueChange={setWhichForm}>
+        <TabsList className="px-3">
+          <TabsTrigger value="group">Create Group</TabsTrigger>
+          <TabsTrigger value="rule">Create Rule</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="group">
+          <RuleGroupForm onClose={() => setWhichForm('rule')} loadGroups={loadGroups} />
+        </TabsContent>
+
+        <TabsContent value="rule">
+          <RuleElementForm onOpen={() => setWhichForm('group')} groups={groups} />
+        </TabsContent>
+      </Tabs>
+
+      <div className="py-2"></div>
+
+      <Tabs value={show} onValueChange={setShow}>
+        <TabsList className="px-3">
+          <TabsTrigger value="groups">Saved Groups</TabsTrigger>
+          <TabsTrigger value="rules">Saved Rules</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="groups">
+          <SavedGroups groups={groups} />
+        </TabsContent>
+
+        <TabsContent value="rules">
+          <SavedRules groups={groups} />
+        </TabsContent>
+      </Tabs>
     </RulesProvider>
   )
 }

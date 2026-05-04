@@ -80,15 +80,6 @@ export default function RuleElementForm({ onOpen = () => { }, groups = [] }) {
 
     return (
         <div className="px-3 py-2 space-y-4">
-            <div className="text-center">
-                <h1 className="text-lg font-semibold text-gray-800">
-                    Auto Fill Rules
-                </h1>
-                <p className="text-xs text-gray-500">
-                    Create and manage automation rules
-                </p>
-            </div>
-
             <form
                 onSubmit={handleSubmit}
                 className="bg-white p-3 rounded-xl shadow-sm space-y-2 border border-gray-100"

@@ -34,6 +34,12 @@ input.default {
     @apply w-full px-3 py-2 text-sm rounded-lg border border-gray-200;
 }
 
+select.sm,
+textarea.sm,
+input.sm {
+    @apply w-full px-3 py-1 text-sm rounded-lg border border-gray-200;
+}
+
 button.default {
     @apply px-3 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg;
 }
