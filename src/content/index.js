@@ -74,6 +74,26 @@ function applyRules(rules) {
   rules.forEach(applyRule);
 }
 
+function startInspect(rule) {
+  const elements = document.querySelectorAll(rule?.selector);
+  const element = elements[rule?.nth || 0];
+
+  if (element) {
+    element.style.setProperty("outline", "2px solid blue", "important");
+    element.style.setProperty("background-color", "rgba(0,0,255,0.1)", "important");
+  }
+}
+
+function stopInspect(rule) {
+  const elements = document.querySelectorAll(rule?.selector);
+  const element = elements[rule?.nth || 0];
+
+  if (element) {
+    element.style.removeProperty("outline");
+    element.style.removeProperty("background-color");
+  }
+}
+
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onMessage
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "applyRule") {
@@ -84,6 +104,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.get("rules", (res) => {
       applyRules(res.rules || []);
     });
+  }
+
+  if (message.action === "startInspect") {
+    startInspect(message.rule);
+  }
+
+  if (message.action === "stopInspect") {
+    stopInspect(message.rule);
   }
 
   sendResponse({ ok: true });

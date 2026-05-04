@@ -111,6 +111,7 @@ export default function RuleElementForm({ onOpen = () => { }, groups = [] }) {
                     placeholder="Paste input / textarea / select element HTML"
                     className="default"
                     rows={3}
+                    required
                 />
 
                 <div className="flex gap-2 items-center">
@@ -140,6 +141,7 @@ export default function RuleElementForm({ onOpen = () => { }, groups = [] }) {
                         placeholder="Value to autofill"
                         className="default"
                         rows={2}
+                        required
                     />
                 )}
 

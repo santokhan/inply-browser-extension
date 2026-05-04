@@ -1,14 +1,47 @@
 import { useState } from "react";
 import { useRules } from "../../../hooks/useRules";
 import SearchForm from "./Search";
+import { getActiveTabSafe } from "../../../utils/chrome";
 
-export function Rule({ rule, onApply, onEdit, onDelete, index }) {
+export function Rule({ rule, onApply = () => { }, onEdit = () => { }, onDelete = () => { }, index }) {
+    async function onMouseEnter(e) {
+        e.target.style.outline = "2px solid blue";
+        const tab = await getActiveTabSafe();
+        if (tab?.id) {
+            try {
+                await chrome.tabs.sendMessage(tab.id, { action: "startInspect", rule });
+                return true;
+            } catch (error) {
+                console.warn(error);
+                return false;
+            }
+        }
+    }
+
+    async function onMouseLeave(e) {
+        e.target.style.outline = "none";
+        const tab = await getActiveTabSafe();
+        if (tab?.id) {
+            try {
+                await chrome.tabs.sendMessage(tab.id, { action: "stopInspect", rule });
+                return true;
+            } catch (error) {
+                console.warn(error);
+                return false;
+            }
+        }
+    }
+
     if (!rule) return null
 
     const [applying, setApplying] = useState(false);
 
     return (
-        <div className="relative p-px rounded-xl linear-to-r from-indigo-200 via-purple-200 to-indigo-100">
+        <div
+            className="relative p-px rounded-xl linear-to-r from-indigo-200 via-purple-200 to-indigo-100"
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
+        >
             <div className="bg-white rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-200">
 
                 {/* Line 1: Type + Selector */}
@@ -256,20 +289,22 @@ export default function SavedRules({ groups = [] }) {
                 )
             })}
 
-            {common?.map((rule, index) => (
-                <Rule
-                    key={rule.id + "_" + index}
-                    rule={rule}
-                    onDelete={deleteRule}
-                    onEdit={function () {
-                        setEditingRule(rule);
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
-                    onApply={applyRule}
-                    applying={applyingAll}
-                    index={index}
-                />
-            ))}
+            <div className="px-3">
+                {common?.map((rule, index) => (
+                    <Rule
+                        key={rule.id + "_" + index}
+                        rule={rule}
+                        onDelete={deleteRule}
+                        onEdit={function () {
+                            setEditingRule(rule);
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                        onApply={applyRule}
+                        applying={applyingAll}
+                        index={index}
+                    />
+                ))}
+            </div>
         </>
     );
 }
