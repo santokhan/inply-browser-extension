@@ -72,9 +72,9 @@ export function RulesProvider({ children }) {
   }, []);
 
   // Edit rule
-  const editRule = useCallback(async (index, newValue) => {
+  const editRule = useCallback(async (id, newValue) => {
     const updated = [...rules].map((rule, i) => {
-      if (i === index) rule.value = newValue;
+      if (rule.id == id) rule.value = newValue;
       return rule;
     });
 

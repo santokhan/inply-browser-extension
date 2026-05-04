@@ -56,9 +56,8 @@ export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { 
                     editing ?
                         <RuleEditForm
                             ruleValue={rule?.value}
-                            onSubmit={async (value) => {
-                                console.log(rule, value)
-                                await onEdit(index, value);
+                            onSubmit={async (newValue) => {
+                                await onEdit(rule?.id, newValue);
                                 setEditing(false);
                             }} />
                         :
