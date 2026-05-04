@@ -15,6 +15,7 @@ export default function RuleGroupForm({ onClose = () => { }}) {
         updatedGroups.push({ id: Date.now(), name });
 
         await chrome.storage.local.set({ groups: updatedGroups });
+        
         setName("");
         onClose();
         loadGroups();

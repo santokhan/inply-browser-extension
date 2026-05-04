@@ -122,7 +122,7 @@ function Accordion({ children, applyRules = (id) => { }, group }) {
 
 export default function SavedRules() {
     const { groups } = useGroups()
-    const { rules, deleteRule, setEditingRule, editRule } = useRules();
+    const { rules, deleteRule, setEditingRule, loadRules } = useRules();
     const [applyingAll, setApplyingAll] = useState(false);
 
     function applyRuleInPage(rule) {
@@ -233,6 +233,24 @@ export default function SavedRules() {
         }).catch((error) => { console.error(error) }).finally(() => {
             setApplyingAll(false);
         })
+    }
+
+    async function editRule(id, newValue) {
+        if (!id) {
+            console.error("No id provided");
+            return
+        }
+        if (!newValue) {
+            console.error("No value provided");
+            return
+        }
+        const updated = rules.map((rule, i) => {
+            if (rule.id == id) rule.value = newValue;
+            return rule;
+        });
+
+        await chrome.storage.local.set({ rules: updated });
+        await loadRules();
     }
 
     let grouped = {}

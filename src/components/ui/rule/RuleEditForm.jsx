@@ -1,13 +1,19 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
-export default function RuleEditForm({ ruleValue, onSubmit }) {
-  const [value, setValue] = useState(ruleValue);
+export default function RuleEditForm({ ruleValue, onSubmit = (value) => { } }) {
+  const [value, setValue] = useState("");
+
+  useEffect(() => { setValue(ruleValue || ""); }, [ruleValue]);
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit(value);
+        if (value) {
+          onSubmit(value);
+        } else {
+          console.error("no value");
+        }
       }}
       className="flex items-center gap-2"
     >

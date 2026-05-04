@@ -9,7 +9,6 @@ export const RulesContext = createContext({
   setEditingRule: () => { },
   query: "",
   setQuery: () => { },
-  editRule: (id, value) => { }
 })
 
 export function RulesProvider({ children }) {
@@ -21,15 +20,15 @@ export function RulesProvider({ children }) {
   const loadRules = async (query) => {
     try {
       const groupResults = await chrome.storage.local.get("groups");
+      // Create a map for quick lookup
+      const groups = groupResults.groups || [];
+      const groupMap = new Map(groups?.map(g => [g.id, g]));
+
       const result = await chrome.storage.local.get("rules");
       if (!result?.rules) {
         console.log("No rules found");
         return
       }
-
-      // Create a map for quick lookup
-      const groups = groupResults.groups || [];
-      const groupMap = new Map(groups?.map(g => [g.id, g]));
 
       for (const rule of rules) {
         if (rule.group?.id && groupMap.has(rule.group.id)) {
@@ -71,17 +70,6 @@ export function RulesProvider({ children }) {
     setRules(updated);
   }, []);
 
-  // Edit rule
-  const editRule = useCallback(async (id, newValue) => {
-    const updated = [...rules].map((rule, i) => {
-      if (rule.id == id) rule.value = newValue;
-      return rule;
-    });
-
-    await chrome.storage.local.set({ rules: updated });
-    setRules(updated);
-  }, []);
-
   return (
     <RulesContext.Provider value={{
       rules,
@@ -92,7 +80,6 @@ export function RulesProvider({ children }) {
       setEditingRule,
       query,
       setQuery,
-      editRule
     }}>
       {children}
     </RulesContext.Provider>
