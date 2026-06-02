@@ -7,9 +7,7 @@ import {
   getAuth,
 } from "firebase/auth";
 
-import { app } from "./config";
-
-const auth = getAuth(app);
+import { app, auth } from "./config";
 
 export async function sign_up_with_email(email, password) {
   if (!email || !password) throw new Error("Email and password are required");

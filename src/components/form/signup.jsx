@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { sign_up_with_email } from "../../firebase/methods";
+import { useAuth } from "../../hooks/useAuth";
 
 export default function FormSignup({ switchTo = () => { } }) {
   const [email, setEmail] = useState(import.meta.env.VITE_EMAIL || "");
@@ -7,6 +8,7 @@ export default function FormSignup({ switchTo = () => { } }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const { setToken, setUser } = useAuth();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -17,6 +19,12 @@ export default function FormSignup({ switchTo = () => { } }) {
       setSuccess("");
 
       const credential = await sign_up_with_email(email, password);
+
+      localStorage.setItem("refreshToken", credential.user.refreshToken);
+
+      const accessToken = await credential.user.getIdToken();
+      setToken(accessToken);
+      setUser(credential.user);
 
       setSuccess("Account created successfully");
       setEmail("");

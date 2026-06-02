@@ -1,6 +1,10 @@
 import { createContext, useCallback, useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+
 import { normalizeJwtToken, verifyJwt } from "../utils/token";
 import { get_current_user, get_token } from "../firebase/methods";
+import { auth } from "../firebase/config";
+import Loading from "../components/loading";
 
 export const AuthContext = createContext(null);
 
@@ -15,22 +19,19 @@ export function AuthProvider({ children }) {
 
   // Load auth from storage
   const loadAuth = useCallback(async () => {
-    try {
-      const token = await get_token();
-      const user = await get_current_user();
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const token = await user.getIdToken();
 
-      if (token) {
         setToken(token);
         setUser(user.toJSON());
       } else {
         setToken(null);
         setUser(null);
       }
-    } catch (err) {
-      console.error("Auth load error:", err);
-    } finally {
+
       setLoading(false);
-    }
+    });
   }, []);
 
   useEffect(() => {
@@ -68,16 +69,12 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
-  // Check if logged in
-  const isAuthenticated = !!token;
-
   return (
     <AuthContext.Provider
       value={{
         user,
         token,
         loading,
-        isAuthenticated,
         login,
         logout,
         loadAuth,
@@ -85,7 +82,7 @@ export function AuthProvider({ children }) {
         setUser,
       }}
     >
-      {children}
+      {loading ? <Loading /> : children}
     </AuthContext.Provider>
   );
 }

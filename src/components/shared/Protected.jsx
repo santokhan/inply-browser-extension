@@ -1,7 +1,7 @@
 import { useAuth } from "../../hooks/useAuth";
 
 export function Protected({ children = null, fallback = null }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { user, loading } = useAuth();
 
   // Optional: loading state while reading chrome.storage
   if (loading) {
@@ -9,7 +9,7 @@ export function Protected({ children = null, fallback = null }) {
   }
 
   // Not logged in → block access
-  if (!isAuthenticated) {
+  if (!user) {
     return fallback;
   }
 

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useAuth } from "../../../hooks/useAuth";
 
 const Header = () => {
-    const { isAuthenticated, user, logout } = useAuth();
+    const { user, logout } = useAuth();
     const [loggingOut, setLoggingOut] = useState(false);
 
     const handleLogout = async () => {
@@ -41,7 +41,7 @@ const Header = () => {
                             Santo
                         </a>
                     </p>
-                    {isAuthenticated && (
+                    {user && (
                         <button
                             type="button"
                             onClick={handleLogout}

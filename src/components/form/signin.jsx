@@ -3,12 +3,13 @@ import { sign_in_with_email } from "../../firebase/methods";
 import { useAuth } from "../../hooks/useAuth";
 
 export default function FormSignin({ switchTo = () => { } }) {
-  const { setToken, setUser } = useAuth();
   const [email, setEmail] = useState(import.meta.env.VITE_EMAIL || "");
   const [password, setPassword] = useState(import.meta.env.VITE_PASSWORD || "");
-
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const { setToken, setUser } = useAuth();
 
   async function handleSubmit(e) {
     e.preventDefault();
