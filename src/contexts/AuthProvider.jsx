@@ -1,11 +1,12 @@
 import { createContext, useCallback, useEffect, useState } from "react";
 import { normalizeJwtToken, verifyJwt } from "../utils/token";
+import { get_current_user, get_token } from "../firebase/methods";
 
 export const AuthContext = createContext(null);
 
 const TOKEN_KEY = "auth_token";
 const USER_KEY = "auth_user";
-const TOKEN_SECRET = "santokhanhasdevelopedthisbrowserextension";
+export const TOKEN_SECRET = "santokhanhasdevelopedthisbrowserextension";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -15,21 +16,16 @@ export function AuthProvider({ children }) {
   // Load auth from storage
   const loadAuth = useCallback(async () => {
     try {
-      const result = await chrome.storage.local.get([TOKEN_KEY, USER_KEY]);
-      const storedToken = normalizeJwtToken(result[TOKEN_KEY] || null) || null;
-      const storedUser = result[USER_KEY] || null;
+      const token = await get_token();
+      const user = await get_current_user();
 
-      const tokenCheck = storedToken ? await verifyJwt(storedToken, TOKEN_SECRET) : { ok: false };
-
-      if (storedToken && !tokenCheck.ok) {
-        await chrome.storage.local.remove([TOKEN_KEY, USER_KEY]);
+      if (token) {
+        setToken(token);
+        setUser(user.toJSON());
+      } else {
         setToken(null);
         setUser(null);
-        return;
       }
-
-      setToken(storedToken);
-      setUser(storedUser);
     } catch (err) {
       console.error("Auth load error:", err);
     } finally {
@@ -85,6 +81,8 @@ export function AuthProvider({ children }) {
         login,
         logout,
         loadAuth,
+        setToken,
+        setUser,
       }}
     >
       {children}
