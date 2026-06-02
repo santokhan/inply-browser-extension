@@ -76,7 +76,7 @@ export default function FormSignup({ switchTo = () => { } }) {
       <div className="text-center">
         <p className="text-sm">
           Already have an account?{" "}
-          <button type="button" onClick={switchTo} className="text-blue-500">
+          <button type="button" onClick={() => switchTo("signin")} className="text-blue-500">
             Sign In
           </button>
         </p>

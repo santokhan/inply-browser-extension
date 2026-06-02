@@ -5,7 +5,7 @@ import { useAuth } from "../../hooks/useAuth";
 export default function FormSignin({ switchTo = () => { } }) {
   const [email, setEmail] = useState(import.meta.env.VITE_EMAIL || "");
   const [password, setPassword] = useState(import.meta.env.VITE_PASSWORD || "");
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -41,7 +41,7 @@ export default function FormSignin({ switchTo = () => { } }) {
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm space-y-2"
+        className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm space-y-3"
       >
         <input
           type="email"
@@ -51,13 +51,20 @@ export default function FormSignin({ switchTo = () => { } }) {
           className="default"
         />
 
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          className="default"
-        />
+        <div className="">
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            className="default"
+          />
+          <div className="flex justify-end mt-1">
+            <button type="button" className="text-blue-500" onClick={() => { switchTo("forgot") }}>
+              Forgot Password
+            </button>
+          </div>
+        </div>
 
         {error && <p className="text-xs text-red-500">{error}</p>}
 
@@ -72,7 +79,7 @@ export default function FormSignin({ switchTo = () => { } }) {
       <div className="text-center">
         <p className="text-sm">
           Don't have an account?{" "}
-          <button type="button" onClick={switchTo} className="text-blue-500">
+          <button type="button" onClick={() => switchTo("signup")} className="text-blue-500">
             Sign Up
           </button>
         </p>

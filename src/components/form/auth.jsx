@@ -2,8 +2,9 @@ import { useState } from "react";
 import { sign_in_with_email } from "../../firebase/methods";
 import FormSignup from "./signup";
 import FormSignin from "./signin";
+import FormForgotPassword from "./forgot";
 
-const forms = {
+export const forms = {
   signin: "signin",
   signup: "signup",
   forgot: "forgot",
@@ -15,8 +16,9 @@ export default function FormAuth() {
 
   return (
     <div className="">
-      {form === forms.signin && <FormSignin switchTo={() => setForm(forms.signup)} />}
-      {form === forms.signup && <FormSignup switchTo={() => setForm(forms.signin)} />}
+      {form === forms.signin && <FormSignin switchTo={setForm} />}
+      {form === forms.signup && <FormSignup switchTo={setForm} />}
+      {form === forms.forgot && <FormForgotPassword switchTo={setForm} />}
     </div>
   );
 }
