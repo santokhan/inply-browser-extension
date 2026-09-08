@@ -97,6 +97,58 @@ function stopInspect(rule) {
   }
 }
 
+function getFirstEncryptAnchor() {
+  const anchors = [...document.querySelectorAll("a")];
+
+  return anchors.find((anchor) => {
+    return anchor instanceof HTMLAnchorElement &&
+      anchor.href &&
+      anchor.innerHTML.trim() === "Encrypt"
+  });
+}
+
+function fillPasswordFields(password) {
+  const fields = [...document.querySelectorAll('input[type="password"], input[name*="password" i]')];
+  fields.forEach((field) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+    if (setter) setter.call(field, password);
+    else field.value = password;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function encryptAnchors(password) {
+  let count = 0;
+
+  console.log("[Encrypt] Encrypt anchors on save and encrypt:", [...document.querySelectorAll("a")].filter(
+    (anchor) =>
+      anchor instanceof HTMLAnchorElement &&
+      anchor.href &&
+      anchor.innerHTML.trim() === "Encrypt"
+  ));
+
+  while (true) {
+    const anchor = getFirstEncryptAnchor();
+    console.log({ anchor });
+    if (!anchor) break;
+
+    console.log("[Encrypt] Clicking anchor:", anchor);
+    fillPasswordFields(password);
+    anchor.scrollIntoView({ block: "center", behavior: "smooth" });
+    anchor.click();
+    count += 1;
+    await wait(750);
+  }
+
+  return count
+    ? { ok: true, count }
+    : { ok: false, count: 0, message: "No encrypted links were found on this page." };
+}
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onMessage
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "applyRule") {
@@ -115,6 +167,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "stopInspect") {
     stopInspect(message.rule);
+  }
+
+  if (message.action === "encryptAnchors") {
+    encryptAnchors(message.password).then(sendResponse);
+    return true;
   }
 
   sendResponse({ ok: true });

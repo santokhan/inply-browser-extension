@@ -7,6 +7,7 @@ import SavedRules from "./Saved";
 import { twMerge } from "tailwind-merge";
 import SavedGroups from "../group/Saved";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../shared/Tab";
+import Encrypt from "../encrypt/Encrypt";
 import { useGroups } from "../../../hooks/useGroups";
 
 function TabButton({ children, active, onClick }) {
@@ -41,6 +42,7 @@ export default function AutoFillRules() {
         <TabsList className="px-3">
           <TabsTrigger value="group">Create Group</TabsTrigger>
           <TabsTrigger value="rule">Create Rule</TabsTrigger>
+          <TabsTrigger value="encrypt">Encrypt</TabsTrigger>
         </TabsList>
 
         <TabsContent value="group">
@@ -49,6 +51,10 @@ export default function AutoFillRules() {
 
         <TabsContent value="rule">
           <RuleElementForm onOpen={() => setWhichForm('group')} />
+        </TabsContent>
+
+        <TabsContent value="encrypt">
+          <Encrypt />
         </TabsContent>
       </Tabs>
 
