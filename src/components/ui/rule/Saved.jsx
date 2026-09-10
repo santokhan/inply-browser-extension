@@ -1,3 +1,4 @@
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useState } from "react";
 import { useRules } from "../../../hooks/useRules";
 import SearchForm from "./Search";
@@ -6,7 +7,7 @@ import RuleEditForm from "./RuleEditForm";
 import { useGroups } from "../../../hooks/useGroups";
 import { displayNoneFilter } from "../../../utils/querySelector";
 
-export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { }, onDelete = () => { }, index }) {
+export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { }, onDelete = () => { }, onMove = () => { }, canMoveUp = true, canMoveDown = true }) {
     const [editing, setEditing] = useState(false);
 
     async function onMouseEnter(e) {
@@ -73,6 +74,9 @@ export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { 
 
                 {/* Line 2: Value + Actions */}
                 <div className="flex items-center justify-end gap-2 mt-3">
+                    <button type="button" onClick={() => onMove(rule.id, "up")} disabled={!canMoveUp} aria-label="Move rule up"><ArrowUp size={14} strokeWidth={2} /></button>
+                    <button type="button" onClick={() => onMove(rule.id, "down")} disabled={!canMoveDown} aria-label="Move rule down"><ArrowDown size={14} strokeWidth={2} /></button>
+
                     <button
                         onClick={async () => {
                             setApplying(true);
@@ -125,7 +129,7 @@ function Accordion({ children, applyRules = (id) => { }, group }) {
 
 export default function SavedRules() {
     const { groups } = useGroups()
-    const { rules, deleteRule, setEditingRule, loadRules } = useRules();
+    const { rules, deleteRule, moveRule, loadRules } = useRules();
     const [applyingAll, setApplyingAll] = useState(false);
 
     function applyRuleInPage(rule) {
@@ -303,7 +307,9 @@ export default function SavedRules() {
                                 onEdit={editRule}
                                 onApply={applyRule}
                                 applying={applyingAll}
-                                index={index}
+                                onMove={moveRule}
+                                canMoveUp={index > 0}
+                                canMoveDown={index < rules.length - 1}
                             />
                         ))}
                     </Accordion>
@@ -321,7 +327,9 @@ export default function SavedRules() {
                             onEdit={editRule}
                             onApply={applyRule}
                             applying={applyingAll}
-                            index={index}
+                            onMove={moveRule}
+                                canMoveUp={index > 0}
+                                canMoveDown={index < rules.length - 1}
                         />
                     ))}
                 </div>

@@ -4,6 +4,7 @@ export const RulesContext = createContext({
   rules: [],
   setRules: () => { },
   deleteRule: () => { },
+  moveRule: () => { },
   loadRules: () => { },
   editingRule: null,
   setEditingRule: () => { },
@@ -39,7 +40,8 @@ export function RulesProvider({ children }) {
       if (query) {
         function searchTerm(r) {
           // check for type, selector, value
-          return (
+
+ return (
             (r.tagName && r.tagName.toLowerCase().includes(query.toLowerCase())) ||
             (r.group?.name && r.group?.name?.toLowerCase().includes(query.toLowerCase())) ||
             (r.value && r.value.toLowerCase().includes(query.toLowerCase()))
@@ -70,11 +72,15 @@ export function RulesProvider({ children }) {
     setRules(updated);
   }, []);
 
-  return (
-    <RulesContext.Provider value={{
+
+
+  const moveRule = useCallback(async (id, direction) => {    if (!id || !["up", "down"].includes(direction)) return false;    const result = await chrome.storage.local.get("rules");    const updated = [...(result.rules || [])];    const currentIndex = updated.findIndex((rule) => rule.id === id);    const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= updated.length) return false;    [updated[currentIndex], updated[nextIndex]] = [updated[nextIndex], updated[currentIndex]];    await chrome.storage.local.set({ rules: updated });    setRules(updated);    return true;  }, []);
+
+  return (    <RulesContext.Provider value={{
       rules,
       setRules,
       deleteRule,
+      moveRule,
       loadRules,
       editingRule,
       setEditingRule,
