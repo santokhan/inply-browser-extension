@@ -123,6 +123,7 @@ function wait(milliseconds) {
 }
 
 const PENDING_DECRYPT_KEY = "pendingDecryptNavigation";
+const PENDING_ENCRYPT_AND_SAVE_KEY = "pendingEncryptAndSave";
 
 function isVisible(element) {
   const style = window.getComputedStyle(element);
@@ -138,7 +139,33 @@ function getDecryptButton() {
   });
 }
 // console.log(getDecryptButton());
+function getEncryptAndSaveButton() {
+  return [...document.querySelectorAll(
+    '#encrypt, input[name="encrypt"], button, input[type="button"], input[type="submit"], [role="button"]'
+  )].find((element) => {
+    const label = (element.innerText || element.value || element.getAttribute("aria-label") || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+    return (label === "encrypt and save" || label === "encrypt") && !element.disabled && isVisible(element);
+  });
+}
 
+async function clickEncryptConfirmationOk() {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const okButton = [...document.querySelectorAll("#myPanelDiv button, #myPanelDiv input[type=\"button\"], #myPanelDiv input[type=\"submit\"]")].find((element) => {
+      const label = (element.innerText || element.value || "").trim().toLowerCase();
+      return label === "ok" && !element.disabled && isVisible(element);
+    });
+    if (okButton) {
+      okButton.click();
+      console.log("[Encrypt] Clicked Encrypt confirmation Ok.");
+      return true;
+    }
+    await wait(250);
+  }
+  return false;
+}
 async function fillAndVerifyDecryptPassword() {
   let password;
   try {
@@ -161,6 +188,9 @@ async function fillAndVerifyDecryptPassword() {
         return label === "verify password" && !element.disabled && isVisible(element);
       });
       if (verifyButton) {
+        await chrome.storage.local.set({
+          [PENDING_ENCRYPT_AND_SAVE_KEY]: { createdAt: Date.now() },
+        });
         verifyButton.click();
         console.log("[Encrypt] Filled and verified the saved password.");
         return true;
@@ -171,12 +201,48 @@ async function fillAndVerifyDecryptPassword() {
   return false;
 }
 
+async function autoClickPendingEncryptAndSave() {
+  let pending;
+
+  try {
+    pending = (await chrome.storage.local.get(PENDING_ENCRYPT_AND_SAVE_KEY))?.[PENDING_ENCRYPT_AND_SAVE_KEY];
+  } catch (error) {
+    console.warn("[Encrypt] Could not check for pending Encrypt And Save:", error);
+    return;
+  }
+
+  if (!pending || Date.now() - pending.createdAt > 60000) {
+    if (pending) await chrome.storage.local.remove(PENDING_ENCRYPT_AND_SAVE_KEY);
+    return;
+  }
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const button = getEncryptAndSaveButton();
+    if (button) {
+      await chrome.storage.local.remove(PENDING_ENCRYPT_AND_SAVE_KEY);
+      button.scrollIntoView({ block: "center", behavior: "smooth" });
+      button.click();
+      console.log("[Encrypt] Automatically clicked Encrypt And Save.");
+      await clickEncryptConfirmationOk();
+      return;
+    }
+    await wait(250);
+  }
+
+  await chrome.storage.local.remove(PENDING_ENCRYPT_AND_SAVE_KEY);
+}
 async function clickDecryptAndVerify() {
   const button = getDecryptButton();
   if (!button) return false;
+  await chrome.storage.local.set({
+    [PENDING_ENCRYPT_AND_SAVE_KEY]: { createdAt: Date.now() },
+  });
   button.scrollIntoView({ block: "center", behavior: "smooth" });
   button.click();
-  await fillAndVerifyDecryptPassword();
+  const verified = await fillAndVerifyDecryptPassword();
+  if (verified) {
+    await autoClickPendingEncryptAndSave();
+  }
   return true;
 }
 
@@ -187,12 +253,31 @@ async function decryptAnchors() {
     return { ok: false, count: 0, message: "No decrypted links were found on this page." };
   }
 
+  await chrome.storage.local.set({
+    [PENDING_ENCRYPT_AND_SAVE_KEY]: { createdAt: Date.now() },
+  });
   button.scrollIntoView({ block: "center", behavior: "smooth" });
   button.click();
   console.log("[Encrypt] Clicked Decrypt.");
   return { ok: true, count: 1 };
 }
 
+async function encryptAndSave() {
+  const button = getEncryptAndSaveButton();
+
+  if (!button) {
+    return { ok: false, count: 0, message: "No Encrypt And Save button was found on this page." };
+  }
+
+  await chrome.storage.local.set({
+    [PENDING_ENCRYPT_AND_SAVE_KEY]: { createdAt: Date.now() },
+  });
+  button.scrollIntoView({ block: "center", behavior: "smooth" });
+  button.click();
+  console.log("[Encrypt] Clicked Encrypt And Save.");
+  const confirmed = await clickEncryptConfirmationOk();
+  return { ok: true, count: 1, confirmed };
+}
 async function autoClickPendingDecrypt() {
   let pending;
 
@@ -239,6 +324,7 @@ async function encryptAnchors(password) {
     await chrome.storage.local.set({
       [PENDING_DECRYPT_KEY]: { createdAt: Date.now() },
     });
+    anchor.target = "_self";
     anchor.scrollIntoView({ block: "center", behavior: "smooth" });
     anchor.click();
     count += 1;
@@ -250,6 +336,7 @@ async function encryptAnchors(password) {
     : { ok: false, count: 0, message: "No encrypted links were found on this page." };
 }
 autoClickPendingDecrypt();
+autoClickPendingEncryptAndSave();
 
 async function autoClickEncryptAction() {
   const action = new URLSearchParams(window.location.search).get("action");
@@ -295,6 +382,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "decryptAnchors") {
     decryptAnchors().then(sendResponse);
+    return true;
+  }
+
+
+  if (message.action === "encryptAndSave") {
+    encryptAndSave().then(sendResponse);
     return true;
   }
 
