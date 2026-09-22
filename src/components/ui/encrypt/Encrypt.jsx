@@ -10,6 +10,7 @@ const PAGE_SETTLE_DELAY = 1500;
 export default function Encrypt() {
   const [password, setPassword] = useState("");
   const [pageReady, setPageReady] = useState(false);
+  const [isEncryptAction, setIsEncryptAction] = useState(false);
 
   useEffect(() => {
     let settleTimeout;
@@ -23,6 +24,7 @@ export default function Encrypt() {
     const checkActiveTab = async () => {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       activeTabId = tab?.id;
+      setIsEncryptAction(new URL(tab?.url || "", window.location.href).searchParams.get("action") === "Encrypt");
 
       clearReadyState();
       if (tab?.status !== "complete") return;
@@ -97,17 +99,20 @@ export default function Encrypt() {
         </div>
       </form>
 
-      {password &&
+      {/* {password &&
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-800">Fill Actions</h3>
           <SignEncryptSave pageReady={pageReady} />
         </section>
-      }
+      } */}
       {password &&
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-800">Encrypt Actions</h3>
-          <OpenEncryptLink className="w-full" pageReady={pageReady} />
-          <DecryptEncryptSave pageReady={pageReady} />
+          {isEncryptAction ? (
+            <DecryptEncryptSave pageReady={pageReady} />
+          ) : (
+            <OpenEncryptLink className="w-full" pageReady={pageReady} />
+          )}
         </section>
       }
     </div>
