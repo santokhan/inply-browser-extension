@@ -66,7 +66,7 @@ export default function DecryptWithPassword({ setMessage = () => { } }) {
   const [pending, setPending] = useState(false);
 
   return (
-    <button type="button" className="default" onClick={async () => {
+    <button type="button" className="default grow" onMouseEnter={async () => {
       // Click the decrypt button here manually to text the encrypt page
       const tab = await getActiveTabSafe();
       if (!tab?.id) {

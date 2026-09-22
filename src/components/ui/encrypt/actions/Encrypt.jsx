@@ -58,7 +58,7 @@ export default function EncryptConfirmOk({ setMessage = () => { } }) {
   const [encrypting, setEncrypting] = useState(false);
 
   return (
-    <button type="button" className="default" onClick={async () => {
+    <button type="button" className="default grow" onMouseEnter={async () => {
       const tab = await getActiveTabSafe();
       if (!tab?.id) {
         setMessage("Open the tender preparation page before using Encrypt.");

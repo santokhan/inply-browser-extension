@@ -71,7 +71,7 @@ export default function SaveEcrypted({ setMessage = () => {} }) {
   }
 
   return (
-    <button type="button" className="default" onClick={handleSave} disabled={saving}>
+    <button type="button" className="default grow" onMouseEnter={handleSave} disabled={saving}>
       {saving ? "Saving..." : "Save"}
     </button>
   );

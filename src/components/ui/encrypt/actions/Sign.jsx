@@ -101,7 +101,7 @@ export default function SignEncryptSave({ setMessage = () => {} }) {
   }
 
   return (
-    <button type="button" className="default" onClick={handleSign} disabled={signing}>
+    <button type="button" className="default grow" onMouseEnter={handleSign} disabled={signing}>
       {signing ? "Signing..." : "Sign"}
     </button>
   );
