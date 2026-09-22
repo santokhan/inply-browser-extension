@@ -1,42 +1,27 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import OpenEncryptLink from "./actions/OpenEncryptLink";
-import DecryptEncryptSave from "./actions/DecryptEncryptSave";
+import DecryptAllTabs from "./actions/DecryptAllTabs";
 import SignEncryptSave from "./actions/SignEncryptSave";
 
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
-const PAGE_SETTLE_DELAY = 300;
 
 export default function Encrypt() {
   const [password, setPassword] = useState("");
-  const [pageReady, setPageReady] = useState(false);
   const [isEncryptAction, setIsEncryptAction] = useState(false);
+  const [encryptTabCount, setEncryptTabCount] = useState(0);
 
   useEffect(() => {
-    let settleTimeout;
     let activeTabId;
-
-    const clearReadyState = () => {
-      window.clearTimeout(settleTimeout);
-      setPageReady(false);
-    };
 
     const checkActiveTab = async () => {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       activeTabId = tab?.id;
       setIsEncryptAction(new URL(tab?.url || "", window.location.href).searchParams.get("action") === "Encrypt");
-
-      clearReadyState();
-      if (tab?.status !== "complete") return;
-
-      settleTimeout = window.setTimeout(() => {
-        setPageReady(true);
-      }, PAGE_SETTLE_DELAY);
     };
 
     const handleTabUpdated = (tabId, changeInfo) => {
       if (tabId !== activeTabId) return;
-      if (changeInfo.status === "loading") clearReadyState();
       if (changeInfo.status === "complete") checkActiveTab();
     };
 
@@ -45,7 +30,6 @@ export default function Encrypt() {
     chrome.tabs.onUpdated.addListener(handleTabUpdated);
 
     return () => {
-      window.clearTimeout(settleTimeout);
       chrome.tabs.onActivated.removeListener(checkActiveTab);
       chrome.tabs.onUpdated.removeListener(handleTabUpdated);
     };
@@ -105,16 +89,16 @@ export default function Encrypt() {
           <SignEncryptSave pageReady={pageReady} />
         </section>
       } */}
-      {password &&
+      {!isEncryptAction && (
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-800">Encrypt Actions</h3>
-          {isEncryptAction ? (
-            <DecryptEncryptSave pageReady={pageReady} />
-          ) : (
-            <OpenEncryptLink className="w-full" />
-          )}
+          <DecryptAllTabs
+            hasPassword={Boolean(password)}
+            onTabCountChange={setEncryptTabCount}
+          />
+          {password && !encryptTabCount && <OpenEncryptLink className="w-full" />}
         </section>
-      }
+      )}
     </div>
   );
 }
