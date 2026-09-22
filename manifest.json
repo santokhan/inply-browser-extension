@@ -6,13 +6,18 @@
     "permissions": [
         "storage",
         "activeTab",
-        "scripting"
+        "scripting",
+        "tabs"
     ],
     "host_permissions": [
         "<all_urls>"
     ],
     "action": {
         "default_popup": "index.html"
+    },
+    "background": {
+        "service_worker": "src/background.js",
+        "type": "module"
     },
     "content_scripts": [
         {

@@ -3,25 +3,11 @@ import { getActiveTabSafe } from "../../../../utils/chrome";
 import { twMerge } from "tailwind-merge";
 import { toast } from "react-toastify";
 
-function openEncryptLinkInPage() {
-  const anchor = [...document.querySelectorAll("a")].find((candidate) =>
-    candidate instanceof HTMLAnchorElement && candidate.href && candidate.textContent.trim() === "Encrypt"
-  );
-
-  if (!anchor) {
-    return { ok: false, message: "No Encrypt link was found on this page." };
-  }
-
-  anchor.click();
-  return { ok: true };
-}
-
 async function openEncryptLink(tabId) {
-  const [result] = await chrome.scripting.executeScript({
-    target: { tabId },
-    func: openEncryptLinkInPage,
+  return chrome.runtime.sendMessage({
+    action: "duplicateAndClickEncryptLinks",
+    tabId,
   });
-  return result?.result;
 }
 
 export default function OpenEncryptLink({ className = "" }) {
@@ -42,9 +28,12 @@ export default function OpenEncryptLink({ className = "" }) {
     try {
       setOpening(true);
       const result = await openEncryptLink(tab.id);
+      if (!result?.ok) {
+        toast.info(result?.message || "No Encrypt links were found on this page.");
+      }
     } catch (error) {
       console.error(error);
-      toast.info("This page cannot be controlled by the extension.");
+      toast.info(`Open Encrypt failed: ${error?.message || "unknown extension error"}`);
     } finally {
       setOpening(false);
       window.setTimeout(() => {
