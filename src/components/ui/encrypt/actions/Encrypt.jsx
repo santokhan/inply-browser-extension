@@ -54,7 +54,7 @@ async function sendEncryptAndSaveMessage(tabId) {
     return result?.result;
   }
 }
-export default function EncryptConfirmOk({ setMessage = () => { } }) {
+export default function EncryptConfirmOk({ setMessage = () => { }, buttonLabel = "Encrypt & Save" }) {
   const [encrypting, setEncrypting] = useState(false);
   const hoverCooldown = useRef(false);
 
@@ -92,7 +92,7 @@ export default function EncryptConfirmOk({ setMessage = () => { } }) {
     }}
       disabled={encrypting}
     >
-      {encrypting ? "Encrypting..." : "Encrypt"}
+      {encrypting ? "Encrypting..." : buttonLabel}
     </button>
   );
 }

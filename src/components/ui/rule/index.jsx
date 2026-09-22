@@ -10,6 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../shared/Tab";
 import Encrypt from "../encrypt/Encrypt";
 import { useGroups } from "../../../hooks/useGroups";
 
+const ACTIVE_FORM_TAB_KEY = "activeFormTab";
+const FORM_TABS = new Set(["group", "rule", "encrypt"]);
+
 function TabButton({ children, active, onClick }) {
   return (
     <button
@@ -25,7 +28,23 @@ function TabButton({ children, active, onClick }) {
 
 export default function AutoFillRules() {
   const [show, setShow] = useState('rules');
-  const [whichForm, setWhichForm] = useState('rule');
+  const [whichForm, setWhichForm] = useState(null);
+
+  useEffect(() => {
+    chrome.storage.local.get(ACTIVE_FORM_TAB_KEY).then((result) => {
+      const savedTab = result?.[ACTIVE_FORM_TAB_KEY];
+      setWhichForm(FORM_TABS.has(savedTab) ? savedTab : "rule");
+    }).catch(() => {
+      setWhichForm("rule");
+    });
+  }, []);
+
+  function handleFormTabChange(tab) {
+    if (!FORM_TABS.has(tab)) return;
+
+    setWhichForm(tab);
+    chrome.storage.local.set({ [ACTIVE_FORM_TAB_KEY]: tab });
+  }
 
   return (
     <>
@@ -38,7 +57,7 @@ export default function AutoFillRules() {
         </p>
       </div>
 
-      <Tabs value={whichForm} onValueChange={setWhichForm}>
+      <Tabs value={whichForm} onValueChange={handleFormTabChange}>
         <TabsList className="px-3">
           <TabsTrigger value="group">Create Group</TabsTrigger>
           <TabsTrigger value="rule">Create Rule</TabsTrigger>
@@ -46,11 +65,11 @@ export default function AutoFillRules() {
         </TabsList>
 
         <TabsContent value="group">
-          <RuleGroupForm onClose={() => setWhichForm('rule')} />
+          <RuleGroupForm onClose={() => handleFormTabChange('rule')} />
         </TabsContent>
 
         <TabsContent value="rule">
-          <RuleElementForm onOpen={() => setWhichForm('group')} />
+          <RuleElementForm onOpen={() => handleFormTabChange('group')} />
         </TabsContent>
 
         <TabsContent value="encrypt">
