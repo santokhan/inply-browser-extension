@@ -82,8 +82,9 @@ export default function DecryptWithPassword() {
         const result = await sendDecryptMessage(tab.id);
         console.log(result)
         console.log("[Decrypt] Response from page:", result);
-        const count = Number.isFinite(result?.count) ? result.count : 0;
-        toast.info(result?.ok ? ("Clicked " + count + " decrypted link(s).") : (result?.message || "No decrypted links were found."));
+        if (!result?.ok) {
+          toast.info(result?.message || "No decrypted links were found.");
+        }
       } catch (error) {
         console.error(error);
         const errorMessage = String(error?.message || error);

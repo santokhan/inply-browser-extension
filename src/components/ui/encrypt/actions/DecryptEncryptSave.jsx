@@ -84,9 +84,9 @@ export default function DecryptEncryptSave({ pageReady = true }) {
     try {
       setRunning(true);
       const result = await sendDecryptAndEncryptMessage(tab.id);
-      toast.info(result?.ok
-        ? "Decrypt, Encrypt & Save completed."
-        : (result?.message || "Could not start Decrypt & Encrypt."));
+      if (!result?.ok) {
+        toast.info(result?.message || "Could not start Decrypt & Encrypt.");
+      }
     } catch (error) {
       console.error(error);
       const errorMessage = String(error?.message || error);

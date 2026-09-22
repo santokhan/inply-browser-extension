@@ -87,9 +87,7 @@ export default function Sign() {
       console.log("[Sign] Response from page:", result);
       if (!result?.ok) {
         toast.info(result?.message || "No Sign button was found.");
-      } else if (result.verified) {
-        toast.info("Sign password verified.");
-      } else {
+      } else if (!result.verified) {
         toast.info(result?.message || "Sign clicked, but password verification did not start.");
       }
     } catch (error) {

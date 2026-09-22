@@ -58,10 +58,9 @@ export default function SaveEcrypted() {
       setSaving(true);
       const result = await sendSaveMessage(tab.id);
       console.log("[Save] Response from page:", result);
-      const count = Number.isFinite(result?.count) ? result.count : 0;
-      toast.info(result?.ok
-        ? ("Clicked " + count + " Save button.")
-        : (result?.message || "No Save button was found."));
+      if (!result?.ok) {
+        toast.info(result?.message || "No Save button was found.");
+      }
     } catch (error) {
       console.error(error);
       const errorMessage = String(error?.message || error);

@@ -63,7 +63,6 @@ export default function SignEncryptSave({ pageReady = true }) {
         }
         if (action !== "save") await wait(500);
       }
-      toast.info("Sign, Encrypt & Save completed.");
     } catch (error) {
       console.error(error);
       toast.info("This page cannot be controlled by the extension. Reload the page and try again.");

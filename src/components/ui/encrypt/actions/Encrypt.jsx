@@ -72,8 +72,9 @@ export default function EncryptConfirmOk({ buttonLabel = "Encrypt & Save" }) {
         setEncrypting(true);
         const result = await sendEncryptAndSaveMessage(tab.id);
         console.log("[Encrypt And Save] Response from page:", result);
-        const count = Number.isFinite(result?.count) ? result.count : 0;
-        toast.info(result?.ok ? ("Clicked " + count + " Encrypt And Save button.") : (result?.message || "No Encrypt And Save button was found."));
+        if (!result?.ok) {
+          toast.info(result?.message || "No Encrypt And Save button was found.");
+        }
       } catch (error) {
         console.error(error);
         const errorMessage = String(error?.message || error);

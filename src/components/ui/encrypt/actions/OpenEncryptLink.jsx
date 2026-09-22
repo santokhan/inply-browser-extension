@@ -42,7 +42,6 @@ export default function OpenEncryptLink({ className = "", pageReady = true }) {
     try {
       setOpening(true);
       const result = await openEncryptLink(tab.id);
-      toast.info(result?.ok ? "Encrypt link opened." : (result?.message || "No Encrypt link was found."));
     } catch (error) {
       console.error(error);
       toast.info("This page cannot be controlled by the extension.");

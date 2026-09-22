@@ -63,7 +63,6 @@ export default function Encrypt() {
 
     try {
       await chrome.storage.local.set({ [ENCRYPT_PASSWORD_KEY]: password });
-      toast.info("Password saved.");
     } catch (error) {
       console.error(error);
       toast.info("Could not save the password.");
