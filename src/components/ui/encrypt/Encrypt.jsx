@@ -5,7 +5,7 @@ import DecryptEncryptSave from "./actions/DecryptEncryptSave";
 import SignEncryptSave from "./actions/SignEncryptSave";
 
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
-const PAGE_SETTLE_DELAY = 500;
+const PAGE_SETTLE_DELAY = 300;
 
 export default function Encrypt() {
   const [password, setPassword] = useState("");
