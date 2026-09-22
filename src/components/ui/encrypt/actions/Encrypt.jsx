@@ -60,7 +60,7 @@ export default function EncryptConfirmOk({ buttonLabel = "Encrypt & Save" }) {
   const hoverCooldown = useRef(false);
 
   return (
-    <button type="button" className="hover-action grow" onMouseEnter={async () => {
+    <button type="button" className="default grow" onClick={async () => {
       if (hoverCooldown.current) return;
       const tab = await getActiveTabSafe();
       if (!tab?.id) {

@@ -109,7 +109,7 @@ export default function Sign() {
   }
 
   return (
-    <button type="button" className="hover-action grow" onMouseEnter={handleSign} disabled={signing}>
+    <button type="button" className="default grow" onClick={handleSign} disabled={signing}>
       {signing ? "Signing..." : "Sign"}
     </button>
   );

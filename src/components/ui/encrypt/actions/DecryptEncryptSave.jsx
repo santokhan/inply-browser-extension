@@ -100,7 +100,7 @@ export default function DecryptEncryptSave() {
   }
 
   return (
-    <button type="button" className="hover-action w-full" onMouseEnter={handleAction} disabled={running}>
+    <button type="button" className="default w-full" onClick={handleAction} disabled={running}>
       {/* Total 2 actions */}
       {running ? "Decrypting and saving..." : "Decrypt + Encrypt & Save"}
     </button>

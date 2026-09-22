@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import DecryptWithPassword from "./actions/Decrypt";
-import EncryptConfirmOk from "./actions/Encrypt";
-import Sign from "./actions/Sign";
-import SaveEcrypted from "./actions/SaveEncrypted";
 import OpenEncryptLink from "./actions/OpenEncryptLink";
 import DecryptEncryptSave from "./actions/DecryptEncryptSave";
 import SignEncryptSave from "./actions/SignEncryptSave";
@@ -64,11 +60,6 @@ export default function Encrypt() {
       {password &&
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-800">Fill Actions</h3>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-            <Sign />
-            <EncryptConfirmOk buttonLabel="Encrypt" />
-            <SaveEcrypted />
-          </div>
           <SignEncryptSave />
         </section>
       }
@@ -76,10 +67,6 @@ export default function Encrypt() {
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-800">Encrypt Actions</h3>
           <OpenEncryptLink className="w-full" />
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-            <DecryptWithPassword />
-            <EncryptConfirmOk buttonLabel="Encrypt & Save" />
-          </div>
           <DecryptEncryptSave />
         </section>
       }

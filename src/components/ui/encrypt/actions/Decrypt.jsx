@@ -68,7 +68,7 @@ export default function DecryptWithPassword() {
   const hoverCooldown = useRef(false);
 
   return (
-    <button type="button" className="hover-action grow" onMouseEnter={async () => {
+    <button type="button" className="default grow" onClick={async () => {
        if (hoverCooldown.current) return;
       // Click the decrypt button here manually to text the encrypt page
       const tab = await getActiveTabSafe();

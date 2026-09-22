@@ -76,7 +76,7 @@ export default function SignEncryptSave() {
   }
 
   return (
-    <button type="button" className="hover-action w-full" onMouseEnter={handleRunAll} disabled={running}>
+    <button type="button" className="default w-full" onClick={handleRunAll} disabled={running}>
       {/* Total 3 actions */}
       {running ? "Running..." : "Sign + Encrypt + Save"}
     </button>

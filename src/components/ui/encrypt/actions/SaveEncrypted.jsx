@@ -79,7 +79,7 @@ export default function SaveEcrypted() {
   }
 
   return (
-    <button type="button" className="hover-action grow" onMouseEnter={handleSave} disabled={saving}>
+    <button type="button" className="default grow" onClick={handleSave} disabled={saving}>
       {saving ? "Saving..." : "Save"}
     </button>
   );

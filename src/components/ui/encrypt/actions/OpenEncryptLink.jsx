@@ -55,7 +55,7 @@ export default function OpenEncryptLink({ className = "" }) {
   }
 
   return (
-    <button type="button" className={twMerge("hover-action grow", className)} onMouseEnter={handleOpenEncryptLink} disabled={opening}>
+    <button type="button" className={twMerge("default grow", className)} onClick={handleOpenEncryptLink} disabled={opening}>
       {opening ? "Opening..." : "Open Encrypt"}
     </button>
   );
