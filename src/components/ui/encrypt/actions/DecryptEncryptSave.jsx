@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
 import { toast } from "react-toastify";
 
@@ -13,11 +13,17 @@ async function decryptAndEncryptInPage() {
   const decryptButton = [...document.querySelectorAll("#decrypt, button, input[type=\"button\"], input[type=\"submit\"], [role=\"button\"]")]
     .find((element) => labelOf(element) === "decrypt" && !element.disabled && isVisible(element));
 
-  if (!decryptButton) return { ok: false, message: "No Decrypt button was found on this page." };
+  if (!decryptButton) return {
+    ok: false,
+    message: "No Decrypt button was found on this page."
+  };
   decryptButton.scrollIntoView({ block: "center", behavior: "smooth" });
   decryptButton.click();
   const password = (await chrome.storage.local.get("encryptPassword"))?.encryptPassword;
-  if (!password) return { ok: false, message: "Enter and save a password before using Decrypt & Encrypt." };
+  if (!password) return {
+    ok: false,
+    message: "Enter and save a password before using Decrypt & Encrypt."
+  };
 
   let verified = false;
   for (let attempt = 0; attempt < 40; attempt += 1) {
@@ -37,7 +43,10 @@ async function decryptAndEncryptInPage() {
     }
     await wait(250);
   }
-  if (!verified) return { ok: false, message: "The password dialog was not ready." };
+  if (!verified) return {
+    ok: false,
+    message: "The password dialog was not ready."
+  };
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const encryptButton = [...document.querySelectorAll("#encrypt, input[name=\"encrypt\"], button, input[type=\"button\"], input[type=\"submit\"], [role=\"button\"]")].find((element) => ["encrypt and save", "encrypt"].includes(labelOf(element)) && !element.disabled && isVisible(element));
     if (encryptButton) {
@@ -55,7 +64,10 @@ async function decryptAndEncryptInPage() {
     }
     await wait(250);
   }
-  return { ok: false, message: "The Encrypt & Save button was not ready." };
+  return {
+    ok: false,
+    message: "The Encrypt & Save button was not ready."
+  };
 }
 
 async function sendDecryptAndEncryptMessage(tabId) {
@@ -69,6 +81,7 @@ async function sendDecryptAndEncryptMessage(tabId) {
 export default function DecryptEncryptSave({ pageReady = true }) {
   const [running, setRunning] = useState(false);
   const cooldown = useRef(false);
+  const ref = useRef(null);
 
   async function handleAction() {
     if (cooldown.current) return;
@@ -96,10 +109,26 @@ export default function DecryptEncryptSave({ pageReady = true }) {
     }
   }
 
+  useEffect(() => {
+    if (ref.current) ref.current?.addEventListener("mouseenter", handleAction);
+    return () => {
+      if (ref.current) ref.current?.removeEventListener("mouseenter", handleAction);
+    };
+  }, []);
+
   return (
-    <button type="button" className="default w-full" onClick={handleAction} disabled={running || !pageReady}>
+    <button
+      ref={ref} type="button"
+      className="hover-action w-full"
+      //  onMouseEnter={handleAction}
+      disabled={running || !pageReady}
+    >
       {/* Total 2 actions */}
-      {running ? "Decrypting and saving..." : pageReady ? "Decrypt + Encrypt & Save" : "Waiting for page..."}
+      {running
+        ? "Decrypting and saving..." :
+        pageReady
+          ? "Decrypt + Encrypt & Save"
+          : "Waiting for page..."}
     </button>
   );
 }
