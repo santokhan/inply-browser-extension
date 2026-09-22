@@ -23,7 +23,7 @@ async function clickSaveInPage() {
   return { ok: true, count: 1 };
 }
 
-async function sendSaveMessage(tabId) {
+export async function sendSaveMessage(tabId) {
   try {
     return await chrome.tabs.sendMessage(tabId, { action: "save" });
   } catch (error) {

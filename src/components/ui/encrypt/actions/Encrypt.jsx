@@ -39,7 +39,7 @@ async function clickEncryptAndSaveInPage() {
   return { ok: true, count: 1, confirmed: false };
 }
 
-async function sendEncryptAndSaveMessage(tabId) {
+export async function sendEncryptAndSaveMessage(tabId) {
   try {
     return await chrome.tabs.sendMessage(tabId, { action: "encryptAndSave" });
   } catch (error) {

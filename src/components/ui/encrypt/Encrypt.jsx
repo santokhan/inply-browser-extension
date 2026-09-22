@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import DecryptWithPassword from "./actions/Decrypt";
 import EncryptConfirmOk from "./actions/Encrypt";
-import SignEncryptSave from "./actions/Sign";
+import Sign from "./actions/Sign";
 import SaveEcrypted from "./actions/SaveEncrypted";
 import OpenEncryptLink from "./actions/OpenEncryptLink";
+import DecryptEncryptSave from "./actions/DecryptEncryptSave";
+import SignEncryptSave from "./actions/SignEncryptSave";
 
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
 export default function Encrypt() {
@@ -62,11 +64,11 @@ export default function Encrypt() {
       <section className="space-y-3">
         <h3 className="text-sm font-semibold text-gray-800">Encrypt Actions</h3>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          <SignEncryptSave setMessage={setMessage} />
+          <Sign setMessage={setMessage} />
           <EncryptConfirmOk setMessage={setMessage} buttonLabel="Encrypt" />
           <SaveEcrypted setMessage={setMessage} />
         </div>
-        {/* Another button Sign + Encrypt + Save */}
+        <SignEncryptSave setMessage={setMessage} />
       </section>
 
       <section className="space-y-3">
@@ -76,7 +78,7 @@ export default function Encrypt() {
           <DecryptWithPassword setMessage={setMessage} />
           <EncryptConfirmOk setMessage={setMessage} buttonLabel="Encrypt & Save" />
         </div>
-        {/* Another button Decrypt + Sign & Save */}
+        <DecryptEncryptSave setMessage={setMessage} />
       </section>
       {message && <p className="text-xs text-gray-600">{message}</p>}
     </div>

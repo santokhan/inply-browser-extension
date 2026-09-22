@@ -45,7 +45,7 @@ async function signAndVerifyInPage(password) {
   return { ok: true, verified: false, count: 1, message: "Sign clicked, but the password dialog was not ready." };
 }
 
-async function sendSignMessage(tabId, password) {
+export async function sendSignMessage(tabId, password) {
   try {
     return await chrome.tabs.sendMessage(tabId, { action: "signAndVerify" });
   } catch (error) {
@@ -59,7 +59,7 @@ async function sendSignMessage(tabId, password) {
   }
 }
 
-export default function SignEncryptSave({ setMessage = () => {} }) {
+export default function Sign({ setMessage = () => {} }) {
   const [signing, setSigning] = useState(false);
   const hoverCooldown = useRef(false);
 

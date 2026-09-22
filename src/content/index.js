@@ -474,20 +474,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
 
+  if (message.action === "decryptAndEncryptSave") {
+    clickDecryptAndVerify().then((ok) => sendResponse(ok ? { ok: true, count: 1, confirmed: true } : { ok: false, message: "The password dialog was not ready." }));
+    return true;
+  }
+
   if (message.action === "encryptAndSave") {
     encryptAndSave().then(sendResponse);
     return true;
   }
 
-  if (message.action === "signAndVerify") {  if (message.action === "save") {
-    save().then(sendResponse);
-    return true;
-  }
-
+  if (message.action === "signAndVerify") {
     signAndVerify().then(sendResponse);
     return true;
   }
 
+  if (message.action === "save") {
+    save().then(sendResponse);
+    return true;
+  }
 
   sendResponse({ ok: true });
   return false;
