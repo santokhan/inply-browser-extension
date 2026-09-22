@@ -22,6 +22,9 @@ async function encryptAnchorsInPage(password) {
     );
     if (!anchor) break;
     fillPasswordFields();
+    await chrome.storage.local.set({
+      pendingDecryptNavigation: { createdAt: Date.now() },
+    });
     anchor.scrollIntoView({ block: "center", behavior: "smooth" });
     anchor.click();
     count += 1;
@@ -31,6 +34,25 @@ async function encryptAnchorsInPage(password) {
   return count
     ? { ok: true, count }
     : { ok: false, count: 0, message: "No encrypted links were found on this page." };
+}
+
+async function decryptAnchorsInPage() {
+  const isVisible = (element) => {
+    const style = window.getComputedStyle(element);
+    return style.display !== "none" && style.visibility !== "hidden";
+  };
+  const button = [...document.querySelectorAll('button, input[type="button"], input[type="submit"], [role="button"]')].find((element) => {
+    const label = (element.innerText || element.value || "").trim().toLowerCase();
+    return label === "decrypt" && !element.disabled && isVisible(element);
+  });
+
+  if (!button) {
+    return { ok: false, count: 0, message: "No decrypted links were found on this page." };
+  }
+
+  button.scrollIntoView({ block: "center", behavior: "smooth" });
+  button.click();
+  return { ok: true, count: 1 };
 }
 
 async function sendEncryptMessage(tabId, password) {
@@ -52,6 +74,22 @@ async function sendEncryptMessage(tabId, password) {
     return result?.result;
   }
 }
+async function sendDecryptMessage(tabId) {
+  try {
+    return await chrome.tabs.sendMessage(tabId, { action: "decryptAnchors" });
+  } catch (error) {
+    if (!String(error?.message || error).includes("Receiving end does not exist")) {
+      throw error;
+    }
+
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: decryptAnchorsInPage,
+    });
+    return result?.result;
+  }
+}
+
 export default function Encrypt() {
   const [password, setPassword] = useState("");
   const [encrypting, setEncrypting] = useState(false);
@@ -87,10 +125,17 @@ export default function Encrypt() {
     try {
       setEncrypting(true);
       setMessage("Password saved.");
-      const result = await sendEncryptMessage(tab.id, password);
+      const result = await Promise.race([
+        sendEncryptMessage(tab.id, password),
+        new Promise((resolve) => setTimeout(() => resolve({
+          ok: true,
+          count: 0,
+          message: "Encryption started. Decrypt will run after navigation.",
+        }), 5000)),
+      ]);
       console.log("[Encrypt] Response from page:", result);
       const count = Number.isFinite(result?.count) ? result.count : 0;
-      setMessage(result?.ok ? ("Password saved. Clicked " + count + " encrypted link(s).") : (result?.message || "Password saved. No encrypted links were found."));
+      setMessage(result?.ok ? (result?.message || ("Password saved. Clicked " + count + " encrypted link(s).")) : (result?.message || "Password saved. No encrypted links were found."));
     } catch (error) {
       const errorMessage = String(error?.message || error);
       if (errorMessage.includes("Receiving end does not exist")) {
@@ -121,11 +166,42 @@ export default function Encrypt() {
           placeholder="Password"
           autoComplete="current-password"
         />
-        <button type="submit" className="default w-full" disabled={encrypting}>
-          {encrypting ? "Encrypting..." : "Save password and Encrypt"}
-        </button>
+        <div className="flex items-center gap-4">
+          <button type="submit" className="default w-full" disabled={encrypting}>
+            {encrypting ? "Encrypting..." : "Save & Encrypt"}
+          </button>
+          <button type="button" className="default w-full" onClick={async () => {
+            // Click the decrypt button here manually to text the encrypt page
+            const tab = await getActiveTabSafe();
+            if (!tab?.id) {
+              setMessage("Open the tender preparation page before using Decrypt.");
+              return;
+            }
+            try {
+              setEncrypting(true);
+              const result = await sendDecryptMessage(tab.id);
+              console.log(result)
+              console.log("[Decrypt] Response from page:", result);
+              const count = Number.isFinite(result?.count) ? result.count : 0;
+              setMessage(result?.ok ? ("Clicked " + count + " decrypted link(s).") : (result?.message || "No decrypted links were found."));
+            } catch (error) {
+              console.error(error);
+              const errorMessage = String(error?.message || error);
+              if (errorMessage.includes("Receiving end does not exist")) {
+                setMessage("Reload the target page, then try Decrypt again.");
+              } else {
+                console.error(error);
+                setMessage("This page cannot be controlled by the extension.");
+              }
+            } finally {
+              setEncrypting(false);
+            }
+          }}>
+            Decrypt
+          </button>
+        </div>
         {message && <p className="text-xs text-gray-600">{message}</p>}
-      </form>
-    </div>
+      </form >
+    </div >
   );
 }
