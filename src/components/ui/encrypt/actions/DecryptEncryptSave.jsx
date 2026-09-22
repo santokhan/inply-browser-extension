@@ -67,9 +67,6 @@ async function sendDecryptAndEncryptMessage(tabId) {
 }
 
 export default function DecryptEncryptSave({ pageReady = true }) {
-  const notify = (message) => {
-
-  };
   const [running, setRunning] = useState(false);
   const cooldown = useRef(false);
 

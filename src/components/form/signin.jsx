@@ -20,9 +20,13 @@ export default function FormSignin({ switchTo = () => { } }) {
 
       const credential = await sign_in_with_email(email, password);
       const idToken = await credential.user.getIdToken();
+      await chrome.storage.local.set({
+        auth_token: idToken,
+        auth_user: credential.user.toJSON(),
+      });
 
       setToken(idToken);
-      setUser(credential.user);
+      setUser(credential.user.toJSON());
 
       setEmail("");
       setPassword("");

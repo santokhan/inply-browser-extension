@@ -117,3 +117,14 @@ document.querySelectorAll('[name^="row"][name$="_1_7"]:not([type="hidden"]').for
 document.querySelectorAll('[name^="row"][name$="_1_8"]:not([type="hidden"]').forEach(el => {
   console.log(el);
 });
+
+function openEncryptLinks() {
+  const baseUrl = "https://www.eprocure.gov.bd/tenderer/";
+
+  [...document.querySelectorAll('a[href^="BidForm.jsp"]')]
+    .filter(a => a.textContent.trim() === "Encrypt")
+    .forEach(a => {
+      const url = new URL(a.getAttribute("href"), baseUrl).href;
+      window.open(url, "_blank");
+    });
+}

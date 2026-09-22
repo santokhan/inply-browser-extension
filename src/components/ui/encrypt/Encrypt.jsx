@@ -5,7 +5,7 @@ import DecryptEncryptSave from "./actions/DecryptEncryptSave";
 import SignEncryptSave from "./actions/SignEncryptSave";
 
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
-const PAGE_SETTLE_DELAY = 1500;
+const PAGE_SETTLE_DELAY = 500;
 
 export default function Encrypt() {
   const [password, setPassword] = useState("");
@@ -111,7 +111,7 @@ export default function Encrypt() {
           {isEncryptAction ? (
             <DecryptEncryptSave pageReady={pageReady} />
           ) : (
-            <OpenEncryptLink className="w-full" pageReady={pageReady} />
+            <OpenEncryptLink className="w-full" />
           )}
         </section>
       }

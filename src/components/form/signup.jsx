@@ -23,8 +23,12 @@ export default function FormSignup({ switchTo = () => { } }) {
       localStorage.setItem("refreshToken", credential.user.refreshToken);
 
       const accessToken = await credential.user.getIdToken();
+      await chrome.storage.local.set({
+        auth_token: accessToken,
+        auth_user: credential.user.toJSON(),
+      });
       setToken(accessToken);
-      setUser(credential.user);
+      setUser(credential.user.toJSON());
 
       setSuccess("Account created successfully");
       setEmail("");

@@ -20,18 +20,13 @@ export function RulesProvider({ children }) {
 
   const loadRules = async (query) => {
     try {
-      const groupResults = await chrome.storage.local.get("groups");
+      const { groups: storedGroups = [], rules: storedRules = [] } =
+        await chrome.storage.local.get(["groups", "rules"]);
       // Create a map for quick lookup
-      const groups = groupResults.groups || [];
-      const groupMap = new Map(groups?.map(g => [g.id, g]));
+      const groupMap = new Map(storedGroups.map((g) => [g.id, g]));
+      const hydratedRules = storedRules.map((rule) => ({ ...rule }));
 
-      const result = await chrome.storage.local.get("rules");
-      if (!result?.rules) {
-        console.log("No rules found");
-        return
-      }
-
-      for (const rule of rules) {
+      for (const rule of hydratedRules) {
         if (rule.group?.id && groupMap.has(rule.group.id)) {
           rule.group = groupMap.get(rule.group.id);
         }
@@ -47,9 +42,9 @@ export function RulesProvider({ children }) {
             (r.value && r.value.toLowerCase().includes(query.toLowerCase()))
           );
         }
-        setRules((result.rules || []).filter(searchTerm));
+        setRules(hydratedRules.filter(searchTerm));
       } else {
-        setRules(result.rules || []);
+        setRules(hydratedRules);
       }
     } catch (error) {
       console.error(error);

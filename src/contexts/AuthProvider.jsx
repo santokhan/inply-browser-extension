@@ -2,7 +2,6 @@ import { createContext, useCallback, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 
 import { normalizeJwtToken, verifyJwt } from "../utils/token";
-import { get_current_user, get_token } from "../firebase/methods";
 import { auth } from "../firebase/config";
 import Loading from "../components/loading";
 
@@ -17,25 +16,74 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Load auth from storage
+  // Restore the cached extension session first. Firebase can take a moment to
+  // restore its own session, so it should not block the popup from rendering.
   const loadAuth = useCallback(async () => {
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const token = await user.getIdToken();
+    let storageLoaded = false;
+    let firebaseResolved = false;
+    let finished = false;
 
-        setToken(token);
-        setUser(user.toJSON());
-      } else {
-        setToken(null);
-        setUser(null);
+    const finishIfReady = () => {
+      if (!finished && storageLoaded && firebaseResolved) {
+        finished = true;
+        setLoading(false);
+      }
+    };
+
+    chrome.storage.local.get([TOKEN_KEY, USER_KEY]).then((stored) => {
+      storageLoaded = true;
+
+      if (stored[TOKEN_KEY] && stored[USER_KEY]) {
+        setToken(stored[TOKEN_KEY]);
+        setUser(stored[USER_KEY]);
+        // Cached auth is enough to render immediately. Firebase is still
+        // allowed to reconcile the session in the background below.
+        finished = true;
+        setLoading(false);
       }
 
-      setLoading(false);
+      finishIfReady();
     });
+
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      firebaseResolved = true;
+
+      if (firebaseUser) {
+        // Render from Firebase's local user object without waiting for the
+        // network-backed token refresh.
+        const firebaseUserData = firebaseUser.toJSON();
+        setUser(firebaseUserData);
+        setLoading(false);
+        finished = true;
+
+        try {
+          const firebaseToken = await firebaseUser.getIdToken();
+          setToken(firebaseToken);
+          await chrome.storage.local.set({
+            [TOKEN_KEY]: firebaseToken,
+            [USER_KEY]: firebaseUserData,
+          });
+        } catch (error) {
+          console.error("Unable to refresh authentication token", error);
+        }
+      } else if (!storageLoaded) {
+        finishIfReady();
+      } else if (!finished) {
+        finished = true;
+        setLoading(false);
+      }
+    });
+
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
-    loadAuth();
+    let unsubscribe;
+    loadAuth().then((cleanup) => {
+      unsubscribe = cleanup;
+    });
+
+    return () => unsubscribe?.();
   }, [loadAuth]);
 
   // Login
