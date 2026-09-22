@@ -143,20 +143,22 @@ export default function Encrypt() {
             1. Decrypt with password modal(Input password and click Verify button)
             2. Encrypt with confirm modal(Click Ok button)
           */}
-          <button type="submit" className="default" disabled={encrypting}>
+          <button type="submit" className="default w-full" disabled={encrypting}>
             {encrypting ? "Encrypting..." : "Save & Try"}
           </button>
           <>
-            {/* 0. Sign encrypt and save button */}
-            <SignEncryptSave setMessage={setMessage} />
-            <EncryptConfirmOk setMessage={setMessage} />
-            <SaveEcrypted setMessage={setMessage} />
-          </>
+            <>
+              {/* 0. Sign encrypt and save button */}
+              <SignEncryptSave setMessage={setMessage} />
+              <EncryptConfirmOk setMessage={setMessage} />
+              <SaveEcrypted setMessage={setMessage} />
+            </>
 
-          {/* 1. Decrypt with password button */}
-          <DecryptWithPassword setMessage={setMessage} />
-          {/* 2. Encrypt with confirm button */}
-          <EncryptConfirmOk setMessage={setMessage} />
+            {/* 1. Decrypt with password button */}
+            <DecryptWithPassword setMessage={setMessage} />
+            {/* 2. Encrypt with confirm button */}
+            <EncryptConfirmOk setMessage={setMessage} />
+          </>
         </div>
         {message && <p className="text-xs text-gray-600">{message}</p>}
       </form>
