@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
 
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
@@ -61,8 +61,11 @@ async function sendSignMessage(tabId, password) {
 
 export default function SignEncryptSave({ setMessage = () => {} }) {
   const [signing, setSigning] = useState(false);
+  const hoverCooldown = useRef(false);
 
   async function handleSign() {
+    if (hoverCooldown.current) return;
+
     const tab = await getActiveTabSafe();
     if (!tab?.id) {
       setMessage("Open the tender preparation page before using Sign.");
@@ -76,6 +79,7 @@ export default function SignEncryptSave({ setMessage = () => {} }) {
       return;
     }
 
+    hoverCooldown.current = true;
     try {
       setSigning(true);
       const result = await sendSignMessage(tab.id, password);
@@ -97,11 +101,14 @@ export default function SignEncryptSave({ setMessage = () => {} }) {
       }
     } finally {
       setSigning(false);
+      window.setTimeout(() => {
+        hoverCooldown.current = false;
+      }, 1500);
     }
   }
 
   return (
-    <button type="button" className="default grow" onMouseEnter={handleSign} disabled={signing}>
+    <button type="button" className="hover-action grow" onMouseEnter={handleSign} disabled={signing}>
       {signing ? "Signing..." : "Sign"}
     </button>
   );

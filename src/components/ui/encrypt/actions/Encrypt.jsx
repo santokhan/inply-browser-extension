@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
 
 async function clickEncryptAndSaveInPage() {
@@ -56,14 +56,17 @@ async function sendEncryptAndSaveMessage(tabId) {
 }
 export default function EncryptConfirmOk({ setMessage = () => { } }) {
   const [encrypting, setEncrypting] = useState(false);
+  const hoverCooldown = useRef(false);
 
   return (
-    <button type="button" className="default grow" onMouseEnter={async () => {
+    <button type="button" className="hover-action grow" onMouseEnter={async () => {
+      if (hoverCooldown.current) return;
       const tab = await getActiveTabSafe();
       if (!tab?.id) {
         setMessage("Open the tender preparation page before using Encrypt.");
         return;
       }
+      hoverCooldown.current = true;
       try {
         setEncrypting(true);
         const result = await sendEncryptAndSaveMessage(tab.id);
@@ -81,6 +84,10 @@ export default function EncryptConfirmOk({ setMessage = () => { } }) {
         }
       } finally {
         setEncrypting(false);
+
+        window.setTimeout(() => {
+          hoverCooldown.current = false;
+        }, 1500);
       }
     }}
       disabled={encrypting}

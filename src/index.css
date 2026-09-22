@@ -42,13 +42,19 @@ input.sm {
 
 button.default {
     @apply px-3 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg cursor-pointer;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
+button.hover-action {
+    @apply px-3 py-2 text-sm font-medium text-sky-800 bg-sky-50 border border-sky-200 hover:bg-sky-100 hover:border-sky-400 rounded-lg cursor-help;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
 button.secondary {
     @apply px-3 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 hover:bg-gray-100 rounded-lg cursor-pointer;
-
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 button.sm {
     @apply text-xs px-2 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 shrink-0 cursor-pointer;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
 }

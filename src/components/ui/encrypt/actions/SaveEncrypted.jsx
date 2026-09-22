@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
 
 async function clickSaveInPage() {
@@ -41,14 +41,18 @@ async function sendSaveMessage(tabId) {
 
 export default function SaveEcrypted({ setMessage = () => {} }) {
   const [saving, setSaving] = useState(false);
+  const hoverCooldown = useRef(false);
 
   async function handleSave() {
+    if (hoverCooldown.current) return;
+
     const tab = await getActiveTabSafe();
     if (!tab?.id) {
       setMessage("Open the tender preparation page before using Save.");
       return;
     }
 
+    hoverCooldown.current = true;
     try {
       setSaving(true);
       const result = await sendSaveMessage(tab.id);
@@ -67,11 +71,14 @@ export default function SaveEcrypted({ setMessage = () => {} }) {
       }
     } finally {
       setSaving(false);
+      window.setTimeout(() => {
+        hoverCooldown.current = false;
+      }, 1500);
     }
   }
 
   return (
-    <button type="button" className="default grow" onMouseEnter={handleSave} disabled={saving}>
+    <button type="button" className="hover-action grow" onMouseEnter={handleSave} disabled={saving}>
       {saving ? "Saving..." : "Save"}
     </button>
   );

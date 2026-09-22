@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
 
 async function decryptAnchorsInPage() {
@@ -64,15 +64,18 @@ async function sendDecryptMessage(tabId) {
 
 export default function DecryptWithPassword({ setMessage = () => { } }) {
   const [pending, setPending] = useState(false);
+  const hoverCooldown = useRef(false);
 
   return (
-    <button type="button" className="default grow" onMouseEnter={async () => {
+    <button type="button" className="hover-action grow" onMouseEnter={async () => {
+       if (hoverCooldown.current) return;
       // Click the decrypt button here manually to text the encrypt page
       const tab = await getActiveTabSafe();
       if (!tab?.id) {
         setMessage("Open the tender preparation page before using Decrypt.");
         return;
       }
+      hoverCooldown.current = true;
       try {
         setPending(true);
         const result = await sendDecryptMessage(tab.id);
@@ -91,6 +94,10 @@ export default function DecryptWithPassword({ setMessage = () => { } }) {
         }
       } finally {
         setPending(false);
+
+        window.setTimeout(() => {
+          hoverCooldown.current = false;
+        }, 1500);
       }
     }}>
       {pending ? "Decrypting..." : "Decrypt"}
