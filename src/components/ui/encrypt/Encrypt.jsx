@@ -5,8 +5,49 @@ import DecryptEncryptSave from "./actions/DecryptEncryptSave";
 import SignEncryptSave from "./actions/SignEncryptSave";
 
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
+const PAGE_SETTLE_DELAY = 1500;
+
 export default function Encrypt() {
   const [password, setPassword] = useState("");
+  const [pageReady, setPageReady] = useState(false);
+
+  useEffect(() => {
+    let settleTimeout;
+    let activeTabId;
+
+    const clearReadyState = () => {
+      window.clearTimeout(settleTimeout);
+      setPageReady(false);
+    };
+
+    const checkActiveTab = async () => {
+      const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      activeTabId = tab?.id;
+
+      clearReadyState();
+      if (tab?.status !== "complete") return;
+
+      settleTimeout = window.setTimeout(() => {
+        setPageReady(true);
+      }, PAGE_SETTLE_DELAY);
+    };
+
+    const handleTabUpdated = (tabId, changeInfo) => {
+      if (tabId !== activeTabId) return;
+      if (changeInfo.status === "loading") clearReadyState();
+      if (changeInfo.status === "complete") checkActiveTab();
+    };
+
+    checkActiveTab();
+    chrome.tabs.onActivated.addListener(checkActiveTab);
+    chrome.tabs.onUpdated.addListener(handleTabUpdated);
+
+    return () => {
+      window.clearTimeout(settleTimeout);
+      chrome.tabs.onActivated.removeListener(checkActiveTab);
+      chrome.tabs.onUpdated.removeListener(handleTabUpdated);
+    };
+  }, []);
 
   useEffect(() => {
     chrome.storage.local.get(ENCRYPT_PASSWORD_KEY).then((result) => {
@@ -60,14 +101,14 @@ export default function Encrypt() {
       {password &&
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-800">Fill Actions</h3>
-          <SignEncryptSave />
+          <SignEncryptSave pageReady={pageReady} />
         </section>
       }
       {password &&
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-800">Encrypt Actions</h3>
-          <OpenEncryptLink className="w-full" />
-          <DecryptEncryptSave />
+          <OpenEncryptLink className="w-full" pageReady={pageReady} />
+          <DecryptEncryptSave pageReady={pageReady} />
         </section>
       }
     </div>

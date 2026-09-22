@@ -31,7 +31,7 @@ async function sendActionWithRetry(tabId, action, password) {
   return lastResult;
 }
 
-export default function SignEncryptSave() {
+export default function SignEncryptSave({ pageReady = true }) {
   const [running, setRunning] = useState(false);
   const hoverCooldown = useRef(false);
 
@@ -76,9 +76,9 @@ export default function SignEncryptSave() {
   }
 
   return (
-    <button type="button" className="default w-full" onClick={handleRunAll} disabled={running}>
+    <button type="button" className="default w-full" onClick={handleRunAll} disabled={running || !pageReady}>
       {/* Total 3 actions */}
-      {running ? "Running..." : "Sign + Encrypt + Save"}
+      {running ? "Running..." : pageReady ? "Sign + Encrypt + Save" : "Waiting for page..."}
     </button>
   );
 }

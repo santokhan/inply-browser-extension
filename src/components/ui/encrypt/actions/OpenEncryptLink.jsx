@@ -24,7 +24,7 @@ async function openEncryptLink(tabId) {
   return result?.result;
 }
 
-export default function OpenEncryptLink({ className = "" }) {
+export default function OpenEncryptLink({ className = "", pageReady = true }) {
   const [opening, setOpening] = useState(false);
   const hoverCooldown = useRef(false);
 
@@ -55,8 +55,8 @@ export default function OpenEncryptLink({ className = "" }) {
   }
 
   return (
-    <button type="button" className={twMerge("default grow", className)} onClick={handleOpenEncryptLink} disabled={opening}>
-      {opening ? "Opening..." : "Open Encrypt"}
+    <button type="button" className={twMerge("default grow", className)} onClick={handleOpenEncryptLink} disabled={opening || !pageReady}>
+      {opening ? "Opening..." : pageReady ? "Open Encrypt" : "Waiting for page..."}
     </button>
   );
 }

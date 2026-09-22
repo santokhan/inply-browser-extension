@@ -66,7 +66,7 @@ async function sendDecryptAndEncryptMessage(tabId) {
   return result?.result;
 }
 
-export default function DecryptEncryptSave() {
+export default function DecryptEncryptSave({ pageReady = true }) {
   const notify = (message) => {
 
   };
@@ -100,9 +100,9 @@ export default function DecryptEncryptSave() {
   }
 
   return (
-    <button type="button" className="default w-full" onClick={handleAction} disabled={running}>
+    <button type="button" className="default w-full" onClick={handleAction} disabled={running || !pageReady}>
       {/* Total 2 actions */}
-      {running ? "Decrypting and saving..." : "Decrypt + Encrypt & Save"}
+      {running ? "Decrypting and saving..." : pageReady ? "Decrypt + Encrypt & Save" : "Waiting for page..."}
     </button>
   );
 }
