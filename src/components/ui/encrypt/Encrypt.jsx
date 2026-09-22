@@ -61,25 +61,28 @@ export default function Encrypt() {
         </div>
       </form>
 
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-gray-800">Encrypt Actions</h3>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          <Sign />
-          <EncryptConfirmOk buttonLabel="Encrypt" />
-          <SaveEcrypted />
-        </div>
-        <SignEncryptSave />
-      </section>
-
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-gray-800">Decrypt Actions</h3>
-        <OpenEncryptLink className="w-full" />
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          <DecryptWithPassword />
-          <EncryptConfirmOk buttonLabel="Encrypt & Save" />
-        </div>
-        <DecryptEncryptSave />
-      </section>
+      {password &&
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-gray-800">Fill Actions</h3>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <Sign />
+            <EncryptConfirmOk buttonLabel="Encrypt" />
+            <SaveEcrypted />
+          </div>
+          <SignEncryptSave />
+        </section>
+      }
+      {password &&
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-gray-800">Encrypt Actions</h3>
+          <OpenEncryptLink className="w-full" />
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <DecryptWithPassword />
+            <EncryptConfirmOk buttonLabel="Encrypt & Save" />
+          </div>
+          <DecryptEncryptSave />
+        </section>
+      }
     </div>
   );
 }
