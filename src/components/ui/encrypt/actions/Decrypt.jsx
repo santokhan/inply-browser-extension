@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
+import { toast } from "react-toastify";
 
 async function decryptAnchorsInPage() {
   const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -62,7 +63,7 @@ async function sendDecryptMessage(tabId) {
   }
 }
 
-export default function DecryptWithPassword({ setMessage = () => { } }) {
+export default function DecryptWithPassword() {
   const [pending, setPending] = useState(false);
   const hoverCooldown = useRef(false);
 
@@ -72,7 +73,7 @@ export default function DecryptWithPassword({ setMessage = () => { } }) {
       // Click the decrypt button here manually to text the encrypt page
       const tab = await getActiveTabSafe();
       if (!tab?.id) {
-        setMessage("Open the tender preparation page before using Decrypt.");
+        toast.info("Open the tender preparation page before using Decrypt.");
         return;
       }
       hoverCooldown.current = true;
@@ -82,15 +83,15 @@ export default function DecryptWithPassword({ setMessage = () => { } }) {
         console.log(result)
         console.log("[Decrypt] Response from page:", result);
         const count = Number.isFinite(result?.count) ? result.count : 0;
-        setMessage(result?.ok ? ("Clicked " + count + " decrypted link(s).") : (result?.message || "No decrypted links were found."));
+        toast.info(result?.ok ? ("Clicked " + count + " decrypted link(s).") : (result?.message || "No decrypted links were found."));
       } catch (error) {
         console.error(error);
         const errorMessage = String(error?.message || error);
         if (errorMessage.includes("Receiving end does not exist") || errorMessage.includes("Frame with ID 0 was removed")) {
-          setMessage("Reload the target page, then try Decrypt again.");
+          toast.info("Reload the target page, then try Decrypt again.");
         } else {
           console.error(error);
-          setMessage("This page cannot be controlled by the extension.");
+          toast.info("This page cannot be controlled by the extension.");
         }
       } finally {
         setPending(false);

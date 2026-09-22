@@ -3,6 +3,7 @@ import { getActiveTabSafe } from "../../../../utils/chrome";
 import { sendSignMessage } from "./Sign";
 import { sendEncryptAndSaveMessage } from "./Encrypt";
 import { sendSaveMessage } from "./SaveEncrypted";
+import { toast } from "react-toastify";
 
 const ACTIONS = ["signAndVerify", "encryptAndSave", "save"];
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
@@ -30,7 +31,7 @@ async function sendActionWithRetry(tabId, action, password) {
   return lastResult;
 }
 
-export default function SignEncryptSave({ setMessage = () => { } }) {
+export default function SignEncryptSave() {
   const [running, setRunning] = useState(false);
   const hoverCooldown = useRef(false);
 
@@ -39,13 +40,13 @@ export default function SignEncryptSave({ setMessage = () => { } }) {
 
     const tab = await getActiveTabSafe();
     if (!tab?.id) {
-      setMessage("Open the tender preparation page before using Sign, Encrypt & Save.");
+      toast.info("Open the tender preparation page before using Sign, Encrypt & Save.");
       return;
     }
 
     const saved = await chrome.storage.local.get(ENCRYPT_PASSWORD_KEY);
     if (!saved?.[ENCRYPT_PASSWORD_KEY]) {
-      setMessage("Enter and save a password before using Sign, Encrypt & Save.");
+      toast.info("Enter and save a password before using Sign, Encrypt & Save.");
       return;
     }
 
@@ -57,15 +58,15 @@ export default function SignEncryptSave({ setMessage = () => { } }) {
         const verificationFailed = action === "signAndVerify" && !result?.verified;
         const encryptionNotConfirmed = action === "encryptAndSave" && !result?.confirmed;
         if (!result?.ok || verificationFailed || encryptionNotConfirmed) {
-          setMessage(result?.message || `Could not complete ${action}.`);
+          toast.info(result?.message || `Could not complete ${action}.`);
           return;
         }
         if (action !== "save") await wait(500);
       }
-      setMessage("Sign, Encrypt & Save completed.");
+      toast.info("Sign, Encrypt & Save completed.");
     } catch (error) {
       console.error(error);
-      setMessage("This page cannot be controlled by the extension. Reload the page and try again.");
+      toast.info("This page cannot be controlled by the extension. Reload the page and try again.");
     } finally {
       setRunning(false);
       window.setTimeout(() => {

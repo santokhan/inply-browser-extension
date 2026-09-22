@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
+import { toast } from "react-toastify";
 
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
 
@@ -59,7 +60,7 @@ export async function sendSignMessage(tabId, password) {
   }
 }
 
-export default function Sign({ setMessage = () => {} }) {
+export default function Sign() {
   const [signing, setSigning] = useState(false);
   const hoverCooldown = useRef(false);
 
@@ -68,14 +69,14 @@ export default function Sign({ setMessage = () => {} }) {
 
     const tab = await getActiveTabSafe();
     if (!tab?.id) {
-      setMessage("Open the tender preparation page before using Sign.");
+      toast.info("Open the tender preparation page before using Sign.");
       return;
     }
 
     const saved = await chrome.storage.local.get(ENCRYPT_PASSWORD_KEY);
     const password = saved?.[ENCRYPT_PASSWORD_KEY];
     if (!password) {
-      setMessage("Enter and save a password before using Sign.");
+      toast.info("Enter and save a password before using Sign.");
       return;
     }
 
@@ -85,19 +86,19 @@ export default function Sign({ setMessage = () => {} }) {
       const result = await sendSignMessage(tab.id, password);
       console.log("[Sign] Response from page:", result);
       if (!result?.ok) {
-        setMessage(result?.message || "No Sign button was found.");
+        toast.info(result?.message || "No Sign button was found.");
       } else if (result.verified) {
-        setMessage("Sign password verified.");
+        toast.info("Sign password verified.");
       } else {
-        setMessage(result?.message || "Sign clicked, but password verification did not start.");
+        toast.info(result?.message || "Sign clicked, but password verification did not start.");
       }
     } catch (error) {
       console.error(error);
       const errorMessage = String(error?.message || error);
       if (errorMessage.includes("Receiving end does not exist") || errorMessage.includes("Frame with ID 0 was removed")) {
-        setMessage("Reload the target page, then try Sign again.");
+        toast.info("Reload the target page, then try Sign again.");
       } else {
-        setMessage("This page cannot be controlled by the extension.");
+        toast.info("This page cannot be controlled by the extension.");
       }
     } finally {
       setSigning(false);

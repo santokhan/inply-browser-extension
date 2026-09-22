@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
+import { toast } from "react-toastify";
 
 async function clickEncryptAndSaveInPage() {
   const isVisible = (element) => {
@@ -54,7 +55,7 @@ export async function sendEncryptAndSaveMessage(tabId) {
     return result?.result;
   }
 }
-export default function EncryptConfirmOk({ setMessage = () => { }, buttonLabel = "Encrypt & Save" }) {
+export default function EncryptConfirmOk({ buttonLabel = "Encrypt & Save" }) {
   const [encrypting, setEncrypting] = useState(false);
   const hoverCooldown = useRef(false);
 
@@ -63,7 +64,7 @@ export default function EncryptConfirmOk({ setMessage = () => { }, buttonLabel =
       if (hoverCooldown.current) return;
       const tab = await getActiveTabSafe();
       if (!tab?.id) {
-        setMessage("Open the tender preparation page before using Encrypt.");
+        toast.info("Open the tender preparation page before using Encrypt.");
         return;
       }
       hoverCooldown.current = true;
@@ -72,15 +73,15 @@ export default function EncryptConfirmOk({ setMessage = () => { }, buttonLabel =
         const result = await sendEncryptAndSaveMessage(tab.id);
         console.log("[Encrypt And Save] Response from page:", result);
         const count = Number.isFinite(result?.count) ? result.count : 0;
-        setMessage(result?.ok ? ("Clicked " + count + " Encrypt And Save button.") : (result?.message || "No Encrypt And Save button was found."));
+        toast.info(result?.ok ? ("Clicked " + count + " Encrypt And Save button.") : (result?.message || "No Encrypt And Save button was found."));
       } catch (error) {
         console.error(error);
         const errorMessage = String(error?.message || error);
         if (errorMessage.includes("Receiving end does not exist") || errorMessage.includes("Frame with ID 0 was removed")) {
-          setMessage("Reload the target page, then try Encrypt again.");
+          toast.info("Reload the target page, then try Encrypt again.");
         } else {
           console.error(error);
-          setMessage("This page cannot be controlled by the extension.");
+          toast.info("This page cannot be controlled by the extension.");
         }
       } finally {
         setEncrypting(false);

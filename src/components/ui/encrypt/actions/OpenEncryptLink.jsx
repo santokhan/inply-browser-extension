@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
 import { twMerge } from "tailwind-merge";
+import { toast } from "react-toastify";
 
 function openEncryptLinkInPage() {
   const anchor = [...document.querySelectorAll("a")].find((candidate) =>
@@ -23,7 +24,7 @@ async function openEncryptLink(tabId) {
   return result?.result;
 }
 
-export default function OpenEncryptLink({ setMessage = () => { }, className = "" }) {
+export default function OpenEncryptLink({ className = "" }) {
   const [opening, setOpening] = useState(false);
   const hoverCooldown = useRef(false);
 
@@ -33,7 +34,7 @@ export default function OpenEncryptLink({ setMessage = () => { }, className = ""
 
     const tab = await getActiveTabSafe();
     if (!tab?.id) {
-      setMessage("Open the tender preparation page before using Encrypt.");
+      toast.info("Open the tender preparation page before using Encrypt.");
       hoverCooldown.current = false;
       return;
     }
@@ -41,10 +42,10 @@ export default function OpenEncryptLink({ setMessage = () => { }, className = ""
     try {
       setOpening(true);
       const result = await openEncryptLink(tab.id);
-      setMessage(result?.ok ? "Encrypt link opened." : (result?.message || "No Encrypt link was found."));
+      toast.info(result?.ok ? "Encrypt link opened." : (result?.message || "No Encrypt link was found."));
     } catch (error) {
       console.error(error);
-      setMessage("This page cannot be controlled by the extension.");
+      toast.info("This page cannot be controlled by the extension.");
     } finally {
       setOpening(false);
       window.setTimeout(() => {

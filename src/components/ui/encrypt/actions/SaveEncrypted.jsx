@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
+import { toast } from "react-toastify";
 
 async function clickSaveInPage() {
   const isVisible = (element) => {
@@ -39,7 +40,7 @@ export async function sendSaveMessage(tabId) {
   }
 }
 
-export default function SaveEcrypted({ setMessage = () => {} }) {
+export default function SaveEcrypted() {
   const [saving, setSaving] = useState(false);
   const hoverCooldown = useRef(false);
 
@@ -48,7 +49,7 @@ export default function SaveEcrypted({ setMessage = () => {} }) {
 
     const tab = await getActiveTabSafe();
     if (!tab?.id) {
-      setMessage("Open the tender preparation page before using Save.");
+      toast.info("Open the tender preparation page before using Save.");
       return;
     }
 
@@ -58,16 +59,16 @@ export default function SaveEcrypted({ setMessage = () => {} }) {
       const result = await sendSaveMessage(tab.id);
       console.log("[Save] Response from page:", result);
       const count = Number.isFinite(result?.count) ? result.count : 0;
-      setMessage(result?.ok
+      toast.info(result?.ok
         ? ("Clicked " + count + " Save button.")
         : (result?.message || "No Save button was found."));
     } catch (error) {
       console.error(error);
       const errorMessage = String(error?.message || error);
       if (errorMessage.includes("Receiving end does not exist") || errorMessage.includes("Frame with ID 0 was removed")) {
-        setMessage("Reload the target page, then try Save again.");
+        toast.info("Reload the target page, then try Save again.");
       } else {
-        setMessage("This page cannot be controlled by the extension.");
+        toast.info("This page cannot be controlled by the extension.");
       }
     } finally {
       setSaving(false);

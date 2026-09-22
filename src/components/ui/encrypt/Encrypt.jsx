@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import DecryptWithPassword from "./actions/Decrypt";
 import EncryptConfirmOk from "./actions/Encrypt";
 import Sign from "./actions/Sign";
@@ -10,7 +11,6 @@ import SignEncryptSave from "./actions/SignEncryptSave";
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
 export default function Encrypt() {
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
 
   useEffect(() => {
     chrome.storage.local.get(ENCRYPT_PASSWORD_KEY).then((result) => {
@@ -20,16 +20,16 @@ export default function Encrypt() {
   async function handleSavePassword(event) {
     event.preventDefault();
     if (!password) {
-      setMessage("Enter a password first.");
+      toast.info("Enter a password first.");
       return;
     }
 
     try {
       await chrome.storage.local.set({ [ENCRYPT_PASSWORD_KEY]: password });
-      setMessage("Password saved.");
+      toast.info("Password saved.");
     } catch (error) {
       console.error(error);
-      setMessage("Could not save the password.");
+      toast.info("Could not save the password.");
     }
   }
 
@@ -64,23 +64,22 @@ export default function Encrypt() {
       <section className="space-y-3">
         <h3 className="text-sm font-semibold text-gray-800">Encrypt Actions</h3>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          <Sign setMessage={setMessage} />
-          <EncryptConfirmOk setMessage={setMessage} buttonLabel="Encrypt" />
-          <SaveEcrypted setMessage={setMessage} />
+          <Sign />
+          <EncryptConfirmOk buttonLabel="Encrypt" />
+          <SaveEcrypted />
         </div>
-        <SignEncryptSave setMessage={setMessage} />
+        <SignEncryptSave />
       </section>
 
       <section className="space-y-3">
         <h3 className="text-sm font-semibold text-gray-800">Decrypt Actions</h3>
-        <OpenEncryptLink setMessage={setMessage} className="w-full" />
+        <OpenEncryptLink className="w-full" />
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          <DecryptWithPassword setMessage={setMessage} />
-          <EncryptConfirmOk setMessage={setMessage} buttonLabel="Encrypt & Save" />
+          <DecryptWithPassword />
+          <EncryptConfirmOk buttonLabel="Encrypt & Save" />
         </div>
-        <DecryptEncryptSave setMessage={setMessage} />
+        <DecryptEncryptSave />
       </section>
-      {message && <p className="text-xs text-gray-600">{message}</p>}
     </div>
   );
 }

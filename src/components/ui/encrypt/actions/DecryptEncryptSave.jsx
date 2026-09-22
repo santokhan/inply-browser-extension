@@ -66,10 +66,9 @@ async function sendDecryptAndEncryptMessage(tabId) {
   return result?.result;
 }
 
-export default function DecryptEncryptSave({ setMessage = () => {} }) {
+export default function DecryptEncryptSave() {
   const notify = (message) => {
-    setMessage(message);
-    toast.info(message);
+
   };
   const [running, setRunning] = useState(false);
   const cooldown = useRef(false);
@@ -78,20 +77,20 @@ export default function DecryptEncryptSave({ setMessage = () => {} }) {
     if (cooldown.current) return;
     const tab = await getActiveTabSafe();
     if (!tab?.id) {
-      notify("Open the tender preparation page before using Decrypt & Encrypt.");
+      toast.info("Open the tender preparation page before using Decrypt & Encrypt.");
       return;
     }
     cooldown.current = true;
     try {
       setRunning(true);
       const result = await sendDecryptAndEncryptMessage(tab.id);
-      notify(result?.ok
+      toast.info(result?.ok
         ? "Decrypt, Encrypt & Save completed."
         : (result?.message || "Could not start Decrypt & Encrypt."));
     } catch (error) {
       console.error(error);
       const errorMessage = String(error?.message || error);
-      notify(errorMessage.includes("Receiving end does not exist") || errorMessage.includes("Frame with ID 0 was removed")
+      toast.error(errorMessage.includes("Receiving end does not exist") || errorMessage.includes("Frame with ID 0 was removed")
         ? "Reload the target page, then try Decrypt & Encrypt again."
         : "This page cannot be controlled by the extension.");
     } finally {
