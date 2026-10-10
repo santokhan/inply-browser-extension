@@ -6,13 +6,18 @@
     "permissions": [
         "storage",
         "activeTab",
-        "scripting"
+        "scripting",
+        "sidePanel"
     ],
     "host_permissions": [
         "<all_urls>"
     ],
-    "action": {
-        "default_popup": "index.html"
+    "action": {},
+    "side_panel": {
+        "default_path": "index.html"
+    },
+    "background": {
+        "service_worker": "src/background.js"
     },
     "content_scripts": [
         {
