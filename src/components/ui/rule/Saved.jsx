@@ -164,14 +164,22 @@ function Accordion({ children, applyRules = async (id) => { }, group }) {
                 <div className="inline-flex gap-1 mt-1">
                     {/* <button type="button" className="sm" onClick={applyRules}>Apply</button> */}
                     {/* <button type="button" className="sm whitespace-nowrap" onClick={signWithPassword}>Sign</button> */}
-                    <button type="button" className="sm whitespace-nowrap" onClick={async function () {
-                        await applyRules();
-                        const signResult = await signWithPassword();
-                        if (signResult?.ok === false) return;
-                        await onlyEncrypt();
-                    }}>Fill Sign Encrypt</button>
+                    <button
+                        type="button"
+                        className="sm whitespace-nowrap"
+                        onClick={async function () {
+                            await applyRules();
+                            const signResult = await signWithPassword();
+                            if (signResult?.ok === false) return;
+                            await onlyEncrypt();
+                            setTimeout(async () => {
+                                await onlySave();
+                            }, 1000);
+                        }}
+                        title="This will fill the form, sign and verify, encrypt, and save the page."
+                    >Fill Sign Encrypt Save</button>
                     {/* <button type="button" className="sm whitespace-nowrap" onClick={onlyEncrypt}>Encrypt</button> */}
-                    <button type="button" className="sm whitespace-nowrap" onClick={onlySave}>Save</button>
+                    {/* <button type="button" className="sm whitespace-nowrap" onClick={onlySave}>Save</button> */}
                 </div>
             </summary>
             <div className="space-y-2 ml-2">
