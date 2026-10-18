@@ -77,6 +77,130 @@ function applyRules(rules) {
   rules.forEach(applyRule);
 }
 
+function fakeFillPage() {
+  const randomItem = (items) => items[Math.floor(Math.random() * items.length)];
+  const randomDigits = (length) => Array.from({ length }, () => Math.floor(Math.random() * 10)).join("");
+  const randomDate = () => {
+    const start = new Date(1980, 0, 1).getTime();
+    const end = new Date(2003, 11, 31).getTime();
+    return new Date(start + Math.random() * (end - start)).toISOString().slice(0, 10);
+  };
+  const setValue = (element, value) => {
+    const prototype = element instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : element instanceof HTMLSelectElement
+        ? HTMLSelectElement.prototype
+        : HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+    if (setter) setter.call(element, value);
+    else element.value = value;
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  const visible = (element) => {
+    const style = window.getComputedStyle(element);
+    return style.display !== "none" && style.visibility !== "hidden" && element.getClientRects().length > 0;
+  };
+
+  const candidates = [...document.querySelectorAll("input, textarea, select")]
+    .filter((element) => !element.disabled && !element.readOnly && visible(element));
+  const radios = new Map();
+  let count = 0;
+
+  for (const element of candidates) {
+    if (element instanceof HTMLSelectElement) {
+      const options = [...element.options].filter((option) => !option.disabled && option.value !== "");
+      if (options.length) {
+        setValue(element, randomItem(options).value);
+        count += 1;
+      }
+      continue;
+    }
+    if (element instanceof HTMLTextAreaElement) {
+      setValue(element, `Copy Attached ${randomDigits(4)}`);
+      count += 1;
+      continue;
+    }
+
+    const type = (element.type || "text").toLowerCase();
+    let value;
+    switch (type) {
+      case "hidden":
+      case "button":
+      case "submit":
+      case "reset":
+      case "image":
+      case "file":
+      case "password":
+        continue;
+      case "checkbox":
+        element.checked = Math.random() >= 0.5;
+        element.dispatchEvent(new Event("input", { bubbles: true }));
+        element.dispatchEvent(new Event("change", { bubbles: true }));
+        count += 1;
+        continue;
+      case "radio": {
+        const key = element.name || `radio-${candidates.indexOf(element)}`;
+        if (!radios.has(key)) radios.set(key, []);
+        radios.get(key).push(element);
+        continue;
+      }
+      case "email":
+        value = `user${randomDigits(5)}@example.com`;
+        break;
+      case "tel":
+        value = `01${randomDigits(9)}`;
+        break;
+      case "number":
+      case "range": {
+        const min = element.min !== "" && Number.isFinite(Number(element.min)) ? Number(element.min) : 0;
+        const max = element.max !== "" && Number.isFinite(Number(element.max)) ? Number(element.max) : min + 100;
+        const step = Number(element.step) > 0 ? Number(element.step) : 1;
+        const steps = Math.max(0, Math.floor((max - min) / step));
+        value = String(min + Math.floor(Math.random() * (steps + 1)) * step);
+        break;
+      }
+      case "date":
+        value = randomDate();
+        break;
+      case "month":
+        value = `${1980 + Math.floor(Math.random() * 30)}-${String(1 + Math.floor(Math.random() * 12)).padStart(2, "0")}`;
+        break;
+      case "time":
+        value = `${String(Math.floor(Math.random() * 24)).padStart(2, "0")}:${String(Math.floor(Math.random() * 60)).padStart(2, "0")}`;
+        break;
+      case "datetime-local":
+        value = `${randomDate()}T${String(Math.floor(Math.random() * 24)).padStart(2, "0")}:${String(Math.floor(Math.random() * 60)).padStart(2, "0")}`;
+        break;
+      case "url":
+        value = `https://example.com/${randomDigits(5)}`;
+        break;
+      case "color":
+        value = `#${Array.from({ length: 6 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`;
+        break;
+      case "search":
+        value = `Sample ${randomItem(["search", "query", "term"])} ${randomDigits(3)}`;
+        break;
+      case "text":
+        value = `Copy Attached ${randomDigits(4)}`;
+        break;
+      default:
+        value = `Sample ${randomItem(["name", "value", "text"])} ${randomDigits(4)}`;
+    }
+    setValue(element, value);
+    count += 1;
+  }
+
+  for (const group of radios.values()) {
+    const radio = randomItem(group);
+    radio.checked = true;
+    radio.dispatchEvent(new Event("input", { bubbles: true }));
+    radio.dispatchEvent(new Event("change", { bubbles: true }));
+    count += 1;
+  }
+  return { ok: count > 0, count, message: count ? undefined : "No fillable fields were found on this page." };
+}
+
 function startInspect(rule) {
   const elements = [...document.querySelectorAll(rule?.selector)].filter(displayNoneFilter);
   const element = elements[rule?.nth || 0];
@@ -494,6 +618,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.get("rules", (res) => {
       applyRules(res.rules || []);
     });
+  }
+
+  if (message.action === "fakeFill") {
+    sendResponse(fakeFillPage());
+    return false;
   }
 
   if (message.action === "startInspect") {

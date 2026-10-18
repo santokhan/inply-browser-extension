@@ -6,6 +6,7 @@ import { getActiveTabSafe } from "../../../utils/chrome";
 import RuleEditForm from "./RuleEditForm";
 import { useGroups } from "../../../hooks/useGroups";
 import { displayNoneFilter } from "../../../utils/querySelector";
+import { toast } from "react-toastify";
 
 export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { }, onDelete = () => { }, onMove = () => { }, canMoveUp = true, canMoveDown = true }) {
     const [editing, setEditing] = useState(false);
@@ -184,6 +185,27 @@ export default function SavedRules() {
     const { groups } = useGroups()
     const { rules, deleteRule, moveRule, loadRules } = useRules();
     const [applyingAll, setApplyingAll] = useState(false);
+    const [fakeFilling, setFakeFilling] = useState(false);
+
+    async function fakeFillActivePage() {
+        const tab = await getActiveTabSafe();
+        if (!tab?.id) {
+            toast.info("Open a page with form fields before using Fake Fill.");
+            return;
+        }
+
+        setFakeFilling(true);
+        try {
+            const result = await chrome.tabs.sendMessage(tab.id, { action: "fakeFill" });
+            if (result?.ok) toast.success(`Filled ${result.count} field${result.count === 1 ? "" : "s"}.`);
+            else toast.info(result?.message || "No fillable fields were found.");
+        } catch (error) {
+            console.warn("Could not fake fill the active page:", error);
+            toast.info("This page cannot be filled by the extension. Try reloading it first.");
+        } finally {
+            setFakeFilling(false);
+        }
+    }
 
     function applyRuleInPage(rule) {
         const elements = [...document.querySelectorAll(rule?.selector)].filter(displayNoneFilter);
@@ -330,6 +352,9 @@ export default function SavedRules() {
         <>
             <div className="flex items-center justify-between gap-4 px-3 py-2">
                 <SearchForm />
+                <button type="button" className="sm whitespace-nowrap" onClick={fakeFillActivePage} disabled={fakeFilling}>
+                    {fakeFilling ? "Filling..." : "Fake Fill"}
+                </button>
                 {/* <button
                     onClick={async () => {
                         setApplyingAll(true);
