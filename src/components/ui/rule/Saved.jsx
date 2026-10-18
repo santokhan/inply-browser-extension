@@ -74,8 +74,8 @@ export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { 
 
                 {/* Line 2: Value + Actions */}
                 <div className="flex items-center justify-end gap-2 mt-3">
-                    <button type="button" onClick={() => onMove(rule.id, "up")} disabled={!canMoveUp} aria-label="Move rule up"><ArrowUp size={14} strokeWidth={2} /></button>
-                    <button type="button" onClick={() => onMove(rule.id, "down")} disabled={!canMoveDown} aria-label="Move rule down"><ArrowDown size={14} strokeWidth={2} /></button>
+                    <button type="button" onClick={() => onMove(rule.id, "up")} disabled={!canMoveUp} aria-label="Move rule up" className="text-gray-400 opacity-40 transition-opacity hover:text-gray-700 hover:opacity-100 focus-visible:text-gray-700 focus-visible:opacity-100 disabled:cursor-not-allowed"><ArrowUp size={14} strokeWidth={2} /></button>
+                    <button type="button" onClick={() => onMove(rule.id, "down")} disabled={!canMoveDown} aria-label="Move rule down" className="text-gray-400 opacity-40 transition-opacity hover:text-gray-700 hover:opacity-100 focus-visible:text-gray-700 focus-visible:opacity-100 disabled:cursor-not-allowed"><ArrowDown size={14} strokeWidth={2} /></button>
 
                     <button
                         onClick={async () => {
