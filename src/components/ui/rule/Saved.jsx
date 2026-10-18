@@ -110,6 +110,20 @@ export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { 
 function Accordion({ children, applyRules = (id) => { }, group }) {
     const [applying, setApplying] = useState(false);
 
+    async function signWithPassword() {
+        const tab = await getActiveTabSafe();
+        if (!tab?.id) return;
+
+        try {
+            const result = await chrome.tabs.sendMessage(tab.id, { action: "signAndVerify" });
+            if (!result?.ok) {
+                console.warn(result?.message || "Could not complete Sign.");
+            }
+        } catch (error) {
+            console.warn("Could not send Sign action to the active tab:", error);
+        }
+    }
+
     return (
         <details className="border-l border-gray-200 mx-3">
             <summary className="font-semibold text-gray-800 text-sm py-2 hover:bg-gray-100 px-3">
@@ -119,6 +133,7 @@ function Accordion({ children, applyRules = (id) => { }, group }) {
                     await applyRules();
                     setApplying(false);
                 }}>Apply</button>
+                <button type="button" className="sm ml-1" onClick={signWithPassword}>Sign</button>
             </summary>
             <div className="space-y-2 ml-2">
                 {children}
@@ -328,8 +343,8 @@ export default function SavedRules() {
                             onApply={applyRule}
                             applying={applyingAll}
                             onMove={moveRule}
-                                canMoveUp={index > 0}
-                                canMoveDown={index < rules.length - 1}
+                            canMoveUp={index > 0}
+                            canMoveDown={index < rules.length - 1}
                         />
                     ))}
                 </div>
