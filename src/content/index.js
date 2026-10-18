@@ -333,7 +333,7 @@ async function autoClickPendingDecrypt() {
     text: (element.innerText || element.value || "").trim(),
     disabled: element.disabled,
     visible: isVisible(element),
-  })));  for (let attempt = 0; attempt < 240; attempt += 1) {
+  }))); for (let attempt = 0; attempt < 240; attempt += 1) {
     const button = getDecryptButton();
     if (button) {
       console.log("[Encrypt] Decrypt candidate found:", {
@@ -442,6 +442,45 @@ async function autoClickEncryptAction() {
   }
 }
 
+function getEncryptButton() {
+  return [...document.querySelectorAll('#encrypt, input[name="encrypt"], button, input[type="button"], input[type="submit"], [role="button"]')].find((element) => {
+    const label = (element.innerText || element.value || element.getAttribute("aria-label") || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+    return (element.id === "encrypt" || element.name === "encrypt" || label === "encrypt") && !element.disabled && isVisible(element);
+  });
+}
+
+async function onlyEncryptThenSave() {
+  const encryptButton = getEncryptButton();
+  if (!encryptButton) {
+    return { ok: false, verified: false, message: "No Encrypt button was found on this page." };
+  }
+
+  encryptButton.scrollIntoView({ block: "center", behavior: "smooth" });
+  encryptButton.click();
+  console.log("[Encrypt] Clicked Encrypt; waiting for Save to become enabled.");
+
+  // Encrypt can asynchronously enable Save after updating the form.
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const saveButton = getSaveButton();
+    if (saveButton) {
+      saveButton.scrollIntoView({ block: "center", behavior: "smooth" });
+      saveButton.click();
+      console.log("[Encrypt] Clicked Save; the page chkValidate handler is running.");
+      return { ok: true, count: 2 };
+    }
+    await wait(250);
+  }
+
+  return {
+    ok: false,
+    count: 1,
+    message: "Encrypt was clicked, but Save did not become enabled.",
+  };
+}
+
 
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onMessage
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -475,7 +514,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 
   if (message.action === "decryptAndEncryptSave") {
-    clickDecryptAndVerify().then((ok) => sendResponse(ok ? { ok: true, count: 1, confirmed: true } : { ok: false, message: "The password dialog was not ready." }));
+    clickDecryptAndVerify().then((ok) => {
+      if (ok) {
+        sendResponse({ ok: true, count: 1 })
+      } else {
+        sendResponse({ ok: false, message: "The password dialog was not ready." })
+      }
+    });
     return true;
   }
 
@@ -486,6 +531,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "signAndVerify") {
     signAndVerify().then(sendResponse);
+    return true;
+  }
+
+  if (message.action === "onlyEncryptThenSave") {
+    onlyEncryptThenSave().then(sendResponse);
     return true;
   }
 
