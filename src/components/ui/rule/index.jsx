@@ -33,9 +33,9 @@ export default function AutoFillRules() {
   useEffect(() => {
     chrome.storage.local.get(ACTIVE_FORM_TAB_KEY).then((result) => {
       const savedTab = result?.[ACTIVE_FORM_TAB_KEY];
-      setWhichForm(FORM_TABS.has(savedTab) ? savedTab : "rule");
+      setWhichForm(FORM_TABS.has(savedTab) ? savedTab : "encrypt");
     }).catch(() => {
-      setWhichForm("rule");
+      setWhichForm("encrypt");
     });
   }, []);
 
@@ -59,9 +59,9 @@ export default function AutoFillRules() {
 
       <Tabs value={whichForm} onValueChange={handleFormTabChange}>
         <TabsList className="px-3">
+          <TabsTrigger value="encrypt">Encrypt</TabsTrigger>
           <TabsTrigger value="group">Create Group</TabsTrigger>
           <TabsTrigger value="rule">Create Rule</TabsTrigger>
-          <TabsTrigger value="encrypt">Encrypt</TabsTrigger>
         </TabsList>
 
         <TabsContent value="group">
