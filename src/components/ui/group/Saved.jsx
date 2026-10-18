@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRules } from "../../../hooks/useRules";
 import { useGroups } from "../../../hooks/useGroups";
+import { ArrowDown, ArrowUp } from "lucide-react";
 
 function EditGroupForm({ initialValue, onCancel, onSave }) {
     const [value, setValue] = useState(initialValue);
@@ -33,7 +34,7 @@ function EditGroupForm({ initialValue, onCancel, onSave }) {
 }
 
 export default function SavedGroups() {
-    const { groups, editGroup, deleteGroup } = useGroups();
+    const { groups, editGroup, deleteGroup, moveGroup } = useGroups();
     const { rules } = useRules();
 
     const [editingId, setEditingId] = useState(null);
@@ -46,11 +47,19 @@ export default function SavedGroups() {
                 </div>
             )}
 
-            {groups.map(group => (
+            {groups.map((group, index) => (
                 <div
                     key={group.id}
                     className="flex items-center gap-2 bg-white p-3 rounded-md shadow-sm"
                 >
+                    <div className="flex flex-col">
+                        <button type="button" onClick={() => moveGroup(group.id, "up")} disabled={index === 0} aria-label={`Move ${group.name} up`} className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed">
+                            <ArrowUp size={14} />
+                        </button>
+                        <button type="button" onClick={() => moveGroup(group.id, "down")} disabled={index === groups.length - 1} aria-label={`Move ${group.name} down`} className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed">
+                            <ArrowDown size={14} />
+                        </button>
+                    </div>
                     {editingId === group.id ? (
                         <EditGroupForm
                             initialValue={group.name}

@@ -381,7 +381,14 @@ export default function SavedRules() {
                 </div>
             )}
 
-            {Object.entries(grouped)?.map(([groupId, rules], index) => {
+            {Object.entries(grouped)
+                .sort(([a], [b]) => {
+                    const indexA = groups.findIndex((group) => String(group.id) === a);
+                    const indexB = groups.findIndex((group) => String(group.id) === b);
+                    return (indexA < 0 ? Number.MAX_SAFE_INTEGER : indexA)
+                        - (indexB < 0 ? Number.MAX_SAFE_INTEGER : indexB);
+                })
+                .map(([groupId, rules], index) => {
                 const group = groups?.find((g) => g?.id == groupId);
                 return (
                     <Accordion key={index} applyRules={() => onApplyRules(rules)} group={group}>
@@ -400,7 +407,7 @@ export default function SavedRules() {
                         ))}
                     </Accordion>
                 )
-            })}
+                })}
 
             {common?.length > 0 &&
                 <div className="px-3">

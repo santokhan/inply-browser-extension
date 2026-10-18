@@ -7,6 +7,7 @@ export const GroupContext = createContext({
   addGroup: () => { },
   editGroup: () => { },
   deleteGroup: () => { },
+  moveGroup: () => { },
   loading: false,
 });
 
@@ -60,6 +61,19 @@ export function GroupProvider({ children }) {
     setGroups(updated);
   }, [groups]);
 
+  const moveGroup = useCallback(async (id, direction) => {
+    if (!id || !["up", "down"].includes(direction)) return false;
+    const result = await chrome.storage.local.get("groups");
+    const updated = [...(result.groups || [])];
+    const currentIndex = updated.findIndex((group) => group.id === id);
+    const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= updated.length) return false;
+    [updated[currentIndex], updated[nextIndex]] = [updated[nextIndex], updated[currentIndex]];
+    await chrome.storage.local.set({ groups: updated });
+    setGroups(updated);
+    return true;
+  }, []);
+
   return (
     <GroupContext.Provider
       value={{
@@ -69,6 +83,7 @@ export function GroupProvider({ children }) {
         addGroup,
         editGroup,
         deleteGroup,
+        moveGroup,
         loading,
       }}
     >
