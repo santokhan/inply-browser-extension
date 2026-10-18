@@ -107,22 +107,36 @@ export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { 
     );
 }
 
-function Accordion({ children, applyRules = (id) => { }, group }) {
-    const [applying, setApplying] = useState(false);
-
-    async function onlyEncryptThenSave() {
+function Accordion({ children, applyRules = async (id) => { }, group }) {
+    async function onlySave() {
         const tab = await getActiveTabSafe();
         if (!tab?.id) return;
 
         try {
-            const result = await chrome.tabs.sendMessage(tab.id, { action: "onlyEncryptThenSave" });
+            const result = await chrome.tabs.sendMessage(tab.id, { action: "onlySave" });
             if (!result?.ok) {
                 console.warn(result?.message || "Could not complete Sign.");
             }
-
-            await onlyEncryptThenSave();
+            return result;
         } catch (error) {
             console.warn("Could not send Sign action to the active tab:", error);
+            return { ok: false, message: String(error?.message || error) };
+        }
+    }
+
+    async function onlyEncrypt() {
+        const tab = await getActiveTabSafe();
+        if (!tab?.id) return;
+
+        try {
+            const result = await chrome.tabs.sendMessage(tab.id, { action: "onlyEncrypt" });
+            if (!result?.ok) {
+                console.warn(result?.message || "Could not complete Sign.");
+            }
+            return result;
+        } catch (error) {
+            console.warn("Could not send Sign action to the active tab:", error);
+            return { ok: false, message: String(error?.message || error) };
         }
     }
 
@@ -135,27 +149,28 @@ function Accordion({ children, applyRules = (id) => { }, group }) {
             if (!result?.ok) {
                 console.warn(result?.message || "Could not complete Sign.");
             }
+            return result;
         } catch (error) {
             console.warn("Could not send Sign action to the active tab:", error);
+            return { ok: false, message: String(error?.message || error) };
         }
     }
 
     return (
         <details className="border-l border-gray-200 mx-3">
-            <summary className="font-semibold text-gray-800 text-sm py-2 hover:bg-gray-100 px-3 space-y-2">
-                <span className="truncate">{group?.name}</span>
+            <summary className="font-semibold text-gray-800 text-sm py-2 hover:bg-gray-100 px-3 space-2">
+                <span className="truncate mr-2">{group?.name}</span>
                 <div className="inline-flex gap-1 mt-1">
-                    <button type="button" className="sm" onClick={async () => {
-                        setApplying(true);
-                        await applyRules();
-                        setApplying(false);
-                    }}>Apply</button>
-                    <button type="button" className="sm whitespace-nowrap" onClick={signWithPassword}>Sign</button>
-                    <button type="button" className="sm whitespace-nowrap" onClick={onlyEncryptThenSave}>Encrypt Save</button>
+                    {/* <button type="button" className="sm" onClick={applyRules}>Apply</button> */}
+                    {/* <button type="button" className="sm whitespace-nowrap" onClick={signWithPassword}>Sign</button> */}
                     <button type="button" className="sm whitespace-nowrap" onClick={async function () {
-                        signWithPassword();
-                        onlyEncryptThenSave();
-                    }}>Sign Encrypt Save</button>
+                        await applyRules();
+                        const signResult = await signWithPassword();
+                        if (signResult?.ok === false) return;
+                        await onlyEncrypt();
+                    }}>Fill Sign Encrypt</button>
+                    {/* <button type="button" className="sm whitespace-nowrap" onClick={onlyEncrypt}>Encrypt</button> */}
+                    <button type="button" className="sm whitespace-nowrap" onClick={onlySave}>Save</button>
                 </div>
             </summary>
             <div className="space-y-2 ml-2">
@@ -336,7 +351,7 @@ export default function SavedRules() {
             {Object.entries(grouped)?.map(([groupId, rules], index) => {
                 const group = groups?.find((g) => g?.id == groupId);
                 return (
-                    <Accordion key={index} applyRules={() => { onApplyRules(rules) }} group={group}>
+                    <Accordion key={index} applyRules={() => onApplyRules(rules)} group={group}>
                         {rules?.map((rule, index) => (
                             <Rule
                                 key={rule.id + "_" + index}

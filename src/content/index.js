@@ -134,6 +134,16 @@ function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+async function waitForButton(getButton, timeout = 10000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const button = getButton();
+    if (button) return button;
+    await wait(250);
+  }
+  return getButton();
+}
+
 const PENDING_DECRYPT_KEY = "pendingDecryptNavigation";
 const PENDING_ENCRYPT_AND_SAVE_KEY = "pendingEncryptAndSave";
 
@@ -452,35 +462,27 @@ function getEncryptButton() {
   });
 }
 
-async function onlyEncryptThenSave() {
-  const encryptButton = getEncryptButton();
+async function onlyEncrypt() {
+  const encryptButton = await waitForButton(getEncryptButton);
   if (!encryptButton) {
-    return { ok: false, verified: false, message: "No Encrypt button was found on this page." };
+    return { ok: false, verified: false, message: "No enabled Encrypt button appeared within 10 seconds." };
   }
 
   encryptButton.scrollIntoView({ block: "center", behavior: "smooth" });
   encryptButton.click();
-  console.log("[Encrypt] Clicked Encrypt; waiting for Save to become enabled.");
-
-  // Encrypt can asynchronously enable Save after updating the form.
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    const saveButton = getSaveButton();
-    if (saveButton) {
-      saveButton.scrollIntoView({ block: "center", behavior: "smooth" });
-      saveButton.click();
-      console.log("[Encrypt] Clicked Save; the page chkValidate handler is running.");
-      return { ok: true, count: 2 };
-    }
-    await wait(250);
-  }
-
-  return {
-    ok: false,
-    count: 1,
-    message: "Encrypt was clicked, but Save did not become enabled.",
-  };
+  return { ok: true, count: 1 };
 }
 
+async function onlySave() {
+  const saveButton = await waitForButton(getSaveButton);
+  if (!saveButton) {
+    return { ok: false, verified: false, message: "No enabled Save button appeared within 10 seconds." };
+  }
+
+  saveButton.scrollIntoView({ block: "center", behavior: "smooth" });
+  saveButton.click();
+  return { ok: true, count: 1 };
+}
 
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onMessage
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -534,8 +536,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === "onlyEncryptThenSave") {
-    onlyEncryptThenSave().then(sendResponse);
+  if (message.action === "onlyEncrypt") {
+    onlyEncrypt().then(sendResponse);
+    return true;
+  }
+
+  if (message.action === "onlySave") {
+    onlySave().then(sendResponse);
     return true;
   }
 
