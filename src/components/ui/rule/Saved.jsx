@@ -161,9 +161,22 @@ function Accordion({ children, applyRules = async (id) => { }, group }) {
         <details className="border-l border-gray-200 mx-3">
             <summary className="font-semibold text-gray-800 text-sm py-2 hover:bg-gray-100 px-3 space-2">
                 <span className="truncate mr-2">{group?.name}</span>
-                <div className="inline-flex gap-1 mt-1">
+                <div className="flex gap-1 mt-1">
                     {/* <button type="button" className="sm" onClick={applyRules}>Apply</button> */}
                     {/* <button type="button" className="sm whitespace-nowrap" onClick={signWithPassword}>Sign</button> */}
+                    <button
+                        type="button"
+                        className="sm whitespace-nowrap"
+                        onClick={async function () {
+                            const signResult = await signWithPassword();
+                            if (signResult?.ok === false) return;
+                            await onlyEncrypt();
+                            setTimeout(async () => {
+                                await onlySave();
+                            }, 1000);
+                        }}
+                        title="This will sign and verify, encrypt, and save the page."
+                    >Sign Encrypt Save</button>
                     <button
                         type="button"
                         className="sm whitespace-nowrap"
@@ -389,24 +402,24 @@ export default function SavedRules() {
                         - (indexB < 0 ? Number.MAX_SAFE_INTEGER : indexB);
                 })
                 .map(([groupId, rules], index) => {
-                const group = groups?.find((g) => g?.id == groupId);
-                return (
-                    <Accordion key={index} applyRules={() => onApplyRules(rules)} group={group}>
-                        {rules?.map((rule, index) => (
-                            <Rule
-                                key={rule.id + "_" + index}
-                                rule={rule}
-                                onDelete={deleteRule}
-                                onEdit={editRule}
-                                onApply={applyRule}
-                                applying={applyingAll}
-                                onMove={moveRule}
-                                canMoveUp={index > 0}
-                                canMoveDown={index < rules.length - 1}
-                            />
-                        ))}
-                    </Accordion>
-                )
+                    const group = groups?.find((g) => g?.id == groupId);
+                    return (
+                        <Accordion key={index} applyRules={() => onApplyRules(rules)} group={group}>
+                            {rules?.map((rule, index) => (
+                                <Rule
+                                    key={rule.id + "_" + index}
+                                    rule={rule}
+                                    onDelete={deleteRule}
+                                    onEdit={editRule}
+                                    onApply={applyRule}
+                                    applying={applyingAll}
+                                    onMove={moveRule}
+                                    canMoveUp={index > 0}
+                                    canMoveDown={index < rules.length - 1}
+                                />
+                            ))}
+                        </Accordion>
+                    )
                 })}
 
             {common?.length > 0 &&
