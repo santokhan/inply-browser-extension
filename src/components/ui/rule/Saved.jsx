@@ -109,38 +109,6 @@ export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { 
 }
 
 function Accordion({ children, applyRules = async (id) => { }, group }) {
-    async function onlySave() {
-        const tab = await getActiveTabSafe();
-        if (!tab?.id) return;
-
-        try {
-            const result = await chrome.tabs.sendMessage(tab.id, { action: "onlySave" });
-            if (!result?.ok) {
-                console.warn(result?.message || "Could not complete Sign.");
-            }
-            return result;
-        } catch (error) {
-            console.warn("Could not send Sign action to the active tab:", error);
-            return { ok: false, message: String(error?.message || error) };
-        }
-    }
-
-    async function onlyEncrypt() {
-        const tab = await getActiveTabSafe();
-        if (!tab?.id) return;
-
-        try {
-            const result = await chrome.tabs.sendMessage(tab.id, { action: "onlyEncrypt" });
-            if (!result?.ok) {
-                console.warn(result?.message || "Could not complete Sign.");
-            }
-            return result;
-        } catch (error) {
-            console.warn("Could not send Sign action to the active tab:", error);
-            return { ok: false, message: String(error?.message || error) };
-        }
-    }
-
     async function signWithPassword() {
         const tab = await getActiveTabSafe();
         if (!tab?.id) return;
@@ -164,19 +132,6 @@ function Accordion({ children, applyRules = async (id) => { }, group }) {
                 <div className="flex gap-1 mt-1">
                     {/* <button type="button" className="sm" onClick={applyRules}>Apply</button> */}
                     {/* <button type="button" className="sm whitespace-nowrap" onClick={signWithPassword}>Sign</button> */}
-                    <button
-                        type="button"
-                        className="sm whitespace-nowrap"
-                        onClick={async function () {
-                            const signResult = await signWithPassword();
-                            if (signResult?.ok === false) return;
-                            await onlyEncrypt();
-                            setTimeout(async () => {
-                                await onlySave();
-                            }, 1000);
-                        }}
-                        title="This will sign and verify, encrypt, and save the page."
-                    >Sign Encrypt Save</button>
                     <button
                         type="button"
                         className="sm whitespace-nowrap"

@@ -99,15 +99,10 @@ export default function Encrypt() {
         </div>
       </form>
 
-      {/* {password &&
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-gray-800">Fill Actions</h3>
-          <SignEncryptSave pageReady={pageReady} />
-        </section>
-      } */}
       {password &&
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-800">Encrypt Actions</h3>
+          <SignEncryptSave pageReady={pageReady} />
           {isEncryptAction ? (
             <DecryptEncryptSave pageReady={pageReady} />
           ) : (

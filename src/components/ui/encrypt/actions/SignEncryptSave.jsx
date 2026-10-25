@@ -77,7 +77,7 @@ export default function SignEncryptSave({ pageReady = true }) {
   return (
     <button type="button" className="default w-full" onClick={handleRunAll} disabled={running || !pageReady}>
       {/* Total 3 actions */}
-      {running ? "Running..." : pageReady ? "Sign + Encrypt + Save" : "Waiting for page..."}
+      {running ? "Running..." : pageReady ? "Sign Encrypt Save" : "Waiting for page..."}
     </button>
   );
 }
