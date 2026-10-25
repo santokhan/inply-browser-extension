@@ -65,7 +65,7 @@ export default function FormParser() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!inputFields?.length) return;
+        if (!inputFields?.length || !groupId) return;
 
         const result = await chrome.storage.local.get("rules");
         let updatedRules = result.rules || [];
@@ -105,6 +105,7 @@ export default function FormParser() {
                         value={groupId}
                         onChange={(event) => setGroupId(event.target.value)}
                         className="default"
+                        required
                     >
                         <option value="">Select Group</option>
                         {Array.isArray(groups) && groups.map((group) => (
