@@ -44,14 +44,28 @@ export default function ParsedFieldInput({ field, index, tabId, value, onValueCh
             <label className="mb-1 block text-gray-600">
                 {field.label || `Field ${index + 1}`}
             </label>
-            <input
+            {field.tagName === "select" ? (
+            <select
+                value={inputValue}
+                onChange={handleChange}
+                onFocus={() => sendFieldFocus(true)}
+                onBlur={() => sendFieldFocus(false)}
+                className="default"
+            >
+                {field.options?.map((option, optionIndex) => (
+                    <option key={`${option.value}-${optionIndex}`} value={option.value} disabled={option.disabled}>
+                        {option.label || option.value}
+                    </option>
+                ))}
+            </select>
+            ) : <input
                 type="text"
                 value={inputValue}
                 onChange={handleChange}
                 onFocus={() => sendFieldFocus(true)}
                 onBlur={() => sendFieldFocus(false)}
                 className="default"
-            />
+            />}
         </div>
     );
 }

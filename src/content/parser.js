@@ -3,6 +3,7 @@ const FIELD_SELECTOR = [
   'input[type="text"]',
   'input[type="number"]',
   'input[type="date"]',
+  "select",
   "textarea",
 ].join(", ");
 const parsedFieldOutlines = new WeakMap();
@@ -131,6 +132,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       name: field.name,
       className: typeof field.className === "string" ? field.className : "",
       type: field instanceof HTMLInputElement ? field.type : undefined,
+      options: field instanceof HTMLSelectElement
+        ? [...field.options].map((option) => ({
+            value: option.value,
+            label: (option.label || option.textContent || "").replace(/\s+/g, " ").trim(),
+            disabled: option.disabled,
+          }))
+        : undefined,
       onblur: field.getAttribute("onblur") || undefined,
       selector,
       nth: matches.indexOf(field),
@@ -179,7 +187,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const value = message.value ?? "";
       const prototype = field instanceof HTMLTextAreaElement
         ? HTMLTextAreaElement.prototype
-        : HTMLInputElement.prototype;
+        : field instanceof HTMLSelectElement
+          ? HTMLSelectElement.prototype
+          : HTMLInputElement.prototype;
       const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
       if (setter) setter.call(field, value);
       else field.value = value;
