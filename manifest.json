@@ -25,7 +25,8 @@
                 "<all_urls>"
             ],
             "js": [
-                "src/content/index.js"
+                "src/content/index.js",
+                "src/content/parser.js"
             ],
             "run_at": "document_idle"
         }

@@ -9,9 +9,10 @@ import SavedGroups from "../group/Saved";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../shared/Tab";
 import Encrypt from "../encrypt/Encrypt";
 import { useGroups } from "../../../hooks/useGroups";
+import Parser from "../parser";
 
 const ACTIVE_FORM_TAB_KEY = "activeFormTab";
-const FORM_TABS = new Set(["group", "rule", "encrypt"]);
+const FORM_TABS = new Set(["group", "rule", "encrypt", "parser"]);
 
 function TabButton({ children, active, onClick }) {
   return (
@@ -60,8 +61,9 @@ export default function AutoFillRules() {
       <Tabs value={whichForm} onValueChange={handleFormTabChange}>
         <TabsList className="px-3">
           <TabsTrigger value="encrypt">Encrypt</TabsTrigger>
-          <TabsTrigger value="group">Create Group</TabsTrigger>
-          <TabsTrigger value="rule">Create Rule</TabsTrigger>
+          <TabsTrigger value="group">Group</TabsTrigger>
+          <TabsTrigger value="rule">Rule</TabsTrigger>
+          <TabsTrigger value="parser">Parser</TabsTrigger>
         </TabsList>
 
         <TabsContent value="group">
@@ -75,6 +77,11 @@ export default function AutoFillRules() {
         <TabsContent value="encrypt">
           <Encrypt />
         </TabsContent>
+
+        <TabsContent value="parser">
+          <Parser onOpen={() => handleFormTabChange("group")} />
+        </TabsContent>
+
       </Tabs>
 
       <div className="py-2"></div>

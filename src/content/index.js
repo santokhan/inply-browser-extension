@@ -610,6 +610,12 @@ async function onlySave() {
 
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onMessage
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // These actions are handled by parser.js. Avoid answering them here so the
+  // parser's response is the one returned to the extension UI.
+  if (["parse", "setParsedFieldValue", "highlightParsedField"].includes(message.action)) {
+    return false;
+  }
+
   if (message.action === "applyRule") {
     applyRule(message.rule);
   }
