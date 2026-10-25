@@ -1,4 +1,5 @@
 import { createContext, useCallback, useEffect, useState } from "react";
+import { toast } from "react-toastify";
 
 export const GroupContext = createContext({
   groups: [],
@@ -54,7 +55,7 @@ export function GroupProvider({ children }) {
     const rules = await chrome.storage.local.get("rules");
     const hasRules = rules.rules?.some((r) => String(r.groupId ?? r.group?.id) === String(id));
     if (hasRules) {
-      alert("Cannot delete group with rules");
+      toast.info("Rules exist in this group.");
       return
     }
     await chrome.storage.local.set({ groups: updated });

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useRules } from "../../../hooks/useRules";
 import { useGroups } from "../../../hooks/useGroups";
 import { ArrowDown, ArrowUp } from "lucide-react";
+import { toast } from "react-toastify";
 
 function EditGroupForm({ initialValue, onCancel, onSave }) {
     const [value, setValue] = useState(initialValue);
@@ -84,8 +85,8 @@ export default function SavedGroups() {
 
                     <button
                         onClick={() => {
-                            if (rules?.some(r => r.groupId == group.id)) {
-                                alert("Cannot delete group with rules");
+                            if (rules?.some((rule) => String(rule.groupId ?? rule.group?.id) === String(group.id))) {
+                                toast.info("Rules exist in this group.");
                                 return;
                             }
                             deleteGroup(group.id);

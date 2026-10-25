@@ -109,6 +109,30 @@ export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { 
 }
 
 function Accordion({ children, applyRules = async (id) => { }, group }) {
+    async function sendPageAction(action) {
+        const tab = await getActiveTabSafe();
+        if (!tab?.id) return { ok: false, message: "No active page tab was found." };
+
+        try {
+            return await chrome.tabs.sendMessage(tab.id, { action });
+        } catch (error) {
+            console.warn(`Could not send ${action} action to the active tab:`, error);
+            return { ok: false, message: String(error?.message || error) };
+        }
+    }
+
+    async function onlyEncrypt() {
+        const result = await sendPageAction("onlyEncrypt");
+        if (!result?.ok) toast.info(result?.message || "Could not encrypt the form.");
+        return result;
+    }
+
+    async function onlySave() {
+        const result = await sendPageAction("onlySave");
+        if (!result?.ok) toast.info(result?.message || "Could not save the form.");
+        return result;
+    }
+
     async function signWithPassword() {
         const tab = await getActiveTabSafe();
         if (!tab?.id) return;
@@ -138,8 +162,9 @@ function Accordion({ children, applyRules = async (id) => { }, group }) {
                         onClick={async function () {
                             await applyRules();
                             const signResult = await signWithPassword();
-                            if (signResult?.ok === false) return;
-                            await onlyEncrypt();
+                            if (!signResult?.ok || !signResult?.verified) return;
+                            const encryptResult = await onlyEncrypt();
+                            if (!encryptResult?.ok) return;
                             setTimeout(async () => {
                                 await onlySave();
                             }, 1000);
