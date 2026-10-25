@@ -67,6 +67,10 @@ export default function FormParser() {
 
         if (!inputFields?.length || !groupId) return;
 
+        const selectedGroup = groups.find((group) => String(group.id) === String(groupId));
+        if (!selectedGroup) return;
+        const selectedGroupId = selectedGroup.id;
+
         const result = await chrome.storage.local.get("rules");
         let updatedRules = result.rules || [];
 
@@ -74,7 +78,7 @@ export default function FormParser() {
             const fieldValue = fieldValues[index] ?? "";
             if (!fieldValue) return;
             const duplicates = updatedRules.filter((rule) =>
-                rule.selector === field.selector && rule.groupId === groupId
+                rule.selector === field.selector && String(rule.groupId ?? rule.group?.id) === String(selectedGroupId)
             );
             updatedRules.push({
                 id: Date.now() + index,
@@ -87,7 +91,7 @@ export default function FormParser() {
                 nth: field.nth ?? duplicates.length,
                 domain: location.hostname,
                 value: fieldValue,
-                groupId,
+                groupId: selectedGroupId,
             });
         });
 

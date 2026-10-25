@@ -27,8 +27,11 @@ export function RulesProvider({ children }) {
       const hydratedRules = storedRules.map((rule) => ({ ...rule }));
 
       for (const rule of hydratedRules) {
-        if (rule.group?.id && groupMap.has(rule.group.id)) {
-          rule.group = groupMap.get(rule.group.id);
+        const groupId = rule.groupId ?? rule.group?.id;
+        const group = groupMap.get(groupId) ?? groupMap.get(String(groupId));
+        if (group) {
+          rule.groupId = group.id;
+          rule.group = group;
         }
       }
 

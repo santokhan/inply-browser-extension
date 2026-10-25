@@ -52,7 +52,7 @@ export function GroupProvider({ children }) {
     const updated = groups.filter((g) => g.id !== id);
 
     const rules = await chrome.storage.local.get("rules");
-    const hasRules = rules.rules?.some((r) => r.group?.id === id);
+    const hasRules = rules.rules?.some((r) => String(r.groupId ?? r.group?.id) === String(id));
     if (hasRules) {
       alert("Cannot delete group with rules");
       return
