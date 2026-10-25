@@ -100,51 +100,46 @@ export default function FormParser() {
     return (
         <div className="px-3 py-4">
             {inputFields ? (
-                <div>
-                    <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
-                        <CheckCircle2 size={17} /> Element parsed
-                    </div>
-                    <form onSubmit={handleSubmit} className="space-y-3 border-indigo-100 p-4 rounded-2xl border mt-4 bg-white">
-                        <select
-                            value={groupId}
-                            onChange={(event) => setGroupId(event.target.value)}
-                            className="default"
-                        >
-                            <option value="">Select Group</option>
-                            {Array.isArray(groups) && groups.map((group) => (
-                                <option key={group.id} value={group.id}>{group.name}</option>
-                            ))}
-                        </select>
-                        {inputFields.map((field, index) => (
-                            <ParsedFieldInput
-                                key={`${field.id || field.name || field.tagName}-${index}`}
-                                field={field}
-                                index={index}
-                                tabId={parsedTabId}
-                                value={fieldValues[index] ?? ""}
-                                onValueChange={(fieldIndex, nextValue) => {
-                                    setFieldValues((current) => {
-                                        const next = [...current];
-                                        next[fieldIndex] = nextValue;
-                                        return next;
-                                    });
-                                }}
-                            />
+                <form onSubmit={handleSubmit} className="space-y-3 border-indigo-100 p-4 rounded-2xl border mt-4 bg-white">
+                    <select
+                        value={groupId}
+                        onChange={(event) => setGroupId(event.target.value)}
+                        className="default"
+                    >
+                        <option value="">Select Group</option>
+                        {Array.isArray(groups) && groups.map((group) => (
+                            <option key={group.id} value={group.id}>{group.name}</option>
                         ))}
+                    </select>
+                    {inputFields.map((field, index) => (
+                        <ParsedFieldInput
+                            key={`${field.id || field.name || field.tagName}-${index}`}
+                            field={field}
+                            index={index}
+                            tabId={parsedTabId}
+                            value={fieldValues[index] ?? ""}
+                            onValueChange={(fieldIndex, nextValue) => {
+                                setFieldValues((current) => {
+                                    const next = [...current];
+                                    next[fieldIndex] = nextValue;
+                                    return next;
+                                });
+                            }}
+                        />
+                    ))}
 
-                        <div className="flex gap-3 items-center">
-                            {/* cancel and submit button */}
-                            <button
-                                type="button"
-                                onClick={resetForm}
-                                className="secondary w-full"
-                            >
-                                Cancel
-                            </button>
-                            <button type="submit" className="default w-full">Save</button>
-                        </div>
-                    </form>
-                </div>
+                    <div className="flex gap-3 items-center">
+                        {/* cancel and submit button */}
+                        <button
+                            type="button"
+                            onClick={resetForm}
+                            className="secondary w-full"
+                        >
+                            Cancel
+                        </button>
+                        <button type="submit" className="default w-full">Save</button>
+                    </div>
+                </form>
             ) : (
                 <>
                     <div className="px-3 py-3 text-center">

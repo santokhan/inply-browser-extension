@@ -42,7 +42,7 @@ export default function ParsedFieldInput({ field, index, tabId, value, onValueCh
     return (
         <div className="text-xs">
             <label className="mb-1 block text-gray-600">
-                {field.name || field.id || `${field.tagName} ${index + 1}`}
+                {field.label || `Field ${index + 1}`}
             </label>
             <input
                 type="text"

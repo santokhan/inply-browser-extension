@@ -89,6 +89,24 @@ function getParsedField(fieldKey) {
   return field;
 }
 
+function getFieldLabel(field) {
+  const row = field.closest("tr");
+  if (!row) return "";
+
+  const cells = [...row.cells];
+  const headerCells = cells.filter(
+    (cell) => cell.tagName === "TH" && cell.textContent.trim(),
+  );
+  if (!headerCells.length) return "";
+
+  const fieldCell = field.closest("td, th");
+  const fieldCellIndex = cells.indexOf(fieldCell);
+  const precedingHeaders = headerCells.filter((cell) => cells.indexOf(cell) < fieldCellIndex);
+  const header = precedingHeaders.at(-1) || headerCells[0];
+
+  return (header.innerText || header.textContent).replace(/\s+/g, " ").trim();
+}
+
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onMessage
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "parse") {
@@ -107,6 +125,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           : `${tagName}${[...field.classList].map((className) => `.${CSS.escape(className)}`).join("")}`;
       const matches = [...document.querySelectorAll(selector)].filter(isVisible);
       return {
+      label: getFieldLabel(field),
       tagName: field.tagName.toLowerCase(),
       id: field.id,
       name: field.name,
