@@ -3,6 +3,7 @@ import { useRules } from "../../../hooks/useRules";
 import { parseFormElement } from "../../../utils/parser";
 import { buildQuerySelector } from "../../../utils/querySelector";
 import { useGroups } from "../../../hooks/useGroups";
+import { getActiveTabSafe } from "../../../utils/chrome";
 
 export default function RuleElementForm({ onOpen = () => { } }) {
     const { loadRules, editingRule } = useRules();
@@ -35,6 +36,7 @@ export default function RuleElementForm({ onOpen = () => { } }) {
 
         const result = await chrome.storage.local.get("rules");
         let updatedRules = result.rules || [];
+        const tab = await getActiveTabSafe();
 
         // Find out existing item for duplicate selector
         const duplicates = updatedRules?.filter((r) =>
@@ -50,7 +52,8 @@ export default function RuleElementForm({ onOpen = () => { } }) {
             onblur: parsed.onblur,
             selector: parsed.selector,
             nth: duplicates.length,
-            domain: location.hostName,
+            domain: tab?.url ? new URL(tab.url).hostname : "",
+            from: "manual",
             value,
             groupId: groupId
         });

@@ -74,6 +74,8 @@ export default function FormParser() {
         const result = await chrome.storage.local.get("rules");
         let updatedRules = result.rules || [];
 
+        const parsedTab = parsedTabId ? await chrome.tabs.get(parsedTabId).catch(() => null) : null;
+
         inputFields.forEach((field, index) => {
             const fieldValue = fieldValues[index] ?? "";
             if (!fieldValue) return;
@@ -89,7 +91,8 @@ export default function FormParser() {
                 onblur: field.onblur,
                 selector: field.selector,
                 nth: field.nth ?? duplicates.length,
-                domain: location.hostname,
+                domain: parsedTab?.url ? new URL(parsedTab.url).hostname : "",
+                from: "parser",
                 value: fieldValue,
                 groupId: selectedGroupId,
             });

@@ -39,7 +39,7 @@ export default function RuleForm() {
         if (editingRule) {
             updatedRules = updatedRules.map((r) =>
                 r.id === editingRule.id
-                    ? { ...r, type, selector, value }
+                    ? { ...r, type, selector, value, from: r.from || "manual" }
                     : r
             );
         } else {
@@ -48,6 +48,7 @@ export default function RuleForm() {
                 type,
                 selector,
                 value,
+                from: "manual",
             });
         }
 
