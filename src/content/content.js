@@ -595,63 +595,54 @@ function getEncryptButton() {
   });
 }
 
-// https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onMessage
+const messageHandlers = new Map();
+window.InplyContentRouter = {
+  register(actions, handler) {
+    for (const action of Array.isArray(actions) ? actions : [actions]) {
+      messageHandlers.set(action, handler);
+    }
+  },
+};
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // These actions are handled by parser.js. Avoid answering them here so the
-  // parser's response is the one returned to the extension UI.
-  if ([
-    "parse", "applyParsedRule", "setParsedFieldValue", "highlightParsedField",
-    "signAndVerify", "encryptAndSave", "save", "onlyEncrypt", "onlySave",
-  ].includes(message.action)) {
+  const handler = messageHandlers.get(message.action);
+  if (!handler) {
+    sendResponse({ ok: true });
     return false;
   }
 
-  if (message.action === "applyRule") {
-    sendResponse(applyRule(message.rule));
+  try {
+    const result = handler(message, sender);
+    if (result && typeof result.then === "function") {
+      result.then(sendResponse).catch((error) => {
+        console.error(`[Content] Action ${message.action} failed:`, error);
+        sendResponse({ ok: false, message: error?.message || "The page action failed." });
+      });
+      return true;
+    }
+    sendResponse(result === undefined ? { ok: true } : result);
+    return false;
+  } catch (error) {
+    console.error(`[Content] Action ${message.action} failed:`, error);
+    sendResponse({ ok: false, message: error?.message || "The page action failed." });
     return false;
   }
+});
 
-  if (message.action === "applyAllRules") {
-    chrome.storage.local.get("rules", (res) => {
-      applyRules(res.rules || []);
-    });
-  }
-
-  if (message.action === "fakeFill") {
-    sendResponse(fakeFillPage());
-    return false;
-  }
-
-  if (message.action === "startInspect") {
-    startInspect(message.rule);
-  }
-
-  if (message.action === "stopInspect") {
-    stopInspect(message.rule);
-  }
-
-  if (message.action === "encryptAnchors") {
-    encryptAnchors(message.password).then(sendResponse);
-    return true;
-  }
-
-  if (message.action === "decryptAnchors") {
-    decryptAnchors().then(sendResponse);
-    return true;
-  }
-
-
-  if (message.action === "decryptAndEncryptSave") {
-    clickDecryptAndVerify().then((ok) => {
-      if (ok) {
-        sendResponse({ ok: true, count: 1 })
-      } else {
-        sendResponse({ ok: false, message: "The password dialog was not ready." })
-      }
-    });
-    return true;
-  }
-
-  sendResponse({ ok: true });
-  return false;
+window.InplyContentRouter.register("applyRule", (message) => applyRule(message.rule));
+window.InplyContentRouter.register("applyAllRules", async () => {
+  const result = await chrome.storage.local.get("rules");
+  applyRules(result.rules || []);
+  return { ok: true };
+});
+window.InplyContentRouter.register("fakeFill", () => fakeFillPage());
+window.InplyContentRouter.register("startInspect", (message) => startInspect(message.rule));
+window.InplyContentRouter.register("stopInspect", (message) => stopInspect(message.rule));
+window.InplyContentRouter.register("encryptAnchors", (message) => encryptAnchors(message.password));
+window.InplyContentRouter.register("decryptAnchors", () => decryptAnchors());
+window.InplyContentRouter.register("decryptAndEncryptSave", async () => {
+  const ok = await clickDecryptAndVerify();
+  return ok
+    ? { ok: true, count: 1 }
+    : { ok: false, message: "The password dialog was not ready." };
 });

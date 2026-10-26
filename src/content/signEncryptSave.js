@@ -188,13 +188,11 @@
     return true;
   }
 
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    const actions = { signAndVerify, encryptAndSave, save, onlyEncrypt, onlySave };
-    if (!Object.hasOwn(actions, message.action)) return false;
-    const action = actions[message.action];
-    action().then(sendResponse);
-    return true;
-  });
+  window.InplyContentRouter.register("signAndVerify", () => signAndVerify());
+  window.InplyContentRouter.register("encryptAndSave", () => encryptAndSave());
+  window.InplyContentRouter.register("save", () => save());
+  window.InplyContentRouter.register("onlyEncrypt", () => onlyEncrypt());
+  window.InplyContentRouter.register("onlySave", () => onlySave());
 
   window.InplySignEncryptSave = { resumePendingSignEncryptSave };
 })();

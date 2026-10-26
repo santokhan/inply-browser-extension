@@ -242,7 +242,9 @@ function applyParsedRule(rule) {
 }
 
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onMessage
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+window.InplyContentRouter.register([
+  "parse", "applyParsedRule", "highlightParsedField", "setParsedFieldValue",
+], (message) => {
   if (message.action === "parse") {
     const candidates = getCandidates();
 
@@ -284,21 +286,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     };
     });
 
-    sendResponse(validFields);
-
-    return true;
+    return validFields;
   }
 
   if (message.action === "applyParsedRule") {
-    sendResponse(applyParsedRule(message.rule));
-    return false;
+    return applyParsedRule(message.rule);
   }
 
   if (message.action === "highlightParsedField") {
     const field = getParsedField(message.fieldKey);
     if (field) setParsedFieldHighlight(field, message.focused);
-    sendResponse({ ok: Boolean(field) });
-    return false;
+    return { ok: Boolean(field) };
   }
 
   if (message.action === "setParsedFieldValue") {
@@ -317,8 +315,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       field.dispatchEvent(new Event("input", { bubbles: true }));
       field.dispatchEvent(new Event("change", { bubbles: true }));
     }
-    sendResponse({ ok: Boolean(field) });
-    return false;
+    return { ok: Boolean(field) };
   }
 
   return false;
