@@ -91,5 +91,18 @@ export function buildQuerySelector(element = {}) {
 }
 
 export function displayNoneFilter(el) {
-  return window.getComputedStyle(el).display !== "none"
+  if (el.closest("[hidden]")) return false;
+
+  let current = el;
+  while (current instanceof Element) {
+    const style = window.getComputedStyle(current);
+    if (
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      style.visibility === "collapse"
+    ) return false;
+    current = current.parentElement;
+  }
+
+  return true;
 }

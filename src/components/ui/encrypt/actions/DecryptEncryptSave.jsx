@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
 import { toast } from "react-toastify";
+import PageActionButton from "./PageActionButton";
 
 async function decryptAndEncryptInPage() {
   const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -117,11 +118,12 @@ export default function DecryptEncryptSave({ pageReady = true }) {
   }, []);
 
   return (
-    <button
+    <PageActionButton
       ref={ref} type="button"
+      pageReady={pageReady}
       className="hover-action w-full"
       //  onMouseEnter={handleAction}
-      disabled={running || !pageReady}
+      disabled={running}
     >
       {/* Total 2 actions */}
       {running
@@ -129,6 +131,6 @@ export default function DecryptEncryptSave({ pageReady = true }) {
         pageReady
           ? "Decrypt + Encrypt & Save"
           : "Waiting for page..."}
-    </button>
+    </PageActionButton>
   );
 }

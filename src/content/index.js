@@ -56,7 +56,20 @@ function setNativeValue(el, value) {
 }
 
 function displayNoneFilter(el) {
-  return window.getComputedStyle(el).display !== "none"
+  if (el.closest("[hidden]")) return false;
+
+  let current = el;
+  while (current instanceof Element) {
+    const style = window.getComputedStyle(current);
+    if (
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      style.visibility === "collapse"
+    ) return false;
+    current = current.parentElement;
+  }
+
+  return true;
 }
 
 function applyRule(rule) {
@@ -270,6 +283,7 @@ async function waitForButton(getButton, timeout = 10000) {
 
 const PENDING_DECRYPT_KEY = "pendingDecryptNavigation";
 const PENDING_ENCRYPT_AND_SAVE_KEY = "pendingEncryptAndSave";
+const PENDING_SIGN_ENCRYPT_SAVE_KEY = "pendingSignEncryptSave";
 
 function isVisible(element) {
   const style = window.getComputedStyle(element);
@@ -299,6 +313,39 @@ function getEncryptAndSaveButton() {
 
 async function clickEncryptConfirmationOk() {
   for (let attempt = 0; attempt < 40; attempt += 1) {
+    const instructionDialog = document
+      .querySelector("#encrypt-dialog-message")
+      ?.closest(".ui-dialog");
+    const instructionOk = instructionDialog
+      ? [...instructionDialog.querySelectorAll(".ui-dialog-buttonpane button, button")].find((element) => {
+        const label = (element.innerText || element.value || "").trim().toLowerCase();
+        return label === "ok" && !element.disabled && isVisible(element);
+      })
+      : null;
+    if (instructionOk) {
+      const form = document.getElementById("frmBidSubmit");
+      let actionField = document.getElementById("action") || document.querySelector('input[name="action"]');
+      if (!actionField && form) {
+        actionField = document.createElement("input");
+        actionField.type = "hidden";
+        actionField.id = "action";
+        actionField.name = "action";
+        form.appendChild(actionField);
+      } else if (actionField && !actionField.id) {
+        actionField.id = "action";
+      }
+      if (actionField && form && !form.contains(actionField)) form.appendChild(actionField);
+
+      if (!actionField || !form || !form.contains(actionField)) {
+        console.warn("[Encrypt] Could not prepare the Encrypt And Save action field.");
+        return false;
+      }
+
+      instructionOk.click();
+      console.log('[Encrypt] Accepted the encryption instructions; the page will encrypt and submit the form.');
+      return "submit";
+    }
+
     const okButton = [...document.querySelectorAll("#myPanelDiv button, #myPanelDiv input[type=\"button\"], #myPanelDiv input[type=\"submit\"]")].find((element) => {
       const label = (element.innerText || element.value || "").trim().toLowerCase();
       return label === "ok" && !element.disabled && isVisible(element);
@@ -312,7 +359,7 @@ async function clickEncryptConfirmationOk() {
   }
   return false;
 }
-async function fillAndVerifyDecryptPassword() {
+async function fillAndVerifyDecryptPassword({ queueEncrypt = true } = {}) {
   let password;
   try {
     password = (await chrome.storage.local.get("encryptPassword"))?.encryptPassword;
@@ -324,19 +371,24 @@ async function fillAndVerifyDecryptPassword() {
   if (!password) return false;
 
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    const input = document.querySelector("#myPanelDiv input#password, #myPanelDiv input[name=\"password\"]");
+    const input = document.querySelector(
+      '#myPanelDiv input#password, #myPanelDiv input[name="password"], #dialog-form input#password, #dialog-form input[name="password"]',
+    );
     if (input && isVisible(input)) {
       setNativeValue(input, password);
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));
-      const verifyButton = [...document.querySelectorAll("#myPanelDiv button, #myPanelDiv input[type=\"button\"], #myPanelDiv input[type=\"submit\"]")].find((element) => {
+      const dialog = input.closest(".ui-dialog") || input.closest("#myPanelDiv, #dialog-form");
+      const verifyButton = [...(dialog?.querySelectorAll("button, input[type=\"button\"], input[type=\"submit\"]") || [])].find((element) => {
         const label = (element.innerText || element.value || "").trim().toLowerCase();
         return label === "verify password" && !element.disabled && isVisible(element);
       });
       if (verifyButton) {
-        await chrome.storage.local.set({
-          [PENDING_ENCRYPT_AND_SAVE_KEY]: { createdAt: Date.now() },
-        });
+        if (queueEncrypt) {
+          await chrome.storage.local.set({
+            [PENDING_ENCRYPT_AND_SAVE_KEY]: { createdAt: Date.now() },
+          });
+        }
         verifyButton.click();
         console.log("[Encrypt] Filled and verified the saved password.");
         return true;
@@ -408,34 +460,58 @@ async function decryptAnchors() {
   return { ok: true, count: 1 };
 }
 
-async function encryptAndSave() {
-  const button = getEncryptAndSaveButton();
+async function encryptAndSave({ persistPending = true } = {}) {
+  const button = await waitForButton(getEncryptAndSaveButton);
 
   if (!button) {
     return { ok: false, count: 0, message: "No Encrypt And Save button was found on this page." };
   }
 
-  await chrome.storage.local.set({
-    [PENDING_ENCRYPT_AND_SAVE_KEY]: { createdAt: Date.now() },
-  });
+  if (persistPending) {
+    await chrome.storage.local.set({
+      [PENDING_ENCRYPT_AND_SAVE_KEY]: { createdAt: Date.now() },
+    });
+  }
   button.scrollIntoView({ block: "center", behavior: "smooth" });
   button.click();
   console.log("[Encrypt] Clicked Encrypt And Save.");
-  const confirmed = await clickEncryptConfirmationOk();
-  return { ok: true, count: 1, confirmed };
+  const confirmation = await clickEncryptConfirmationOk();
+  return {
+    ok: true,
+    count: 1,
+    confirmed: Boolean(confirmation),
+    willSubmit: confirmation === "submit",
+  };
 }
-async function signAndVerify() {
-  const button = getSignButton();
+async function signAndVerify({ queueEncrypt = true } = {}) {
+  const button = await waitForButton(getSignButton);
   if (!button) {
     return { ok: false, verified: false, message: "No Sign button was found on this page." };
   }
 
   button.scrollIntoView({ block: "center", behavior: "smooth" });
   button.click();
-  const verified = await fillAndVerifyDecryptPassword();
+  const verified = await fillAndVerifyDecryptPassword({ queueEncrypt });
   return verified
     ? { ok: true, verified: true, count: 1 }
     : { ok: true, verified: false, count: 1, message: "Sign clicked, but the password dialog was not ready." };
+}
+
+async function runPendingSignEncryptSave() {
+  const signResult = await signAndVerify({ queueEncrypt: false });
+  if (!signResult.ok || !signResult.verified) {
+    console.warn("[Encrypt] Could not complete Sign before Encrypt:", signResult.message);
+    return;
+  }
+
+  await wait(2000);
+  const encryptResult = await encryptAndSave({ persistPending: false });
+  if (!encryptResult.ok || !encryptResult.confirmed) {
+    console.warn("[Encrypt] Could not complete Encrypt and Save:", encryptResult.message);
+    return;
+  }
+
+  console.log("[Encrypt] Completed the requested Sign, Encrypt and Save flow.");
 }
 async function save() {
   const button = getSaveButton();
@@ -538,6 +614,16 @@ async function resumePendingEncryptFlow() {
   // Give the destination page time to finish rendering after Encrypt navigation.
   await wait(1000);
   const action = new URLSearchParams(window.location.search).get("action");
+  const pendingSignEncryptSave = (await chrome.storage.local.get(PENDING_SIGN_ENCRYPT_SAVE_KEY))?.[PENDING_SIGN_ENCRYPT_SAVE_KEY];
+  if (pendingSignEncryptSave) {
+    await chrome.storage.local.remove(PENDING_SIGN_ENCRYPT_SAVE_KEY);
+    if (Date.now() - pendingSignEncryptSave.createdAt <= 120000) {
+      console.log("[Encrypt] Resuming the requested Sign, Encrypt and Save flow after navigation.");
+      await runPendingSignEncryptSave();
+      return;
+    }
+  }
+
   const pending = (await chrome.storage.local.get(PENDING_DECRYPT_KEY))?.[PENDING_DECRYPT_KEY];
   console.log("[Encrypt] Page-load flow check:", {
     url: window.location.href,
@@ -577,7 +663,7 @@ async function autoClickEncryptAction() {
 }
 
 function getEncryptButton() {
-  return [...document.querySelectorAll('#encrypt, input[name="encrypt"], button, input[type="button"], input[type="submit"], [role="button"]')].find((element) => {
+  return [...document.querySelectorAll('input#encrypt, input[name="encrypt"], input[type="button"]')].find((element) => {
     const label = (element.innerText || element.value || element.getAttribute("aria-label") || "")
       .replace(/\s+/g, " ")
       .trim()
@@ -593,6 +679,7 @@ async function onlyEncrypt() {
   }
 
   encryptButton.scrollIntoView({ block: "center", behavior: "smooth" });
+  // This button require direct click like this. Not dispatch event.
   encryptButton.click();
   return { ok: true, count: 1 };
 }

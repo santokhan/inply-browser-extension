@@ -32,6 +32,32 @@ function isVisible(element) {
   return true;
 }
 
+function buildFieldSelector(field) {
+  const tagName = field.tagName.toLowerCase();
+  const classes = [...field.classList]
+    .map((className) => `.${CSS.escape(className)}`)
+    .join("");
+  let selector = `${tagName}${classes}`;
+
+  if (field.name) {
+    const match = field.name.match(/^row\d+_(\d+)_(\d+)$/);
+    if (match) {
+      selector += `[name^="row"][name$="_${match[1]}_${match[2]}"]`;
+    } else {
+      selector += `[name="${CSS.escape(field.name)}"]`;
+    }
+  } else if (field.id) {
+    selector += `[id="${CSS.escape(field.id)}"]`;
+  }
+
+  selector += ':not([type="hidden"])';
+  if (field instanceof HTMLInputElement && field.type) {
+    selector += `[type="${CSS.escape(field.type)}"]`;
+  }
+
+  return selector;
+}
+
 function getTableFields(table) {
   return [...table.querySelectorAll(FIELD_SELECTOR)].filter(
     (field) =>
@@ -81,13 +107,47 @@ function getValidInputFields(container, candidates = []) {
   return [...new Set(fields)];
 }
 
+function getFieldSignature(field) {
+  return [
+    field.tagName.toLowerCase(),
+    field.id || "",
+    field.name || "",
+    typeof field.className === "string" ? field.className : "",
+    field instanceof HTMLInputElement ? field.type : "",
+  ].join("|");
+}
+
+function getCurrentParsedFields() {
+  const candidates = getCandidates();
+  const container = findCommonAncestor(candidates.map((candidate) => candidate.table));
+  return getValidInputFields(container, candidates);
+}
+
 function getParsedField(fieldKey) {
-  const field = parsedFieldsByKey.get(fieldKey);
-  if (!field?.isConnected) {
-    parsedFieldsByKey.delete(fieldKey);
-    return null;
+  const parsed = parsedFieldsByKey.get(fieldKey);
+  if (!parsed) return null;
+
+  const currentFields = getCurrentParsedFields();
+  if (parsed.field?.isConnected && currentFields.includes(parsed.field)) {
+    return parsed.field;
   }
-  return field;
+
+  const sameSignature = currentFields.filter(
+    (field) => getFieldSignature(field) === parsed.signature,
+  );
+  const replacement = sameSignature[parsed.signatureIndex];
+  if (replacement) {
+    parsed.field = replacement;
+    return replacement;
+  }
+
+  const fieldAtOriginalIndex = currentFields[parsed.fieldIndex];
+  if (fieldAtOriginalIndex && getFieldSignature(fieldAtOriginalIndex) === parsed.signature) {
+    parsed.field = fieldAtOriginalIndex;
+    return fieldAtOriginalIndex;
+  }
+
+  return null;
 }
 
 function getFieldLabel(field) {
@@ -115,15 +175,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     const container = findCommonAncestor(candidates.map((candidate) => candidate.table));
 
-    const validFields = getValidInputFields(container, candidates).map((field) => {
+    const validFieldElements = getValidInputFields(container, candidates);
+    const signatureCounts = new Map();
+    const validFields = validFieldElements.map((field, fieldIndex) => {
       const fieldKey = `${Date.now()}-${nextParsedFieldKey++}`;
-      parsedFieldsByKey.set(fieldKey, field);
-      const tagName = field.tagName.toLowerCase();
-      const selector = field.id
-        ? `#${CSS.escape(field.id)}`
-        : field.name
-          ? `${tagName}[name="${CSS.escape(field.name)}"]`
-          : `${tagName}${[...field.classList].map((className) => `.${CSS.escape(className)}`).join("")}`;
+      const signature = getFieldSignature(field);
+      const signatureIndex = signatureCounts.get(signature) || 0;
+      signatureCounts.set(signature, signatureIndex + 1);
+      parsedFieldsByKey.set(fieldKey, { field, fieldIndex, signature, signatureIndex });
+      const selector = buildFieldSelector(field);
       const matches = [...document.querySelectorAll(selector)].filter(isVisible);
       return {
       label: getFieldLabel(field),

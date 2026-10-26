@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
 import { toast } from "react-toastify";
+import PageActionButton from "./PageActionButton";
 
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
 
@@ -23,7 +24,9 @@ async function signAndVerifyInPage(password) {
   signButton.click();
 
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    const input = document.querySelector('#myPanelDiv input#password, #myPanelDiv input[name="password"]' );
+    const input = document.querySelector(
+      '#myPanelDiv input#password, #myPanelDiv input[name="password"], #dialog-form input#password, #dialog-form input[name="password"]',
+    );
     if (input && isVisible(input)) {
       const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
       if (setter) setter.call(input, password);
@@ -31,7 +34,8 @@ async function signAndVerifyInPage(password) {
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));
 
-      const verifyButton = [...document.querySelectorAll(`#myPanelDiv button, #myPanelDiv input[type="button"], #myPanelDiv input[type="submit"]`)].find((element) => {
+      const dialog = input.closest(".ui-dialog") || input.closest("#myPanelDiv, #dialog-form");
+      const verifyButton = [...(dialog?.querySelectorAll("button, input[type=\"button\"], input[type=\"submit\"]") || [])].find((element) => {
         const label = (element.innerText || element.value || "").trim().toLowerCase();
         return label === "verify password" && !element.disabled && isVisible(element);
       });
@@ -60,7 +64,7 @@ export async function sendSignMessage(tabId, password) {
   }
 }
 
-export default function Sign() {
+export default function Sign({ pageReady = false }) {
   const [signing, setSigning] = useState(false);
   const hoverCooldown = useRef(false);
 
@@ -107,8 +111,8 @@ export default function Sign() {
   }
 
   return (
-    <button type="button" className="default grow" onClick={handleSign} disabled={signing}>
+    <PageActionButton pageReady={pageReady} className="default grow" onClick={handleSign} disabled={signing}>
       {signing ? "Signing..." : "Sign"}
-    </button>
+    </PageActionButton>
   );
 }

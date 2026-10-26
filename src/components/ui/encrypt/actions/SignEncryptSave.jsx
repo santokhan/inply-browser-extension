@@ -4,11 +4,28 @@ import { sendSignMessage } from "./Sign";
 import { sendEncryptAndSaveMessage } from "./Encrypt";
 import { sendSaveMessage } from "./SaveEncrypted";
 import { toast } from "react-toastify";
+import PageActionButton from "./PageActionButton";
 
 const ACTIONS = ["signAndVerify", "encryptAndSave", "save"];
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
+const STEP_DELAY_MS = 2000;
+const ENCRYPT_TO_SAVE_DELAY_MS = 5000;
+const ACTION_LABELS = {
+  signAndVerify: "Sign",
+  encryptAndSave: "Encrypt",
+  save: "Save",
+};
 
 const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+async function waitWithCountdown(milliseconds, nextAction, setStatus) {
+  const endTime = Date.now() + milliseconds;
+  while (Date.now() < endTime) {
+    const secondsLeft = Math.ceil((endTime - Date.now()) / 1000);
+    setStatus(`Starting ${nextAction} in ${secondsLeft}…`);
+    await wait(Math.min(200, endTime - Date.now()));
+  }
+}
 
 async function sendActionWithRetry(tabId, action, password) {
   let lastResult;
@@ -33,6 +50,7 @@ async function sendActionWithRetry(tabId, action, password) {
 
 export default function SignEncryptSave({ pageReady = true }) {
   const [running, setRunning] = useState(false);
+  const [status, setStatus] = useState("");
   const hoverCooldown = useRef(false);
 
   async function handleRunAll() {
@@ -53,7 +71,9 @@ export default function SignEncryptSave({ pageReady = true }) {
     hoverCooldown.current = true;
     try {
       setRunning(true);
-      for (const action of ACTIONS) {
+      for (let index = 0; index < ACTIONS.length; index += 1) {
+        const action = ACTIONS[index];
+        setStatus(`${ACTION_LABELS[action]}…`);
         const result = await sendActionWithRetry(tab.id, action, saved[ENCRYPT_PASSWORD_KEY]);
         const verificationFailed = action === "signAndVerify" && !result?.verified;
         const encryptionNotConfirmed = action === "encryptAndSave" && !result?.confirmed;
@@ -61,13 +81,24 @@ export default function SignEncryptSave({ pageReady = true }) {
           toast.info(result?.message || `Could not complete ${action}.`);
           return;
         }
-        if (action !== "save") await wait(500);
+        // On e-GP pages, accepting the Encrypt instruction dialog starts
+        // encryption and the page itself submits with action="Encrypt And Save".
+        if (action === "encryptAndSave" && result.willSubmit) {
+          setStatus("Encrypting and saving…");
+          await wait(STEP_DELAY_MS);
+          break;
+        }
+        if (index < ACTIONS.length - 1) {
+          const delay = action === "encryptAndSave" ? ENCRYPT_TO_SAVE_DELAY_MS : STEP_DELAY_MS;
+          await waitWithCountdown(delay, ACTION_LABELS[ACTIONS[index + 1]], setStatus);
+        }
       }
     } catch (error) {
       console.error(error);
       toast.info("This page cannot be controlled by the extension. Reload the page and try again.");
     } finally {
       setRunning(false);
+      setStatus("");
       window.setTimeout(() => {
         hoverCooldown.current = false;
       }, 1500);
@@ -75,9 +106,9 @@ export default function SignEncryptSave({ pageReady = true }) {
   }
 
   return (
-    <button type="button" className="default w-full" onClick={handleRunAll} disabled={running || !pageReady}>
+    <PageActionButton pageReady={pageReady} className="default w-full" onClick={handleRunAll} disabled={running}>
       {/* Total 3 actions */}
-      {running ? "Running..." : pageReady ? "Sign Encrypt Save" : "Waiting for page..."}
-    </button>
+      {running ? status || "Running..." : pageReady ? "Sign Encrypt Save" : "Waiting for page..."}
+    </PageActionButton>
   );
 }

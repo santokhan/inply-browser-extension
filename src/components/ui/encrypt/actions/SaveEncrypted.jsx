@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
 import { toast } from "react-toastify";
+import PageActionButton from "./PageActionButton";
 
 async function clickSaveInPage() {
   const isVisible = (element) => {
@@ -40,7 +41,7 @@ export async function sendSaveMessage(tabId) {
   }
 }
 
-export default function SaveEcrypted() {
+export default function SaveEcrypted({ pageReady = false }) {
   const [saving, setSaving] = useState(false);
   const hoverCooldown = useRef(false);
 
@@ -78,8 +79,8 @@ export default function SaveEcrypted() {
   }
 
   return (
-    <button type="button" className="default grow" onClick={handleSave} disabled={saving}>
+    <PageActionButton pageReady={pageReady} className="default grow" onClick={handleSave} disabled={saving}>
       {saving ? "Saving..." : "Save"}
-    </button>
+    </PageActionButton>
   );
 }

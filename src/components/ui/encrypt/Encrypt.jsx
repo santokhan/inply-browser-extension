@@ -3,6 +3,9 @@ import { toast } from "react-toastify";
 import OpenEncryptLink from "./actions/OpenEncryptLink";
 import DecryptEncryptSave from "./actions/DecryptEncryptSave";
 import SignEncryptSave from "./actions/SignEncryptSave";
+import Sign from "./actions/Sign";
+import EncryptAction from "./actions/Encrypt";
+import SaveAction from "./actions/SaveEncrypted";
 
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
 const PAGE_SETTLE_DELAY = 300;
@@ -102,11 +105,16 @@ export default function Encrypt() {
       {password &&
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-800">Encrypt Actions</h3>
+          <div className="flex gap-2">
+          <Sign pageReady={pageReady} />
+          <EncryptAction buttonLabel="Encrypt" pageReady={pageReady} />
+          <SaveAction pageReady={pageReady} />
+          </div>
           <SignEncryptSave pageReady={pageReady} />
           {isEncryptAction ? (
             <DecryptEncryptSave pageReady={pageReady} />
           ) : (
-            <OpenEncryptLink className="w-full" />
+            <OpenEncryptLink className="w-full" pageReady={pageReady} />
           )}
         </section>
       }

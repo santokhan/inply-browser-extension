@@ -2,6 +2,9 @@ import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
 import { twMerge } from "tailwind-merge";
 import { toast } from "react-toastify";
+import PageActionButton from "./PageActionButton";
+
+const PENDING_SIGN_ENCRYPT_SAVE_KEY = "pendingSignEncryptSave";
 
 function openEncryptLinkInPage() {
   const anchor = [...document.querySelectorAll("a")].find((candidate) =>
@@ -12,6 +15,7 @@ function openEncryptLinkInPage() {
     return { ok: false, message: "No Encrypt link was found on this page." };
   }
 
+  anchor.target = "_self";
   anchor.click();
   return { ok: true };
 }
@@ -24,7 +28,7 @@ async function openEncryptLink(tabId) {
   return result?.result;
 }
 
-export default function OpenEncryptLink({ className = "" }) {
+export default function OpenEncryptLink({ className = "", pageReady = false }) {
   const [opening, setOpening] = useState(false);
   const hoverCooldown = useRef(false);
 
@@ -41,8 +45,16 @@ export default function OpenEncryptLink({ className = "" }) {
 
     try {
       setOpening(true);
+      await chrome.storage.local.set({
+        [PENDING_SIGN_ENCRYPT_SAVE_KEY]: { createdAt: Date.now() },
+      });
       const result = await openEncryptLink(tab.id);
+      if (!result?.ok) {
+        await chrome.storage.local.remove(PENDING_SIGN_ENCRYPT_SAVE_KEY);
+        toast.info(result?.message || "No Encrypt link was found on this page.");
+      }
     } catch (error) {
+      await chrome.storage.local.remove(PENDING_SIGN_ENCRYPT_SAVE_KEY).catch(() => {});
       console.error(error);
       toast.info("This page cannot be controlled by the extension.");
     } finally {
@@ -54,8 +66,8 @@ export default function OpenEncryptLink({ className = "" }) {
   }
 
   return (
-    <button type="button" className={twMerge("default grow", className)} onClick={handleOpenEncryptLink} disabled={opening}>
+    <PageActionButton pageReady={pageReady} className={twMerge("default grow", className)} onClick={handleOpenEncryptLink} disabled={opening}>
       {opening ? "Opening..." : "Open Encrypt"}
-    </button>
+    </PageActionButton>
   );
 }

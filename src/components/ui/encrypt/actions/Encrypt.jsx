@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
 import { toast } from "react-toastify";
+import PageActionButton from "./PageActionButton";
 
 async function clickEncryptAndSaveInPage() {
   const isVisible = (element) => {
@@ -27,6 +28,38 @@ async function clickEncryptAndSaveInPage() {
   button.scrollIntoView({ block: "center", behavior: "smooth" });
   button.click();
   for (let attempt = 0; attempt < 40; attempt += 1) {
+    const instructionDialog = document.querySelector("#encrypt-dialog-message")?.closest(".ui-dialog");
+    const instructionOk = instructionDialog
+      ? [...instructionDialog.querySelectorAll(".ui-dialog-buttonpane button, button")].find((element) => {
+          const label = (element.innerText || element.value || "").trim().toLowerCase();
+          return label === "ok" && !element.disabled && isVisible(element);
+        })
+      : null;
+    if (instructionOk) {
+      const form = document.getElementById("frmBidSubmit");
+      let actionField = document.getElementById("action") || document.querySelector('input[name="action"]');
+      if (!actionField && form) {
+        actionField = document.createElement("input");
+        actionField.type = "hidden";
+        actionField.id = "action";
+        actionField.name = "action";
+        form.appendChild(actionField);
+      } else if (actionField && !actionField.id) {
+        actionField.id = "action";
+      }
+      if (actionField && form && !form.contains(actionField)) form.appendChild(actionField);
+      if (!actionField || !form) {
+        return {
+          ok: false,
+          count: 0,
+          message: "The submission form is missing its Encrypt And Save action field.",
+        };
+      }
+
+      instructionOk.click();
+      return { ok: true, count: 1, confirmed: true, willSubmit: true };
+    }
+
     const okButton = [...document.querySelectorAll("#myPanelDiv button, #myPanelDiv input[type=\"button\"], #myPanelDiv input[type=\"submit\"]")].find((element) => {
       const label = (element.innerText || element.value || "").trim().toLowerCase();
       return label === "ok" && !element.disabled && isVisible(element);
@@ -55,12 +88,12 @@ export async function sendEncryptAndSaveMessage(tabId) {
     return result?.result;
   }
 }
-export default function EncryptConfirmOk({ buttonLabel = "Encrypt & Save" }) {
+export default function EncryptConfirmOk({ buttonLabel = "Encrypt & Save", pageReady = false }) {
   const [encrypting, setEncrypting] = useState(false);
   const hoverCooldown = useRef(false);
 
   return (
-    <button type="button" className="default grow" onClick={async () => {
+    <PageActionButton type="button" pageReady={pageReady} className="default grow" onClick={async () => {
       if (hoverCooldown.current) return;
       const tab = await getActiveTabSafe();
       if (!tab?.id) {
@@ -95,6 +128,6 @@ export default function EncryptConfirmOk({ buttonLabel = "Encrypt & Save" }) {
       disabled={encrypting}
     >
       {encrypting ? "Encrypting..." : buttonLabel}
-    </button>
+    </PageActionButton>
   );
 }
