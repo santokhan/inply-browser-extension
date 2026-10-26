@@ -5,7 +5,6 @@ import SearchForm from "./Search";
 import { getActiveTabSafe } from "../../../utils/chrome";
 import RuleEditForm from "./RuleEditForm";
 import { useGroups } from "../../../hooks/useGroups";
-import { displayNoneFilter } from "../../../utils/querySelector";
 import { toast } from "react-toastify";
 
 export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { }, onDelete = () => { }, onMove = () => { }, canMoveUp = true, canMoveDown = true }) {
@@ -209,15 +208,31 @@ export default function SavedRules() {
     }
 
     function applyRuleInPage(rule) {
-        const elements = [...document.querySelectorAll(rule?.selector)].filter(displayNoneFilter);
-        const element = elements[rule?.nth || 0];
+        const isVisible = (el) => {
+            if (el.closest("[hidden]")) return false;
+            let current = el;
+            while (current instanceof Element) {
+                const style = window.getComputedStyle(current);
+                if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse") return false;
+                current = current.parentElement;
+            }
+            return true;
+        };
 
-        if (!element) return;
+        let elements;
+        try {
+            elements = [...document.querySelectorAll(rule?.selector)].filter(isVisible);
+        } catch {
+            return { ok: false, message: "The saved rule selector is invalid." };
+        }
+        const element = elements[rule?.nth ?? 0];
+
+        if (!element) return { ok: false, message: "No matching input was found on this page." };
 
         const setNativeValue = (el, value) => {
             const tag = el.tagName;
 
-            if (tag === "input") {
+            if (tag === "INPUT") {
                 const inputType = el.type?.toLowerCase();
 
                 if (inputType === "checkbox" || inputType === "radio") {
@@ -243,7 +258,7 @@ export default function SavedRules() {
                 return;
             }
 
-            if (tag === "textarea") {
+            if (tag === "TEXTAREA") {
                 const setter = Object.getOwnPropertyDescriptor(
                     window.HTMLTextAreaElement.prototype,
                     "value"
@@ -257,7 +272,7 @@ export default function SavedRules() {
                 return;
             }
 
-            if (tag === "select") {
+            if (tag === "SELECT") {
                 const setter = Object.getOwnPropertyDescriptor(
                     window.HTMLSelectElement.prototype,
                     "value"
@@ -275,16 +290,48 @@ export default function SavedRules() {
             setNativeValue(element, rule?.value);
             element.dispatchEvent(new Event("input", { bubbles: true }));
             element.dispatchEvent(new Event("change", { bubbles: true }));
+            return { ok: true };
         }
     }
 
     function sendRuleToTab(tabId, rule) {
         return new Promise((resolve) => {
-            chrome.tabs.sendMessage(tabId, { action: "applyRule", rule })
-                .then(() => {
-                    resolve(true);
+            const hasParserMetadata = Object.prototype.hasOwnProperty.call(rule || {}, "fieldIndex")
+                || Object.prototype.hasOwnProperty.call(rule || {}, "label");
+            const isStructuredFieldRule = Boolean(rule?.tagName && rule?.groupId && rule?.domain);
+            const useParserFieldSelection = rule?.from === "parser"
+                || (rule?.from !== "manual" && (hasParserMetadata || isStructuredFieldRule));
+            const action = useParserFieldSelection ? "applyParsedRule" : "applyRule";
+            chrome.tabs.sendMessage(tabId, { action, rule })
+                .then((result) => {
+                    if (result?.ok) {
+                        resolve(true);
+                        return;
+                    }
+
+                    if (useParserFieldSelection) {
+                        resolve(result || {
+                            ok: false,
+                            message: "Parser support is not loaded in this tab. Reload the page and try again.",
+                        });
+                        return;
+                    }
+
+                    return chrome.scripting.executeScript({
+                        target: { tabId },
+                        func: applyRuleInPage,
+                        args: [rule],
+                    }).then((results) => resolve(Boolean(results?.[0]?.result?.ok)));
                 })
                 .catch(async () => {
+                    if (useParserFieldSelection) {
+                        resolve({
+                            ok: false,
+                            message: "Parser support is not loaded in this tab. Reload the page and try again.",
+                        });
+                        return;
+                    }
+
                     // fallback only when message fails
 
                     try {
@@ -306,8 +353,15 @@ export default function SavedRules() {
     async function applyRule(rule) {
         const tab = await getActiveTabSafe()
         if (tab?.id) {
-            return sendRuleToTab(tab.id, rule);
+            const result = await sendRuleToTab(tab.id, rule);
+            const applied = result === true || result?.ok === true;
+            if (!applied) {
+                toast.info(result?.message || "No matching field was found on this page.");
+            }
+            return applied;
         }
+        toast.info("No active page tab was found.");
+        return false;
     }
 
     async function onApplyRules(rules) {

@@ -168,6 +168,79 @@ function getFieldLabel(field) {
   return (header.innerText || header.textContent).replace(/\s+/g, " ").trim();
 }
 
+function setParsedFieldHighlight(field, focused) {
+  if (focused) {
+    if (!parsedFieldOutlines.has(field)) {
+      parsedFieldOutlines.set(field, {
+        outline: field.style.outline,
+        outlineOffset: field.style.outlineOffset,
+        boxShadow: field.style.boxShadow,
+      });
+    }
+    field.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    field.style.setProperty("outline", "2px solid #6366f1", "important");
+    field.style.setProperty("outline-offset", "2px", "important");
+    field.style.setProperty("box-shadow", "0 0 0 4px rgb(99 102 241 / 25%)", "important");
+    return;
+  }
+
+  const original = parsedFieldOutlines.get(field);
+  if (!original) return;
+  field.style.outline = original.outline;
+  field.style.outlineOffset = original.outlineOffset;
+  field.style.boxShadow = original.boxShadow;
+  parsedFieldOutlines.delete(field);
+}
+
+function applyParsedRule(rule) {
+  const validFields = getCurrentParsedFields();
+  const tagName = String(rule?.tagName || "").toLowerCase();
+  const type = String(rule?.type || "").toLowerCase();
+  let element;
+
+  // Parser rules are tied to this filtered table field list. Database-generated
+  // names/classes can change, so preserve and prefer the original valid-field index.
+  if (Number.isInteger(rule?.fieldIndex)) {
+    element = validFields[rule.fieldIndex];
+  }
+
+  const matches = validFields.filter((field) => {
+    if (tagName && field.tagName.toLowerCase() !== tagName) return false;
+    if (type && field instanceof HTMLInputElement && field.type.toLowerCase() !== type) return false;
+    return true;
+  });
+
+  if (!element && rule?.label) {
+    const normalizedLabel = String(rule.label).replace(/\s+/g, " ").trim().toLowerCase();
+    element = matches.filter((field) => getFieldLabel(field).toLowerCase() === normalizedLabel)[rule?.nth ?? 0];
+  }
+  if (!element) {
+    element = matches.filter((field) => rule?.selector && field.matches(rule.selector))[rule?.nth ?? 0];
+  }
+
+  if (!element) {
+    return {
+      ok: false,
+      message: `No matching field was found in the ${validFields.length} valid table fields on this page.`,
+    };
+  }
+
+  setParsedFieldHighlight(element, true);
+  const value = rule.value ?? "";
+  const prototype = element instanceof HTMLTextAreaElement
+    ? HTMLTextAreaElement.prototype
+    : element instanceof HTMLSelectElement
+      ? HTMLSelectElement.prototype
+      : HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+  if (setter) setter.call(element, value);
+  else element.value = value;
+  element.dispatchEvent(new Event("input", { bubbles: true }));
+  element.dispatchEvent(new Event("change", { bubbles: true }));
+  setTimeout(() => setParsedFieldHighlight(element, false), 1200);
+  return { ok: true };
+}
+
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onMessage
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "parse") {
@@ -176,17 +249,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const container = findCommonAncestor(candidates.map((candidate) => candidate.table));
 
     const validFieldElements = getValidInputFields(container, candidates);
+    const labelPositionCounts = new Map();
     const signatureCounts = new Map();
     const validFields = validFieldElements.map((field, fieldIndex) => {
       const fieldKey = `${Date.now()}-${nextParsedFieldKey++}`;
       const signature = getFieldSignature(field);
       const signatureIndex = signatureCounts.get(signature) || 0;
       signatureCounts.set(signature, signatureIndex + 1);
+      const label = getFieldLabel(field);
+      const identity = [label, field.tagName.toLowerCase(), field instanceof HTMLInputElement ? field.type : ""].join("|");
+      const nth = labelPositionCounts.get(identity) || 0;
+      labelPositionCounts.set(identity, nth + 1);
       parsedFieldsByKey.set(fieldKey, { field, fieldIndex, signature, signatureIndex });
       const selector = buildFieldSelector(field);
-      const matches = [...document.querySelectorAll(selector)].filter(isVisible);
       return {
-      label: getFieldLabel(field),
+      label,
       tagName: field.tagName.toLowerCase(),
       id: field.id,
       name: field.name,
@@ -201,7 +278,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         : undefined,
       onblur: field.getAttribute("onblur") || undefined,
       selector,
-      nth: matches.indexOf(field),
+      nth,
+      fieldIndex,
       fieldKey,
     };
     });
@@ -211,31 +289,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === "applyParsedRule") {
+    sendResponse(applyParsedRule(message.rule));
+    return false;
+  }
+
   if (message.action === "highlightParsedField") {
     const field = getParsedField(message.fieldKey);
-    if (field) {
-      if (message.focused) {
-        if (!parsedFieldOutlines.has(field)) {
-          parsedFieldOutlines.set(field, {
-            outline: field.style.outline,
-            outlineOffset: field.style.outlineOffset,
-            boxShadow: field.style.boxShadow,
-          });
-        }
-        field.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
-        field.style.setProperty("outline", "2px solid #6366f1", "important");
-        field.style.setProperty("outline-offset", "2px", "important");
-        field.style.setProperty("box-shadow", "0 0 0 4px rgb(99 102 241 / 25%)", "important");
-      } else {
-        const original = parsedFieldOutlines.get(field);
-        if (original) {
-          field.style.outline = original.outline;
-          field.style.outlineOffset = original.outlineOffset;
-          field.style.boxShadow = original.boxShadow;
-          parsedFieldOutlines.delete(field);
-        }
-      }
-    }
+    if (field) setParsedFieldHighlight(field, message.focused);
     sendResponse({ ok: Boolean(field) });
     return false;
   }

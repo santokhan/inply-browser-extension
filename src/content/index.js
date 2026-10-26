@@ -73,17 +73,24 @@ function displayNoneFilter(el) {
 }
 
 function applyRule(rule) {
-  const elements = [...document.querySelectorAll(rule?.selector)].filter(displayNoneFilter);
-  const element = elements[rule?.nth || 0];
+  let elements;
+  try {
+    elements = [...document.querySelectorAll(rule?.selector)].filter(displayNoneFilter);
+  } catch (error) {
+    console.warn("Invalid selector for rule:", rule, error);
+    return { ok: false, message: "The saved rule selector is invalid." };
+  }
+  const element = elements[rule?.nth ?? 0];
 
   if (!element) {
     console.warn("Element not found for rule:", rule);
-    return;
+    return { ok: false, message: "No matching input was found on this page." };
   }
 
   setNativeValue(element, rule.value);
   element.dispatchEvent(new Event("input", { bubbles: true }));
   element.dispatchEvent(new Event("change", { bubbles: true }));
+  return { ok: true };
 }
 
 function applyRules(rules) {
@@ -699,12 +706,13 @@ async function onlySave() {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // These actions are handled by parser.js. Avoid answering them here so the
   // parser's response is the one returned to the extension UI.
-  if (["parse", "setParsedFieldValue", "highlightParsedField"].includes(message.action)) {
+  if (["parse", "applyParsedRule", "setParsedFieldValue", "highlightParsedField"].includes(message.action)) {
     return false;
   }
 
   if (message.action === "applyRule") {
-    applyRule(message.rule);
+    sendResponse(applyRule(message.rule));
+    return false;
   }
 
   if (message.action === "applyAllRules") {
