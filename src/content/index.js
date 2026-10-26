@@ -251,18 +251,6 @@ function getFirstEncryptAnchor() {
   });
 }
 
-function getSignButton() {
-  return [...document.querySelectorAll('#sign, input[name="sign"], button, input[type="button"], input[type="submit"], [role="button"]')].find((element) => {
-    const label = (element.innerText || element.value || element.getAttribute("aria-label") || "").trim().toLowerCase();
-    return (element.id === "sign" || element.name === "sign" || label === "sign") && !element.disabled && isVisible(element);
-  });
-}
-function getSaveButton() {
-  return [...document.querySelectorAll('#save, input[name="save"], button, input[type="submit"], input[type="button"], [role="button"]')].find((element) => {
-    const label = (element.innerText || element.value || element.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim().toLowerCase();
-    return (element.id === "save" || element.name === "save" || label === "save") && !element.disabled && isVisible(element);
-  });
-}
 function fillPasswordFields(password) {
   const fields = [...document.querySelectorAll('input[type="password"], input[name*="password" i]')];
   fields.forEach((field) => {
@@ -290,7 +278,6 @@ async function waitForButton(getButton, timeout = 10000) {
 
 const PENDING_DECRYPT_KEY = "pendingDecryptNavigation";
 const PENDING_ENCRYPT_AND_SAVE_KEY = "pendingEncryptAndSave";
-const PENDING_SIGN_ENCRYPT_SAVE_KEY = "pendingSignEncryptSave";
 
 function isVisible(element) {
   const style = window.getComputedStyle(element);
@@ -467,69 +454,6 @@ async function decryptAnchors() {
   return { ok: true, count: 1 };
 }
 
-async function encryptAndSave({ persistPending = true } = {}) {
-  const button = await waitForButton(getEncryptAndSaveButton);
-
-  if (!button) {
-    return { ok: false, count: 0, message: "No Encrypt And Save button was found on this page." };
-  }
-
-  if (persistPending) {
-    await chrome.storage.local.set({
-      [PENDING_ENCRYPT_AND_SAVE_KEY]: { createdAt: Date.now() },
-    });
-  }
-  button.scrollIntoView({ block: "center", behavior: "smooth" });
-  button.click();
-  console.log("[Encrypt] Clicked Encrypt And Save.");
-  const confirmation = await clickEncryptConfirmationOk();
-  return {
-    ok: true,
-    count: 1,
-    confirmed: Boolean(confirmation),
-    willSubmit: confirmation === "submit",
-  };
-}
-async function signAndVerify({ queueEncrypt = true } = {}) {
-  const button = await waitForButton(getSignButton);
-  if (!button) {
-    return { ok: false, verified: false, message: "No Sign button was found on this page." };
-  }
-
-  button.scrollIntoView({ block: "center", behavior: "smooth" });
-  button.click();
-  const verified = await fillAndVerifyDecryptPassword({ queueEncrypt });
-  return verified
-    ? { ok: true, verified: true, count: 1 }
-    : { ok: true, verified: false, count: 1, message: "Sign clicked, but the password dialog was not ready." };
-}
-
-async function runPendingSignEncryptSave() {
-  const signResult = await signAndVerify({ queueEncrypt: false });
-  if (!signResult.ok || !signResult.verified) {
-    console.warn("[Encrypt] Could not complete Sign before Encrypt:", signResult.message);
-    return;
-  }
-
-  await wait(2000);
-  const encryptResult = await encryptAndSave({ persistPending: false });
-  if (!encryptResult.ok || !encryptResult.confirmed) {
-    console.warn("[Encrypt] Could not complete Encrypt and Save:", encryptResult.message);
-    return;
-  }
-
-  console.log("[Encrypt] Completed the requested Sign, Encrypt and Save flow.");
-}
-async function save() {
-  const button = getSaveButton();
-  if (!button) {
-    return { ok: false, count: 0, message: "No Save button was found on this page." };
-  }
-  button.scrollIntoView({ block: "center", behavior: "smooth" });
-  button.click();
-  console.log("[Save] Clicked Save; the page chkValidate handler is running.");
-  return { ok: true, count: 1 };
-}
 async function autoClickPendingDecrypt() {
   let pending;
 
@@ -621,15 +545,7 @@ async function resumePendingEncryptFlow() {
   // Give the destination page time to finish rendering after Encrypt navigation.
   await wait(1000);
   const action = new URLSearchParams(window.location.search).get("action");
-  const pendingSignEncryptSave = (await chrome.storage.local.get(PENDING_SIGN_ENCRYPT_SAVE_KEY))?.[PENDING_SIGN_ENCRYPT_SAVE_KEY];
-  if (pendingSignEncryptSave) {
-    await chrome.storage.local.remove(PENDING_SIGN_ENCRYPT_SAVE_KEY);
-    if (Date.now() - pendingSignEncryptSave.createdAt <= 120000) {
-      console.log("[Encrypt] Resuming the requested Sign, Encrypt and Save flow after navigation.");
-      await runPendingSignEncryptSave();
-      return;
-    }
-  }
+  if (await window.InplySignEncryptSave?.resumePendingSignEncryptSave()) return;
 
   const pending = (await chrome.storage.local.get(PENDING_DECRYPT_KEY))?.[PENDING_DECRYPT_KEY];
   console.log("[Encrypt] Page-load flow check:", {
@@ -679,34 +595,14 @@ function getEncryptButton() {
   });
 }
 
-async function onlyEncrypt() {
-  const encryptButton = await waitForButton(getEncryptButton);
-  if (!encryptButton) {
-    return { ok: false, verified: false, message: "No enabled Encrypt button appeared within 10 seconds." };
-  }
-
-  encryptButton.scrollIntoView({ block: "center", behavior: "smooth" });
-  // This button require direct click like this. Not dispatch event.
-  encryptButton.click();
-  return { ok: true, count: 1 };
-}
-
-async function onlySave() {
-  const saveButton = await waitForButton(getSaveButton);
-  if (!saveButton) {
-    return { ok: false, verified: false, message: "No enabled Save button appeared within 10 seconds." };
-  }
-
-  saveButton.scrollIntoView({ block: "center", behavior: "smooth" });
-  saveButton.click();
-  return { ok: true, count: 1 };
-}
-
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onMessage
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // These actions are handled by parser.js. Avoid answering them here so the
   // parser's response is the one returned to the extension UI.
-  if (["parse", "applyParsedRule", "setParsedFieldValue", "highlightParsedField"].includes(message.action)) {
+  if ([
+    "parse", "applyParsedRule", "setParsedFieldValue", "highlightParsedField",
+    "signAndVerify", "encryptAndSave", "save", "onlyEncrypt", "onlySave",
+  ].includes(message.action)) {
     return false;
   }
 
@@ -753,31 +649,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ ok: false, message: "The password dialog was not ready." })
       }
     });
-    return true;
-  }
-
-  if (message.action === "encryptAndSave") {
-    encryptAndSave().then(sendResponse);
-    return true;
-  }
-
-  if (message.action === "signAndVerify") {
-    signAndVerify().then(sendResponse);
-    return true;
-  }
-
-  if (message.action === "onlyEncrypt") {
-    onlyEncrypt().then(sendResponse);
-    return true;
-  }
-
-  if (message.action === "onlySave") {
-    onlySave().then(sendResponse);
-    return true;
-  }
-
-  if (message.action === "save") {
-    save().then(sendResponse);
     return true;
   }
 
