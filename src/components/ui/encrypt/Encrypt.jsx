@@ -3,7 +3,7 @@ import { toast } from "react-toastify";
 import OpenEncryptLink from "./actions/OpenEncryptLink";
 import DecryptEncryptSave from "./actions/DecryptEncryptSave";
 import SignEncryptSave from "./actions/SignEncryptSave";
-import Sign from "./actions/Sign";
+import SignAndVerifyAction from "./actions/Sign";
 import EncryptSignedLetter from "./actions/Encrypt";
 import SaveAction from "./actions/SaveEncrypted";
 
@@ -106,7 +106,7 @@ export default function Encrypt() {
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-800">Encrypt Actions</h3>
           <div className="flex gap-2">
-          <Sign pageReady={pageReady} />
+          <SignAndVerifyAction pageReady={pageReady} />
           <EncryptSignedLetter buttonLabel="Encrypt" pageReady={pageReady} />
           <SaveAction pageReady={pageReady} />
           </div>

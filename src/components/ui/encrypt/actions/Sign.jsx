@@ -50,7 +50,7 @@ async function signAndVerifyInPage(password) {
   return { ok: true, verified: false, count: 1, message: "Sign clicked, but the password dialog was not ready." };
 }
 
-export async function sendSignMessage(tabId, password) {
+export async function sendSignAndVerifyMessage(tabId, password) {
   try {
     return await chrome.tabs.sendMessage(tabId, { action: "signAndVerify" });
   } catch (error) {
@@ -64,7 +64,7 @@ export async function sendSignMessage(tabId, password) {
   }
 }
 
-export default function Sign({ pageReady = false }) {
+export default function SignAndVerifyAction({ pageReady = false }) {
   const [signing, setSigning] = useState(false);
   const hoverCooldown = useRef(false);
 
@@ -87,7 +87,7 @@ export default function Sign({ pageReady = false }) {
     hoverCooldown.current = true;
     try {
       setSigning(true);
-      const result = await sendSignMessage(tab.id, password);
+      const result = await sendSignAndVerifyMessage(tab.id, password);
       console.log("[Sign] Response from page:", result);
       if (!result?.ok) {
         toast.info(result?.message || "No Sign button was found.");

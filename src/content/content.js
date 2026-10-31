@@ -660,18 +660,18 @@ function runHandler(handler, message, sender, sendResponse) {
   }
 }
 
-window.InplyContentRouter.register("applyRule", (message) => applyRule(message.rule));
-window.InplyContentRouter.register("applyAllRules", async () => {
+window.InplyContentRouter?.register("applyRule", (message) => applyRule(message.rule));
+window.InplyContentRouter?.register("applyAllRules", async () => {
   const result = await chrome.storage.local.get("rules");
   applyRules(result.rules || []);
   return { ok: true };
 });
-window.InplyContentRouter.register("fakeFill", () => fakeFillPage());
-window.InplyContentRouter.register("startInspect", (message) => startInspect(message.rule));
-window.InplyContentRouter.register("stopInspect", (message) => stopInspect(message.rule));
-window.InplyContentRouter.register("encryptAnchors", (message) => encryptAnchors(message.password));
-window.InplyContentRouter.register("decryptAnchors", () => decryptAnchors());
-window.InplyContentRouter.register("decryptAndEncryptSave", async () => {
+window.InplyContentRouter?.register("fakeFill", () => fakeFillPage());
+window.InplyContentRouter?.register("startInspect", (message) => startInspect(message.rule));
+window.InplyContentRouter?.register("stopInspect", (message) => stopInspect(message.rule));
+window.InplyContentRouter?.register("encryptAnchors", (message) => encryptAnchors(message.password));
+window.InplyContentRouter?.register("decryptAnchors", () => decryptAnchors());
+window.InplyContentRouter?.register("decryptAndEncryptSave", async () => {
   const ok = await clickDecryptAndVerify();
   return ok
     ? { ok: true, count: 1 }

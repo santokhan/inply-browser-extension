@@ -242,7 +242,7 @@ function applyParsedRule(rule) {
 }
 
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onMessage
-window.InplyContentRouter.register([
+window.InplyContentRouter?.register([
   "parse", "applyParsedRule", "highlightParsedField", "setParsedFieldValue",
 ], (message) => {
   if (message.action === "parse") {

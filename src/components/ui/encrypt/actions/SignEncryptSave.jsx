@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
-import { sendSignMessage } from "./Sign";
+import { sendSignAndVerifyMessage } from "./Sign";
 import { sendSaveMessage } from "./SaveEncrypted";
 import { toast } from "react-toastify";
 import PageActionButton from "./PageActionButton";
@@ -51,7 +51,7 @@ async function sendActionWithRetry(tabId, action, password) {
       lastResult = await chrome.tabs.sendMessage(tabId, { action });
     } catch (error) {
       if (!String(error?.message || error).includes("Receiving end does not exist")) throw error;
-      if (action === "signAndVerify") lastResult = await sendSignMessage(tabId, password);
+      if (action === "signAndVerify") lastResult = await sendSignAndVerifyMessage(tabId, password);
       else if (action === "encryptAndSave") lastResult = await sendEncryptAndSaveMessage(tabId);
       else lastResult = await sendSaveMessage(tabId);
     }
