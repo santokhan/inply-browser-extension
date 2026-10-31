@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import RuleElementForm from "./ElementForm";
 import RuleGroupForm from "../group/Group";
 import SavedRules from "./Saved";
-import { twMerge } from "tailwind-merge";
 import SavedGroups from "../group/Saved";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../shared/Tab";
 import Encrypt from "../encrypt/Encrypt";
@@ -10,19 +9,6 @@ import Parser from "../parser";
 
 const ACTIVE_FORM_TAB_KEY = "activeFormTab";
 const FORM_TABS = new Set(["group", "rule", "encrypt", "parser"]);
-
-function TabButton({ children, active, onClick }) {
-  return (
-    <button
-      className={twMerge(
-        "text-sm font-semibold text-gray-700 py-1.5 px-3 rounded-t-lg",
-        active ? 'bg-primary-500 text-white' : "hover:bg-primary-100"
-      )}
-      type="button"
-      onClick={onClick}
-    >{children}</button>
-  )
-}
 
 export default function AutoFillRules() {
   const [show, setShow] = useState('rules');
