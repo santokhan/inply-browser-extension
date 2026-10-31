@@ -605,12 +605,43 @@ window.InplyContentRouter = {
 };
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  const handler = messageHandlers.get(message.action);
+  let handler = messageHandlers.get(message.action);
   if (!handler) {
-    sendResponse({ ok: true });
-    return false;
+    // signEncryptSave.js is loaded immediately after this file by the
+    // manifest. A message can arrive during that short registration window.
+    const delayedActions = new Set(["signAndVerify", "encryptAndSave", "save", "onlyEncrypt", "onlySave"]);
+    if (!delayedActions.has(message.action)) {
+      sendResponse({
+        ok: false,
+        message: `No content-script handler is registered for action "${message.action}".`,
+      });
+      return false;
+    }
+
+    const deadline = Date.now() + 1500;
+    const waitForHandler = () => {
+      handler = messageHandlers.get(message.action);
+      if (handler) {
+        runHandler(handler, message, sender, sendResponse);
+        return;
+      }
+      if (Date.now() < deadline) {
+        setTimeout(waitForHandler, 25);
+        return;
+      }
+      sendResponse({
+        ok: false,
+        message: `No content-script handler is registered for action "${message.action}".`,
+      });
+    };
+    setTimeout(waitForHandler, 0);
+    return true;
   }
 
+  return runHandler(handler, message, sender, sendResponse);
+});
+
+function runHandler(handler, message, sender, sendResponse) {
   try {
     const result = handler(message, sender);
     if (result && typeof result.then === "function") {
@@ -627,7 +658,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ ok: false, message: error?.message || "The page action failed." });
     return false;
   }
-});
+}
 
 window.InplyContentRouter.register("applyRule", (message) => applyRule(message.rule));
 window.InplyContentRouter.register("applyAllRules", async () => {

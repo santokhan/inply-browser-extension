@@ -3,92 +3,21 @@ import { getActiveTabSafe } from "../../../../utils/chrome";
 import { toast } from "react-toastify";
 import PageActionButton from "./PageActionButton";
 
-async function clickEncryptAndSaveInPage() {
-  const isVisible = (element) => {
-    const style = window.getComputedStyle(element);
-    return style.display !== "none" && style.visibility !== "hidden";
-  };
-  const button = [...document.querySelectorAll(
-    '#encrypt, input[name="encrypt"], button, input[type="button"], input[type="submit"], [role="button"]'
-  )].find((element) => {
-    const label = (element.innerText || element.value || element.getAttribute("aria-label") || "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase();
-    return (label === "encrypt and save" || label === "encrypt") && !element.disabled && isVisible(element);
-  });
-
-  if (!button) {
-    return { ok: false, count: 0, message: "No Encrypt And Save button was found on this page." };
-  }
-
-  await chrome.storage.local.set({
-    pendingEncryptAndSave: { createdAt: Date.now() },
-  });
-  button.scrollIntoView({ block: "center", behavior: "smooth" });
-  button.click();
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    const instructionDialog = document.querySelector("#encrypt-dialog-message")?.closest(".ui-dialog");
-    const instructionOk = instructionDialog
-      ? [...instructionDialog.querySelectorAll(".ui-dialog-buttonpane button, button")].find((element) => {
-          const label = (element.innerText || element.value || "").trim().toLowerCase();
-          return label === "ok" && !element.disabled && isVisible(element);
-        })
-      : null;
-    if (instructionOk) {
-      const form = document.getElementById("frmBidSubmit");
-      let actionField = document.getElementById("action") || document.querySelector('input[name="action"]');
-      if (!actionField && form) {
-        actionField = document.createElement("input");
-        actionField.type = "hidden";
-        actionField.id = "action";
-        actionField.name = "action";
-        form.appendChild(actionField);
-      } else if (actionField && !actionField.id) {
-        actionField.id = "action";
-      }
-      if (actionField && form && !form.contains(actionField)) form.appendChild(actionField);
-      if (!actionField || !form) {
-        return {
-          ok: false,
-          count: 0,
-          message: "The submission form is missing its Encrypt And Save action field.",
-        };
-      }
-
-      instructionOk.click();
-      return { ok: true, count: 1, confirmed: true, willSubmit: true };
-    }
-
-    const okButton = [...document.querySelectorAll("#myPanelDiv button, #myPanelDiv input[type=\"button\"], #myPanelDiv input[type=\"submit\"]")].find((element) => {
-      const label = (element.innerText || element.value || "").trim().toLowerCase();
-      return label === "ok" && !element.disabled && isVisible(element);
-    });
-    if (okButton) {
-      okButton.click();
-      return { ok: true, count: 1, confirmed: true };
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  return { ok: true, count: 1, confirmed: false };
-}
-
-export async function sendEncryptAndSaveMessage(tabId) {
+export async function sendEncryptMessage(tabId) {
   try {
-    return await chrome.tabs.sendMessage(tabId, { action: "encryptAndSave" });
+    return await chrome.tabs.sendMessage(tabId, { action: "onlyEncrypt" });
   } catch (error) {
     if (!String(error?.message || error).includes("Receiving end does not exist")) {
       throw error;
     }
-
-    const [result] = await chrome.scripting.executeScript({
-      target: { tabId },
-      func: clickEncryptAndSaveInPage,
-    });
-    return result?.result;
+    return {
+      ok: false,
+      message: "No content script is listening on this page. Reload the page and try again.",
+    };
   }
 }
-export default function EncryptConfirmOk({ buttonLabel = "Encrypt & Save", pageReady = false }) {
+
+export default function EncryptSignedLetter({ buttonLabel = "Encrypt & Save", pageReady = false }) {
   const [encrypting, setEncrypting] = useState(false);
   const hoverCooldown = useRef(false);
 
@@ -103,8 +32,8 @@ export default function EncryptConfirmOk({ buttonLabel = "Encrypt & Save", pageR
       hoverCooldown.current = true;
       try {
         setEncrypting(true);
-        const result = await sendEncryptAndSaveMessage(tab.id);
-        console.log("[Encrypt And Save] Response from page:", result);
+        const result = await sendEncryptMessage(tab.id);
+        console.log("[Encrypt] Response from page:", result);
         if (!result?.ok) {
           toast.info(result?.message || "No Encrypt And Save button was found.");
         }

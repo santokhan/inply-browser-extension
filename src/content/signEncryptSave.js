@@ -11,9 +11,11 @@
   const labelOf = (element) =>
     (element.innerText || element.value || element.getAttribute("aria-label") || "")
       .replace(/\s+/g, " ").trim().toLowerCase();
+
   const findButton = (selector, predicate) =>
     [...document.querySelectorAll(selector)].find((element) =>
       predicate(element) && !element.disabled && isVisible(element));
+
   const getSignButton = () => findButton(
     '#sign, input[name="sign"], button, input[type="button"], input[type="submit"], [role="button"]',
     (element) => element.id === "sign" || element.name === "sign" || labelOf(element) === "sign",
@@ -22,10 +24,17 @@
     '#encrypt, input[name="encrypt"], button, input[type="button"], input[type="submit"], [role="button"]',
     (element) => ["encrypt and save", "encrypt"].includes(labelOf(element)),
   );
+
+  const getEncryptButton = () => findButton(
+    'input#encrypt, input[name="encrypt"], input[type="button"]',
+    (element) => element,
+  );
+
   const getSaveButton = () => findButton(
     '#save, input[name="save"], button, input[type="submit"], input[type="button"], [role="button"]',
     (element) => element.id === "save" || element.name === "save" || labelOf(element) === "save",
   );
+
   const waitForButton = async (getButton, timeout = 10000) => {
     const deadline = Date.now() + timeout;
     while (Date.now() < deadline) {
@@ -125,15 +134,16 @@
     }
     button.scrollIntoView({ block: "center", behavior: "smooth" });
     button.click();
-    const confirmation = await clickEncryptConfirmationOk();
-    return {
-      ok: confirmation.ok,
-      count: 1,
-      confirmed: confirmation.ok,
-      willSubmit: confirmation.willSubmit,
-      message: confirmation.message,
-    };
+    // const confirmation = await clickEncryptConfirmationOk();
+    // return {
+    //   ok: confirmation.ok,
+    //   count: 1,
+    //   confirmed: confirmation.ok,
+    //   willSubmit: confirmation.willSubmit,
+    //   message: confirmation.message,
+    // };
   }
+
 
   async function save() {
     const button = await waitForButton(getSaveButton);
@@ -147,7 +157,7 @@
   async function onlyEncrypt() {
     const button = await waitForButton(() => findButton(
       'input#encrypt, input[name="encrypt"], input[type="button"]',
-      (element) => element.id === "encrypt" || element.name === "encrypt" || labelOf(element) === "encrypt",
+      (element) => element,
     ));
     if (!button) return { ok: false, verified: false, message: "No enabled Encrypt button appeared within 10 seconds." };
     button.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -188,11 +198,11 @@
     return true;
   }
 
-  window.InplyContentRouter.register("signAndVerify", () => signAndVerify());
-  window.InplyContentRouter.register("encryptAndSave", () => encryptAndSave());
-  window.InplyContentRouter.register("save", () => save());
-  window.InplyContentRouter.register("onlyEncrypt", () => onlyEncrypt());
-  window.InplyContentRouter.register("onlySave", () => onlySave());
+  window.InplyContentRouter?.register("signAndVerify", () => signAndVerify());
+  window.InplyContentRouter?.register("encryptAndSave", () => encryptAndSave());
+  window.InplyContentRouter?.register("save", () => save());
+  window.InplyContentRouter?.register("onlyEncrypt", () => onlyEncrypt());
+  window.InplyContentRouter?.register("onlySave", () => onlySave());
 
   window.InplySignEncryptSave = { resumePendingSignEncryptSave };
 })();

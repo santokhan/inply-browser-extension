@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import { getActiveTabSafe } from "../../../../utils/chrome";
 import { sendSignMessage } from "./Sign";
-import { sendEncryptAndSaveMessage } from "./Encrypt";
 import { sendSaveMessage } from "./SaveEncrypted";
 import { toast } from "react-toastify";
 import PageActionButton from "./PageActionButton";
@@ -24,6 +23,21 @@ async function waitWithCountdown(milliseconds, nextAction, setStatus) {
     const secondsLeft = Math.ceil((endTime - Date.now()) / 1000);
     setStatus(`Starting ${nextAction} in ${secondsLeft}…`);
     await wait(Math.min(200, endTime - Date.now()));
+  }
+}
+
+export async function sendEncryptAndSaveMessage(tabId) {
+  try {
+    return await chrome.tabs.sendMessage(tabId, { action: "encryptAndSave" });
+  } catch (error) {
+    if (!String(error?.message || error).includes("Receiving end does not exist")) {
+      throw error;
+    }
+
+    return {
+      ok: false,
+      message: "No content script is listening on this page. Reload the page and try again.",
+    };
   }
 }
 
