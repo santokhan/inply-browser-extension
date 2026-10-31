@@ -4,15 +4,16 @@ import { sendSignAndVerifyMessage } from "./Sign";
 import { sendSaveMessage } from "./SaveEncrypted";
 import { toast } from "react-toastify";
 import PageActionButton from "./PageActionButton";
+import { sendEncryptMessage } from "./Encrypt";
 
-const ACTIONS = ["signAndVerify", "encryptAndSave", "save"];
+const ACTIONS = ["signAndVerify", "onlyEncrypt", "onlySave"];
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
 const STEP_DELAY_MS = 2000;
 const ENCRYPT_TO_SAVE_DELAY_MS = 5000;
 const ACTION_LABELS = {
   signAndVerify: "Sign",
-  encryptAndSave: "Encrypt",
-  save: "Save",
+  onlyEncrypt: "Encrypt",
+  onlySave: "Save",
 };
 
 const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -26,22 +27,11 @@ async function waitWithCountdown(milliseconds, nextAction, setStatus) {
   }
 }
 
-export async function sendEncryptAndSaveMessage(tabId) {
-  try {
-    return await chrome.tabs.sendMessage(tabId, { action: "encryptAndSave" });
-  } catch (error) {
-    if (!String(error?.message || error).includes("Receiving end does not exist")) {
-      throw error;
-    }
-
-    return {
-      ok: false,
-      message: "No content script is listening on this page. Reload the page and try again.",
-    };
-  }
-}
-
 async function sendActionWithRetry(tabId, action, password) {
+  if (action === "onlyEncrypt") {
+    return sendEncryptMessage(tabId);
+  }
+
   let lastResult;
 
   // Signing can update or re-render the page before the Encrypt control is
@@ -49,13 +39,13 @@ async function sendActionWithRetry(tabId, action, password) {
   for (let attempt = 0; attempt < 12; attempt += 1) {
     try {
       lastResult = await chrome.tabs.sendMessage(tabId, { action });
-      if (action === "signAndVerify" && lastResult?.message?.includes('No content-script handler is registered for action "signAndVerify"')) {
-        lastResult = await sendSignAndVerifyMessage(tabId, password);
+      if (lastResult?.message?.includes(`No content-script handler is registered for action "${action}"`)) {
+        if (action === "signAndVerify") lastResult = await sendSignAndVerifyMessage(tabId, password);
+        else lastResult = await sendSaveMessage(tabId);
       }
     } catch (error) {
       if (!String(error?.message || error).includes("Receiving end does not exist")) throw error;
       if (action === "signAndVerify") lastResult = await sendSignAndVerifyMessage(tabId, password);
-      else if (action === "encryptAndSave") lastResult = await sendEncryptAndSaveMessage(tabId);
       else lastResult = await sendSaveMessage(tabId);
     }
     if (lastResult?.ok || attempt === 11) return lastResult;
@@ -93,20 +83,12 @@ export default function SignEncryptSave({ pageReady = true }) {
         setStatus(`${ACTION_LABELS[action]}…`);
         const result = await sendActionWithRetry(tab.id, action, saved[ENCRYPT_PASSWORD_KEY]);
         const verificationFailed = action === "signAndVerify" && !result?.verified;
-        const encryptionNotConfirmed = action === "encryptAndSave" && !result?.confirmed;
-        if (!result?.ok || verificationFailed || encryptionNotConfirmed) {
+        if (!result?.ok || verificationFailed) {
           toast.info(result?.message || `Could not complete ${action}.`);
           return;
         }
-        // On e-GP pages, accepting the Encrypt instruction dialog starts
-        // encryption and the page itself submits with action="Encrypt And Save".
-        if (action === "encryptAndSave" && result.willSubmit) {
-          setStatus("Encrypting and saving…");
-          await wait(STEP_DELAY_MS);
-          break;
-        }
         if (index < ACTIONS.length - 1) {
-          const delay = action === "encryptAndSave" ? ENCRYPT_TO_SAVE_DELAY_MS : STEP_DELAY_MS;
+          const delay = action === "onlyEncrypt" ? ENCRYPT_TO_SAVE_DELAY_MS : STEP_DELAY_MS;
           await waitWithCountdown(delay, ACTION_LABELS[ACTIONS[index + 1]], setStatus);
         }
       }

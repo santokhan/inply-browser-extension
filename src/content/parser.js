@@ -194,29 +194,7 @@ function setParsedFieldHighlight(field, focused) {
 
 function applyParsedRule(rule) {
   const validFields = getCurrentParsedFields();
-  const tagName = String(rule?.tagName || "").toLowerCase();
-  const type = String(rule?.type || "").toLowerCase();
-  let element;
-
-  // Parser rules are tied to this filtered table field list. Database-generated
-  // names/classes can change, so preserve and prefer the original valid-field index.
-  if (Number.isInteger(rule?.fieldIndex)) {
-    element = validFields[rule.fieldIndex];
-  }
-
-  const matches = validFields.filter((field) => {
-    if (tagName && field.tagName.toLowerCase() !== tagName) return false;
-    if (type && field instanceof HTMLInputElement && field.type.toLowerCase() !== type) return false;
-    return true;
-  });
-
-  if (!element && rule?.label) {
-    const normalizedLabel = String(rule.label).replace(/\s+/g, " ").trim().toLowerCase();
-    element = matches.filter((field) => getFieldLabel(field).toLowerCase() === normalizedLabel)[rule?.nth ?? 0];
-  }
-  if (!element) {
-    element = matches.filter((field) => rule?.selector && field.matches(rule.selector))[rule?.nth ?? 0];
-  }
+  const element = Number.isInteger(rule?.fieldIndex) ? validFields[rule.fieldIndex] : null;
 
   if (!element) {
     return {

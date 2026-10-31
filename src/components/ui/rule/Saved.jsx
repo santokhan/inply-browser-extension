@@ -223,13 +223,52 @@ export default function SavedRules() {
             return true;
         };
 
-        let elements;
-        try {
-            elements = [...document.querySelectorAll(rule?.selector)].filter(isVisible);
-        } catch {
-            return { ok: false, message: "The saved rule selector is invalid." };
+        let element;
+        const useParserFieldIndex = rule?.from === "parser" || Number.isInteger(rule?.fieldIndex);
+
+        if (useParserFieldIndex) {
+            // Keep this scan in sync with src/content/parser.js so a saved
+            // parser field resolves by the same flattened table-field index.
+            const fieldSelector = [
+                "input:not([type])",
+                'input[type="text"]',
+                'input[type="number"]',
+                'input[type="date"]',
+                "select",
+                "textarea",
+            ].join(", ");
+            const candidates = [...document.querySelectorAll("table")].map((table) => ({
+                table,
+                fields: [...table.querySelectorAll(fieldSelector)].filter((field) =>
+                    field.closest("table") === table
+                    && isVisible(field)
+                    && !field.readOnly
+                    && !field.matches(":disabled")),
+            })).filter(({ fields }) => fields.length > 0);
+
+            const tables = candidates.map(({ table }) => table);
+            let container = tables[0] || null;
+            while (container && !tables.every((table) => container.contains(table))) {
+                container = container.parentElement;
+            }
+            const validFields = container
+                ? [...new Set(candidates.filter(({ table }) => container.contains(table)).flatMap(({ fields }) => fields))]
+                : [];
+            element = Number.isInteger(rule.fieldIndex) ? validFields[rule.fieldIndex] : null;
+
+            if (!element) {
+                return { ok: false, message: "The parsed field index was not found in this page's table fields." };
+            }
+        } else {
+            let elements;
+            try {
+                elements = [...document.querySelectorAll(rule?.selector)].filter(isVisible);
+            } catch {
+                return { ok: false, message: "The saved rule selector is invalid." };
+            }
+            const nth = Number.isInteger(rule?.nth) && rule.nth >= 0 ? rule.nth : 0;
+            element = elements.length > nth ? elements[nth] : elements[0];
         }
-        const element = elements[rule?.nth ?? 0];
 
         if (!element) return { ok: false, message: "No matching input was found on this page." };
 
@@ -306,6 +345,14 @@ export default function SavedRules() {
             const useParserFieldSelection = rule?.from === "parser"
                 || (rule?.from !== "manual" && (hasParserMetadata || isStructuredFieldRule));
             const action = useParserFieldSelection ? "applyParsedRule" : "applyRule";
+            const applyByParserFieldIndex = () => chrome.scripting.executeScript({
+                target: { tabId },
+                func: applyRuleInPage,
+                args: [rule],
+            }).then((results) => results?.[0]?.result || {
+                ok: false,
+                message: "Could not find the parsed field on this page.",
+            });
             chrome.tabs.sendMessage(tabId, { action, rule })
                 .then((result) => {
                     if (result?.ok) {
@@ -314,10 +361,10 @@ export default function SavedRules() {
                     }
 
                     if (useParserFieldSelection) {
-                        resolve(result || {
+                        applyByParserFieldIndex().then(resolve).catch((error) => resolve({
                             ok: false,
-                            message: "Parser support is not loaded in this tab. Reload the page and try again.",
-                        });
+                            message: error?.message || result?.message || "Could not find the parsed field on this page.",
+                        }));
                         return;
                     }
 
@@ -329,10 +376,10 @@ export default function SavedRules() {
                 })
                 .catch(async () => {
                     if (useParserFieldSelection) {
-                        resolve({
+                        applyByParserFieldIndex().then(resolve).catch((error) => resolve({
                             ok: false,
-                            message: "Parser support is not loaded in this tab. Reload the page and try again.",
-                        });
+                            message: error?.message || "Could not find the parsed field on this page.",
+                        }));
                         return;
                     }
 
