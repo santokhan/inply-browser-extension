@@ -586,13 +586,8 @@ async function autoClickEncryptAction() {
 }
 
 function getEncryptButton() {
-  return [...document.querySelectorAll('input#encrypt, input[name="encrypt"], input[type="button"]')].find((element) => {
-    const label = (element.innerText || element.value || element.getAttribute("aria-label") || "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase();
-    return (element.id === "encrypt" || element.name === "encrypt" || label === "encrypt") && !element.disabled && isVisible(element);
-  });
+  return [...document.querySelectorAll('input#encrypt[name="encrypt"][value="Encrypt"]')]
+    .find((element) => !element.disabled && isVisible(element));
 }
 
 const messageHandlers = new Map();

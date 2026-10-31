@@ -3,24 +3,6 @@ import { getActiveTabSafe } from "../../../../utils/chrome";
 import { toast } from "react-toastify";
 import PageActionButton from "./PageActionButton";
 
-async function encryptInPage() {
-  const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
-  const isVisible = (element) => {
-    const style = window.getComputedStyle(element);
-    return style.display !== "none" && style.visibility !== "hidden";
-  };
-  const getButton = () => [...document.querySelectorAll('input#encrypt, input[name="encrypt"], input[type="button"]')]
-    .find((element) => !element.disabled && isVisible(element));
-
-  const deadline = Date.now() + 10000;
-  let button;
-  while (!(button = getButton()) && Date.now() < deadline) await wait(250);
-  if (!button) return { ok: false, verified: false, message: "No enabled Encrypt button appeared within 10 seconds." };
-  button.scrollIntoView({ block: "center", behavior: "smooth" });
-  button.click();
-  return { ok: true, count: 1 };
-}
-
 export async function sendEncryptMessage(tabId) {
   try {
     const response = await chrome.tabs.sendMessage(tabId, { action: "onlyEncrypt" });
@@ -32,9 +14,6 @@ export async function sendEncryptMessage(tabId) {
       throw error;
     }
   }
-
-  const [result] = await chrome.scripting.executeScript({ target: { tabId }, func: encryptInPage });
-  return result?.result;
 }
 
 export default function EncryptSignedLetter({ buttonLabel = "Encrypt & Save", pageReady = false }) {

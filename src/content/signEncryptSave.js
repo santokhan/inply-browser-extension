@@ -25,10 +25,12 @@
     (element) => ["encrypt and save", "encrypt"].includes(labelOf(element)),
   );
 
-  const getEncryptButton = () => findButton(
-    'input#encrypt, input[name="encrypt"], input[type="button"]',
-    (element) => element,
-  );
+  const getEncryptButton = () => {
+    return findButton(
+      'input#encrypt[name="encrypt"][value="Encrypt"]',
+      (element) => element,
+    );
+  };
 
   const getSaveButton = () => findButton(
     '#save, input[name="save"], button, input[type="submit"], input[type="button"], [role="button"]',
@@ -155,13 +157,12 @@
   }
 
   async function onlyEncrypt() {
-    const button = await waitForButton(() => findButton(
-      'input#encrypt, input[name="encrypt"], input[type="button"]',
-      (element) => element,
-    ));
-    if (!button) return { ok: false, verified: false, message: "No enabled Encrypt button appeared within 10 seconds." };
+    const button = await waitForButton(getEncryptButton);
+    if (!button) return { ok: false, verified: false, message: 'No enabled input#encrypt[name="encrypt"][value="Encrypt"] was found.' };
     button.scrollIntoView({ block: "center", behavior: "smooth" });
+    console.log("[Encrypt] Clicking the onlyEncrypt target:", button);
     button.click();
+    console.log("[Encrypt] Clicked the Encrypt button via onlyEncrypt:", button);
     return { ok: true, count: 1 };
   }
 
