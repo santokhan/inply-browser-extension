@@ -27,18 +27,24 @@ async function clickSaveInPage() {
 
 export async function sendSaveMessage(tabId) {
   try {
-    return await chrome.tabs.sendMessage(tabId, { action: "save" });
+    const response = await chrome.tabs.sendMessage(tabId, { action: "save" });
+    // The content script can be present while its action module failed to
+    // register (for example, during navigation or a partial script injection).
+    // In that case, use the same direct page action as when no receiver exists.
+    if (!response?.message?.includes('No content-script handler is registered for action "save"')) {
+      return response;
+    }
   } catch (error) {
     if (!String(error?.message || error).includes("Receiving end does not exist")) {
       throw error;
     }
-
-    const [result] = await chrome.scripting.executeScript({
-      target: { tabId },
-      func: clickSaveInPage,
-    });
-    return result?.result;
   }
+
+  const [result] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: clickSaveInPage,
+  });
+  return result?.result;
 }
 
 export default function SaveEcrypted({ pageReady = false }) {
