@@ -52,16 +52,21 @@ async function signAndVerifyInPage(password) {
 
 export async function sendSignAndVerifyMessage(tabId, password) {
   try {
-    return await chrome.tabs.sendMessage(tabId, { action: "signAndVerify" });
+    const response = await chrome.tabs.sendMessage(tabId, { action: "signAndVerify" });
+    if (!response?.message?.includes('No content-script handler is registered for action "signAndVerify"')) {
+      return response;
+    }
   } catch (error) {
     if (!String(error?.message || error).includes("Receiving end does not exist")) throw error;
-    const [result] = await chrome.scripting.executeScript({
-      target: { tabId },
-      func: signAndVerifyInPage,
-      args: [password],
-    });
-    return result?.result;
   }
+
+  const resolvedPassword = password || (await chrome.storage.local.get(ENCRYPT_PASSWORD_KEY))?.[ENCRYPT_PASSWORD_KEY];
+  const [result] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: signAndVerifyInPage,
+    args: [resolvedPassword],
+  });
+  return result?.result;
 }
 
 export default function SignAndVerifyAction({ pageReady = false }) {

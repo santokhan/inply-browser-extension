@@ -6,6 +6,8 @@ import { getActiveTabSafe } from "../../../utils/chrome";
 import RuleEditForm from "./RuleEditForm";
 import { useGroups } from "../../../hooks/useGroups";
 import { toast } from "react-toastify";
+import { sendSignAndVerifyMessage } from "../encrypt/actions/Sign";
+import { sendEncryptMessage } from "../encrypt/actions/Encrypt";
 
 export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { }, onDelete = () => { }, onMove = () => { }, canMoveUp = true, canMoveDown = true }) {
     const [editing, setEditing] = useState(false);
@@ -121,7 +123,9 @@ function Accordion({ children, applyRules = async (id) => { }, group }) {
     }
 
     async function onlyEncrypt() {
-        const result = await sendPageAction("onlyEncrypt");
+        const tab = await getActiveTabSafe();
+        if (!tab?.id) return { ok: false, message: "No active page tab was found." };
+        const result = await sendEncryptMessage(tab.id);
         if (!result?.ok) toast.info(result?.message || "Could not encrypt the form.");
         return result;
     }
@@ -137,7 +141,7 @@ function Accordion({ children, applyRules = async (id) => { }, group }) {
         if (!tab?.id) return;
 
         try {
-            const result = await chrome.tabs.sendMessage(tab.id, { action: "signAndVerify" });
+            const result = await sendSignAndVerifyMessage(tab.id);
             if (!result?.ok) {
                 console.warn(result?.message || "Could not complete Sign.");
             }

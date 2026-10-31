@@ -49,6 +49,9 @@ async function sendActionWithRetry(tabId, action, password) {
   for (let attempt = 0; attempt < 12; attempt += 1) {
     try {
       lastResult = await chrome.tabs.sendMessage(tabId, { action });
+      if (action === "signAndVerify" && lastResult?.message?.includes('No content-script handler is registered for action "signAndVerify"')) {
+        lastResult = await sendSignAndVerifyMessage(tabId, password);
+      }
     } catch (error) {
       if (!String(error?.message || error).includes("Receiving end does not exist")) throw error;
       if (action === "signAndVerify") lastResult = await sendSignAndVerifyMessage(tabId, password);
