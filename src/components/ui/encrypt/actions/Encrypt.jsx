@@ -3,17 +3,36 @@ import { getActiveTabSafe } from "../../../../utils/chrome";
 import { toast } from "react-toastify";
 import PageActionButton from "./PageActionButton";
 
-export async function sendEncryptMessage(tabId) {
-  try {
-    const response = await chrome.tabs.sendMessage(tabId, { action: "onlyEncrypt" });
-    if (!response?.message?.includes('No content-script handler is registered for action "onlyEncrypt"')) {
-      return response;
-    }
-  } catch (error) {
-    if (!String(error?.message || error).includes("Receiving end does not exist")) {
-      throw error;
-    }
+async function encryptInPage() {
+  const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+  const isVisible = (element) => {
+    const style = window.getComputedStyle(element);
+    return style.display !== "none" && style.visibility !== "hidden";
+  };
+  const getButton = () => [...document.querySelectorAll('input#encrypt[name="encrypt"][value="Encrypt"]')]
+    .find((element) => !element.disabled && isVisible(element));
+
+  const deadline = Date.now() + 10000;
+  let button;
+  while (!(button = getButton()) && Date.now() < deadline) await wait(250);
+  if (!button) return { ok: false, message: 'No enabled input#encrypt[name="encrypt"][value="Encrypt"] was found.' };
+
+  button.scrollIntoView({ block: "center", behavior: "smooth" });
+  if (typeof button.onclick === "function") {
+    button.onclick.call(button, new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  } else {
+    button.click();
   }
+  return { ok: true, count: 1 };
+}
+
+export async function sendEncryptMessage(tabId) {
+  const [injection] = await chrome.scripting.executeScript({
+    target: { tabId },
+    world: "MAIN",
+    func: encryptInPage,
+  });
+  return injection?.result;
 }
 
 export default function EncryptSignedLetter({ buttonLabel = "Encrypt & Save", pageReady = false }) {

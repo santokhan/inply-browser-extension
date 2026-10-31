@@ -160,9 +160,11 @@
     const button = await waitForButton(getEncryptButton);
     if (!button) return { ok: false, verified: false, message: 'No enabled input#encrypt[name="encrypt"][value="Encrypt"] was found.' };
     button.scrollIntoView({ block: "center", behavior: "smooth" });
-    console.log("[Encrypt] Clicking the onlyEncrypt target:", button);
-    button.click();
-    console.log("[Encrypt] Clicked the Encrypt button via onlyEncrypt:", button);
+    if (typeof button.onclick === "function") {
+      button.onclick.call(button, new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+    } else {
+      button.click();
+    }
     return { ok: true, count: 1 };
   }
 
