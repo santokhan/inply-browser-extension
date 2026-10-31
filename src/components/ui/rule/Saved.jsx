@@ -8,6 +8,7 @@ import { useGroups } from "../../../hooks/useGroups";
 import { toast } from "react-toastify";
 import { sendSignAndVerifyMessage } from "../encrypt/actions/Sign";
 import { sendEncryptMessage } from "../encrypt/actions/Encrypt";
+import { sendSaveMessage } from "../encrypt/actions/SaveEncrypted";
 
 export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { }, onDelete = () => { }, onMove = () => { }, canMoveUp = true, canMoveDown = true }) {
     const [editing, setEditing] = useState(false);
@@ -110,18 +111,6 @@ export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { 
 }
 
 function Accordion({ children, applyRules = async (id) => { }, group }) {
-    async function sendPageAction(action) {
-        const tab = await getActiveTabSafe();
-        if (!tab?.id) return { ok: false, message: "No active page tab was found." };
-
-        try {
-            return await chrome.tabs.sendMessage(tab.id, { action });
-        } catch (error) {
-            console.warn(`Could not send ${action} action to the active tab:`, error);
-            return { ok: false, message: String(error?.message || error) };
-        }
-    }
-
     async function onlyEncrypt() {
         const tab = await getActiveTabSafe();
         if (!tab?.id) return { ok: false, message: "No active page tab was found." };
@@ -131,7 +120,9 @@ function Accordion({ children, applyRules = async (id) => { }, group }) {
     }
 
     async function onlySave() {
-        const result = await sendPageAction("onlySave");
+        const tab = await getActiveTabSafe();
+        if (!tab?.id) return { ok: false, message: "No active page tab was found." };
+        const result = await sendSaveMessage(tab.id);
         if (!result?.ok) toast.info(result?.message || "Could not save the form.");
         return result;
     }
