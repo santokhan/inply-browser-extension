@@ -1,14 +1,11 @@
 import { useEffect, useState } from "react";
-import { RulesProvider } from "../../../contexts/RulesContext";
 import RuleElementForm from "./ElementForm";
-import RuleForm from "./Form";
 import RuleGroupForm from "../group/Group";
 import SavedRules from "./Saved";
 import { twMerge } from "tailwind-merge";
 import SavedGroups from "../group/Saved";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../shared/Tab";
 import Encrypt from "../encrypt/Encrypt";
-import { useGroups } from "../../../hooks/useGroups";
 import Parser from "../parser";
 
 const ACTIVE_FORM_TAB_KEY = "activeFormTab";
