@@ -9,7 +9,7 @@ import { sendEncryptMessage } from "./Encrypt";
 const ACTIONS = ["signAndVerify", "onlyEncrypt", "save"];
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
 const STEP_DELAY_MS = 1000;
-const ENCRYPT_TO_SAVE_DELAY_MS = 3000;
+const ENCRYPT_TO_SAVE_DELAY_MS = 1000;
 const ACTION_LABELS = {
   signAndVerify: "Sign",
   onlyEncrypt: "Encrypt",
