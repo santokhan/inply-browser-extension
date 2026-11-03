@@ -8,8 +8,8 @@ import { sendEncryptMessage } from "./Encrypt";
 
 const ACTIONS = ["signAndVerify", "onlyEncrypt", "save"];
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
-const STEP_DELAY_MS = 1000;
-const ENCRYPT_TO_SAVE_DELAY_MS = 1000;
+const STEP_DELAY_MS = 500;
+const ENCRYPT_TO_SAVE_DELAY_MS = 500;
 const ACTION_LABELS = {
   signAndVerify: "Sign",
   onlyEncrypt: "Encrypt",
@@ -21,7 +21,7 @@ const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolv
 async function waitWithCountdown(milliseconds, nextAction, setStatus) {
   const endTime = Date.now() + milliseconds;
   while (Date.now() < endTime) {
-    const secondsLeft = Math.ceil((endTime - Date.now()) / 1000);
+    const secondsLeft = Math.ceil((endTime - Date.now()) / 500);
     setStatus(`Starting ${nextAction} in ${secondsLeft}…`);
     await wait(Math.min(200, endTime - Date.now()));
   }
