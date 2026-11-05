@@ -6,9 +6,10 @@ import SavedGroups from "../group/Saved";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../shared/Tab";
 import Encrypt from "../encrypt/Encrypt";
 import Parser from "../parser";
+import CustomerProfile from "../profile/CustomerProfile";
 
 const ACTIVE_FORM_TAB_KEY = "activeFormTab";
-const FORM_TABS = new Set(["group", "rule", "encrypt", "parser"]);
+const FORM_TABS = new Set(["group", "rule", "encrypt", "parser", "profile"]);
 
 export default function AutoFillRules() {
   const [show, setShow] = useState('rules');
@@ -47,6 +48,7 @@ export default function AutoFillRules() {
           <TabsTrigger value="group">Group</TabsTrigger>
           <TabsTrigger value="rule">Rule</TabsTrigger>
           <TabsTrigger value="parser">Parser</TabsTrigger>
+          <TabsTrigger value="profile">Customers</TabsTrigger>
         </TabsList>
 
         <TabsContent value="group">
@@ -63,6 +65,10 @@ export default function AutoFillRules() {
 
         <TabsContent value="parser">
           <Parser onOpen={() => handleFormTabChange("group")} />
+        </TabsContent>
+
+        <TabsContent value="profile">
+          <CustomerProfile />
         </TabsContent>
 
       </Tabs>
