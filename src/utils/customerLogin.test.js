@@ -28,10 +28,12 @@ function loginPage({ origin = "https://www.eprocure.gov.bd", action = "/LoginSrB
 }
 
 function browser() {
+  const stored = { encryptPassword: "previous-password" };
   const updated = new Set();
   const removed = new Set();
   const event = (listeners) => ({ addListener: (fn) => listeners.add(fn), removeListener: (fn) => listeners.delete(fn) });
   globalThis.chrome = {
+    storage: { local: { set: async (values) => { Object.assign(stored, values); } } },
     tabs: {
       create: async () => { assert.fail("Customer login must reuse the active tab."); },
       query: async (options) => {
@@ -52,7 +54,7 @@ function browser() {
       return [{ result: func(...(args || [])) }];
     } },
   };
-  return { updated, removed };
+  return { updated, removed, stored };
 }
 
 test("reuses the active tab for eProcure, fills the selected credentials, and clicks login once", async () => {
@@ -65,6 +67,7 @@ test("reuses the active tab for eProcure, fills the selected credentials, and cl
   assert.deepEqual(page.password.events, ["input", "change"]);
   assert.equal(page.button.clicks, 1);
   assert.equal(events.updated.size + events.removed.size, 0);
+  assert.equal(events.stored.encryptPassword, " exact password ");
 });
 
 test("does not disclose credentials after a redirect or a changed form destination", () => {
@@ -108,7 +111,7 @@ test("does not report logged out while the eProcure tab is loading or inspection
 
 test("preserves the existing session without navigating or sending credentials", async () => {
   const page = loginPage();
-  browser();
+  const { stored } = browser();
   chrome.tabs.query = async () => [{ id: 7, url: "https://www.eprocure.gov.bd/Dashboard.jsp" }];
   document.querySelectorAll = () => [{ href: "/Logout.jsp", getClientRects: () => [1] }];
   chrome.tabs.update = async () => { assert.fail("An active session must be left alone."); };
@@ -118,6 +121,24 @@ test("preserves the existing session without navigating or sending credentials",
   assert.equal(page.email.savedValue, undefined);
   assert.equal(page.password.savedValue, undefined);
   assert.equal(page.button.clicks, 0);
+  assert.equal(stored.encryptPassword, "previous-password");
+});
+
+test("keeps the saved password when the login form is unavailable", async () => {
+  loginPage({ missing: true });
+  const { stored } = browser();
+  const result = await loginCustomer({ email: "customer@example.com", password: "secret" });
+  assert.equal(result.ok, false);
+  assert.equal(stored.encryptPassword, "previous-password");
+});
+
+test("saves the selected customer's password when login awaits manual verification", async () => {
+  loginPage({ challenge: true });
+  const { stored } = browser();
+  const result = await loginCustomer({ email: "customer@example.com", password: "customer-password" });
+  assert.equal(result.ok, true);
+  assert.match(result.message, /Complete the verification/);
+  assert.equal(stored.encryptPassword, "customer-password");
 });
 
 test("skips login if a shared session appears after navigating to the home page", async () => {

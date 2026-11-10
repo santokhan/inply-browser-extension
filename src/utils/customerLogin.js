@@ -132,5 +132,9 @@ export async function loginCustomer({ email, password }) {
     func: submitCustomerLogin,
     args: [email.trim(), password],
   });
-  return results[0]?.result || { ok: false, message: "Could not fill the eProcure login form. Please try again." };
+  const result = results[0]?.result;
+  if (result?.ok) {
+    await chrome.storage.local.set({ encryptPassword: password });
+  }
+  return result || { ok: false, message: "Could not fill the eProcure login form. Please try again." };
 }

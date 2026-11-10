@@ -55,9 +55,22 @@ export default function Encrypt() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    let changed = false;
+    const onPasswordChanged = (changes, area) => {
+      if (area === "local" && changes[ENCRYPT_PASSWORD_KEY]) {
+        changed = true;
+        setPassword(changes[ENCRYPT_PASSWORD_KEY].newValue || "");
+      }
+    };
+    chrome.storage.onChanged.addListener(onPasswordChanged);
     chrome.storage.local.get(ENCRYPT_PASSWORD_KEY).then((result) => {
-      setPassword(result?.[ENCRYPT_PASSWORD_KEY] || "");
+      if (active && !changed) setPassword(result?.[ENCRYPT_PASSWORD_KEY] || "");
     });
+    return () => {
+      active = false;
+      chrome.storage.onChanged.removeListener(onPasswordChanged);
+    };
   }, []);
   async function handleSavePassword(event) {
     event.preventDefault();
