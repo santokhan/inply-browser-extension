@@ -9,8 +9,10 @@ import {
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
-import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, LogIn, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { auth, db } from "../../../firebase/config";
+import { CUSTOMER_LOGIN_ACTION } from "../../../utils/customerLogin";
+import useCustomerSession from "../../../hooks/useCustomerSession";
 
 const EMPTY_CUSTOMER = {
   email: "",
@@ -24,7 +26,9 @@ function customersCollection(uid) {
 }
 
 export default function CustomerProfile() {
+  const loggedIn = useCustomerSession();
   const [customers, setCustomers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [customer, setCustomer] = useState(EMPTY_CUSTOMER);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,6 +37,7 @@ export default function CustomerProfile() {
   const [copiedField, setCopiedField] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [loggingInId, setLoggingInId] = useState(null);
 
   const loadCustomers = useCallback(async () => {
     const user = auth.currentUser;
@@ -164,6 +169,25 @@ export default function CustomerProfile() {
     }
   }
 
+  async function loginCustomer(item) {
+    setLoggingInId(item.id);
+    setError("");
+    setMessage("");
+    try {
+      const result = await chrome.runtime.sendMessage({
+        action: CUSTOMER_LOGIN_ACTION,
+        email: item.email,
+        password: item.password,
+      });
+      if (!result?.ok) throw new Error(result?.message || "Could not start the customer login.");
+      setMessage(result.message);
+    } catch (err) {
+      setError(err.message || "Could not start the customer login.");
+    } finally {
+      setLoggingInId(null);
+    }
+  }
+
   async function copyField(item, field, value) {
     try {
       await navigator.clipboard.writeText(value || "");
@@ -180,6 +204,13 @@ export default function CustomerProfile() {
 
   if (loading) return <div className="p-3 text-sm text-gray-500">Loading customers…</div>;
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredCustomers = customers.filter((item) =>
+    [item.email, item.businessName, item.registeredAddress].some((value) =>
+      (value || "").toLowerCase().includes(normalizedQuery)
+    )
+  );
+
   return (
     <div className="m-3 space-y-3">
       <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
@@ -195,11 +226,46 @@ export default function CustomerProfile() {
           )}
         </div>
 
+        <div className="mb-3 space-y-1">
+          <div className="flex items-center gap-2">
+            <label className="relative min-w-0 flex-1">
+              <span className="sr-only">Search customers</span>
+              <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search by email, name, or address"
+                className="default pl-8!"
+              />
+            </label>
+            {searchQuery && (
+              <button type="button" onClick={() => setSearchQuery("")} aria-label="Clear customer search" title="Clear search" className="secondary shrink-0 p-2">
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          {normalizedQuery && (
+            <p role="status" className="text-xs text-gray-500">
+              {filteredCustomers.length} of {customers.length} customers
+            </p>
+          )}
+        </div>
+
+        {loggedIn === true && (
+          <p role="status" className="mb-3 rounded-lg bg-green-50 p-2 text-xs text-green-700">Already logged in to eProcure. Log out on the website to sign in as another customer.</p>
+        )}
+        {loggedIn === null && (
+          <p role="status" className="mb-3 text-xs text-gray-500">Checking eProcure session…</p>
+        )}
+
         {customers.length === 0 ? (
           <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500">No customers yet. Add a customer below.</p>
+        ) : filteredCustomers.length === 0 ? (
+          <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500">No customers match your search.</p>
         ) : (
           <ul className="space-y-2">
-            {customers.map((item) => (
+            {filteredCustomers.map((item) => (
               <li key={item.id} className="rounded-lg border border-gray-200 p-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1 space-y-0.5 text-sm">
@@ -235,6 +301,15 @@ export default function CustomerProfile() {
                     <button type="button" aria-label="Delete customer" title="Delete" onClick={() => removeCustomer(item)} className="flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white p-1 text-gray-900 transition-colors hover:bg-gray-100"><Trash2 size={16} /></button>
                   </div>
                 </div>
+                {loggedIn === false && <button
+                  type="button"
+                  onClick={() => loginCustomer(item)}
+                  disabled={loggingInId !== null || !item.email || !item.password}
+                  aria-label={`Log in to eProcure as ${item.email}`}
+                  className="secondary mt-2 flex w-full items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <LogIn size={14} /> {loggingInId === item.id ? "Opening eProcure…" : "Login"}
+                </button>}
               </li>
             ))}
           </ul>
