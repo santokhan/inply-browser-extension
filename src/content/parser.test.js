@@ -122,6 +122,28 @@ test("rejects mismatched form identity and counts without changing any fields", 
   }
 });
 
+test("Activity Form accepts singular and plural page titles for filling, editing, and highlighting", () => {
+  for (const title of ["Activity Form", "Activities Form", "  ACTIVITIES\n FORM  "]) {
+    const { fields, fill, edit, highlight } = page(title, 2);
+    assert.equal(fill("activity_form").ok, true);
+    assert.deepEqual(fields.map((field) => field.value), ["5", "50"]);
+    assert.equal(edit("activity_form", "activity", "activity_duration_days", "60").ok, true);
+    assert.equal(fields[1].value, "60");
+    assert.equal(highlight("activity_form", "activity", "duration_of_activity_start_days").ok, true);
+    assert.equal(fields[0].style.outline, "2px solid #6366f1");
+  }
+});
+
+test("Activity Form still rejects unrelated pages and incorrect field counts", () => {
+  for (const [title, count] of [["Tenderer Information Form (Form e-PW2B-2)", 2], ["Activities Form", 3]]) {
+    const { fields, fill, edit, highlight } = page(title, count);
+    assert.equal(fill("activity_form").ok, false);
+    assert.equal(edit("activity_form", "activity", "activity_duration_days", "60").ok, false);
+    assert.equal(highlight("activity_form", "activity", "duration_of_activity_start_days").ok, false);
+    assert.ok(fields.every((field) => field.value === "original" && field.events.length === 0));
+  }
+});
+
 test("BOQ resolves Yes labels to actual option values for every select", () => {
   const { fields, fill } = page("Priced Bill of Quantities (BOQ)", 3, [{ value: "Y", label: "Yes" }]);
   assert.equal(fill("priced_bill_of_quantities").ok, true);

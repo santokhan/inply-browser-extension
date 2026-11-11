@@ -226,13 +226,14 @@ export function installPageParser() {
     const markers = {
       e_tender_submission_letter: "e-PW2B-1",
       tenderer_information: "e-PW2B-2",
-      activity_form: "Activity Form",
+      activity_form: ["Activity Form", "Activities Form"],
       personnel_information: "e-PW2B-3",
       priced_bill_of_quantities: "Priced Bill of Quantities",
       tenderers_quoted_price: "Tenderer's Quoted Price",
     };
     const marker = markers[formKey];
-    return Boolean(marker && normalize(document.body?.innerText).includes(normalize(marker)));
+    const pageText = normalize(document.body?.innerText);
+    return Boolean(marker && [marker].flat().some((title) => pageText.includes(normalize(title))));
   }
 
   function getLtmTargets(formKey) {
