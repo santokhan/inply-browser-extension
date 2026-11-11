@@ -253,115 +253,116 @@ export default function CustomerAccounts() {
 
   return (
     <div className="m-3 space-y-3">
-      {!formOpen && <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div>
-            <h2 className="text-base font-semibold text-gray-800">eProcure customers</h2>
-            <p className="text-xs text-gray-500">{customers.length} saved {customers.length === 1 ? "customer" : "customers"}</p>
-          </div>
-          {!editingId && (
-            <button type="button" onClick={() => { resetForm(); setFormOpen(true); setError(""); setMessage(""); }} className="secondary flex items-center gap-1">
-              <Plus size={14} /> Add customer
-            </button>
-          )}
-        </div>
-
-        <div className="mb-3 space-y-1">
-          <div className="flex items-center gap-2">
-            <label className="relative min-w-0 flex-1">
-              <span className="sr-only">Search customers</span>
-              <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(event) => { setSearchQuery(event.target.value); setPage(1); }}
-                placeholder="Search by email, name, or address"
-                className="default pl-8!"
-              />
-            </label>
-            {searchQuery && (
-              <button type="button" onClick={() => { setSearchQuery(""); setPage(1); }} aria-label="Clear customer search" title="Clear search" className="secondary shrink-0 p-2">
-                <X size={16} />
+      {!formOpen &&
+        <div className="bg-white">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-semibold text-gray-800">Customers</h2>
+              <p className="text-xs text-gray-500">{customers.length} saved {customers.length === 1 ? "customer" : "customers"}</p>
+            </div>
+            {!editingId && (
+              <button type="button" onClick={() => { resetForm(); setFormOpen(true); setError(""); setMessage(""); }} className="secondary flex items-center gap-1">
+                <Plus size={14} /> Add customer
               </button>
             )}
           </div>
-          {normalizedQuery && (
-            <p role="status" className="text-xs text-gray-500">
-              {filteredCustomers.length} of {customers.length} customers
-            </p>
-          )}
-        </div>
 
-        {customers.length === 0 ? (
-          <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500">No customers yet. Select Add customer to get started.</p>
-        ) : filteredCustomers.length === 0 ? (
-          <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500">No customers match your search.</p>
-        ) : (
-          <ul className="space-y-2">
-            {visibleCustomers.map((item) => (
-              <li key={item.id} className="rounded-lg border border-gray-200 p-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1 space-y-0.5 text-sm">
-                    {currentCustomer?.email && item.email?.trim().toLowerCase() === currentCustomer.email.trim().toLowerCase() && (
-                      <span className="mb-1 inline-block rounded bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">Active in extension</span>
-                    )}
-                    {[
-                      ["email", item.email || "", "break-all text-gray-800"],
-                      ["password", "********", "text-gray-500"],
-                      ["businessName", item.businessName || "", "break-words text-gray-800"],
-                      ["registeredAddress", item.registeredAddress || "", "whitespace-pre-wrap break-words text-gray-600"],
-                      ...(item.bankName ? [["bankName", item.bankName, "break-words text-gray-600"]] : []),
-                    ].map(([field, displayedValue, style]) => {
-                      const copiedKey = `${item.id}:${field}`;
-                      const value = field === "password" ? item.password || "" : displayedValue;
-                      return (
-                        <button
-                          key={field}
-                          type="button"
-                          title={copiedField === copiedKey ? "Copied" : "Click to copy"}
-                          aria-label={`Copy ${field === "businessName" ? "name" : field === "registeredAddress" ? "address" : field === "bankName" ? "bank name" : field} for ${item.email}`}
-                          onClick={() => copyField(item, field, value)}
-                          className={`relative block w-full cursor-pointer rounded px-1 text-left transition-colors hover:bg-purple-50 hover:text-purple-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${style}`}
-                        >
-                          {displayedValue}
-                          {copiedField === copiedKey && (
-                            <span role="status" className="absolute left-full top-0 z-10 ml-2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-[10px] font-medium text-white shadow">
-                              Copied
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="flex shrink-0 flex-col items-stretch gap-1">
-                    <button type="button" aria-label="Edit customer" title="Edit" onClick={() => startEdit(item)} className="flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white p-1 text-gray-900 transition-colors hover:bg-gray-100"><Pencil size={16} /></button>
-                    <button type="button" aria-label="Delete customer" title="Delete" onClick={() => removeCustomer(item)} className="flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white p-1 text-gray-900 transition-colors hover:bg-gray-100"><Trash2 size={16} /></button>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => loginCustomer(item)}
-                  disabled={loggingInId !== null || !item.email || !item.password}
-                  aria-label={`Log in to eProcure as ${item.email}`}
-                  className="secondary mt-2 flex w-full items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <LogIn size={14} /> {loggingInId === item.id ? "Opening eProcure…" : "Login"}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {pageCount > 1 && (
-          <nav aria-label="Customer pages" className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
-            <p role="status">{pageStart + 1}–{Math.min(pageStart + CUSTOMERS_PER_PAGE, filteredCustomers.length)} of {filteredCustomers.length}</p>
+          <div className="mb-3 space-y-1">
             <div className="flex items-center gap-2">
-              <button type="button" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)} className="secondary disabled:opacity-50">Previous</button>
-              <span>Page {currentPage} of {pageCount}</span>
-              <button type="button" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)} className="secondary disabled:opacity-50">Next</button>
+              <label className="relative min-w-0 flex-1">
+                <span className="sr-only">Search customers</span>
+                <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => { setSearchQuery(event.target.value); setPage(1); }}
+                  placeholder="Search by email, name, or address"
+                  className="default pl-8!"
+                />
+              </label>
+              {searchQuery && (
+                <button type="button" onClick={() => { setSearchQuery(""); setPage(1); }} aria-label="Clear customer search" title="Clear search" className="secondary shrink-0 p-2">
+                  <X size={16} />
+                </button>
+              )}
             </div>
-          </nav>
-        )}
-      </div>}
+            {normalizedQuery && (
+              <p role="status" className="text-xs text-gray-500">
+                {filteredCustomers.length} of {customers.length} customers
+              </p>
+            )}
+          </div>
+
+          {customers.length === 0 ? (
+            <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500">No customers yet. Select Add customer to get started.</p>
+          ) : filteredCustomers.length === 0 ? (
+            <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500">No customers match your search.</p>
+          ) : (
+            <ul className="space-y-2">
+              {visibleCustomers.map((item) => (
+                <li key={item.id} className="rounded-lg border border-gray-200 p-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1 space-y-0.5 text-sm">
+                      {currentCustomer?.email && item.email?.trim().toLowerCase() === currentCustomer.email.trim().toLowerCase() && (
+                        <span className="mb-1 inline-block rounded bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">Active in extension</span>
+                      )}
+                      {[
+                        ["email", item.email || "", "break-all text-gray-800"],
+                        ["password", "********", "text-gray-500"],
+                        ["businessName", item.businessName || "", "break-words text-gray-800"],
+                        ["registeredAddress", item.registeredAddress || "", "whitespace-pre-wrap break-words text-gray-600"],
+                        ...(item.bankName ? [["bankName", item.bankName, "break-words text-gray-600"]] : []),
+                      ].map(([field, displayedValue, style]) => {
+                        const copiedKey = `${item.id}:${field}`;
+                        const value = field === "password" ? item.password || "" : displayedValue;
+                        return (
+                          <button
+                            key={field}
+                            type="button"
+                            title={copiedField === copiedKey ? "Copied" : "Click to copy"}
+                            aria-label={`Copy ${field === "businessName" ? "name" : field === "registeredAddress" ? "address" : field === "bankName" ? "bank name" : field} for ${item.email}`}
+                            onClick={() => copyField(item, field, value)}
+                            className={`relative block w-full cursor-pointer rounded px-1 text-left transition-colors hover:bg-purple-50 hover:text-purple-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${style}`}
+                          >
+                            {displayedValue}
+                            {copiedField === copiedKey && (
+                              <span role="status" className="absolute left-full top-0 z-10 ml-2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-[10px] font-medium text-white shadow">
+                                Copied
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex shrink-0 flex-col items-stretch gap-1">
+                      <button type="button" aria-label="Edit customer" title="Edit" onClick={() => startEdit(item)} className="flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white p-1 text-gray-900 transition-colors hover:bg-gray-100"><Pencil size={16} /></button>
+                      <button type="button" aria-label="Delete customer" title="Delete" onClick={() => removeCustomer(item)} className="flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white p-1 text-gray-900 transition-colors hover:bg-gray-100"><Trash2 size={16} /></button>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => loginCustomer(item)}
+                    disabled={loggingInId !== null || !item.email || !item.password}
+                    aria-label={`Log in to eProcure as ${item.email}`}
+                    className="secondary mt-2 flex w-full items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <LogIn size={14} /> {loggingInId === item.id ? "Opening eProcure…" : "Login"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {pageCount > 1 && (
+            <nav aria-label="Customer pages" className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+              <p role="status">{pageStart + 1}–{Math.min(pageStart + CUSTOMERS_PER_PAGE, filteredCustomers.length)} of {filteredCustomers.length}</p>
+              <div className="flex items-center gap-2">
+                <button type="button" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)} className="secondary disabled:opacity-50">Previous</button>
+                <span>Page {currentPage} of {pageCount}</span>
+                <button type="button" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)} className="secondary disabled:opacity-50">Next</button>
+              </div>
+            </nav>
+          )}
+        </div>}
 
       {formOpen && <form onSubmit={saveCustomer} className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm space-y-3">
         <div className="flex items-center justify-between">

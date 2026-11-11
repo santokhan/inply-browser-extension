@@ -1,5 +1,4 @@
 import { useState } from "react";
-import CustomerSessionStatus from "../../shared/CustomerSessionStatus";
 import { useTenantAuth } from "../../../hooks/useTenantAuth";
 
 const Header = () => {
@@ -59,7 +58,6 @@ const Header = () => {
                     )}
                 </div>
             </div>
-            <CustomerSessionStatus />
         </header>
     );
 };

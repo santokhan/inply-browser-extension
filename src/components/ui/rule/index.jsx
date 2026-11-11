@@ -5,15 +5,12 @@ import SavedGroups from "../group/Saved";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../shared/Tab";
 import Encrypt from "../encrypt/Encrypt";
 import Parser from "../parser";
-import CustomerAccounts from "../profile/CustomerAccounts";
-import LtmForm from "../ltm/LtmForm";
-import TestActions from "../test/TestActions";
 
 const ACTIVE_FORM_TAB_KEY = "activeFormTab";
-const FORM_TABS = new Set(["group", "encrypt", "parser", "profile"]);
+const FORM_TABS = new Set(["group", "encrypt", "parser"]);
 
 export default function AutoFillRules() {
-  const [show, setShow] = useState('ltm');
+  const [show, setShow] = useState('groups');
   const [whichForm, setWhichForm] = useState(null);
 
   useEffect(() => {
@@ -34,67 +31,53 @@ export default function AutoFillRules() {
 
   return (
     <>
-      <div className="text-center py-3">
-        <h1 className="text-lg font-semibold text-gray-800">
-          Auto Fill Rules
-        </h1>
-        <p className="text-xs text-gray-500">
-          Create and manage automation rules
-        </p>
-      </div>
+      <section aria-labelledby="auto-fill-heading">
+        <div className="text-center py-3">
+          <h1 id="auto-fill-heading" className="text-lg font-semibold text-gray-800">
+            Auto Fill
+          </h1>
+        </div>
 
-      <Tabs value={whichForm} onValueChange={handleFormTabChange}>
-        <TabsList className="px-3">
-          <TabsTrigger value="encrypt">Encrypt</TabsTrigger>
-          <TabsTrigger value="group">Group</TabsTrigger>
-          <TabsTrigger value="parser">Parser</TabsTrigger>
-          <TabsTrigger value="profile">Customers</TabsTrigger>
-        </TabsList>
+        <Tabs value={whichForm} onValueChange={handleFormTabChange}>
+          <TabsList className="px-3">
+            <TabsTrigger value="encrypt">Encrypt</TabsTrigger>
+            <TabsTrigger value="group">Group</TabsTrigger>
+            <TabsTrigger value="parser">Parser</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="group">
-          <RuleGroupForm onClose={() => handleFormTabChange('parser')} />
-        </TabsContent>
-
-        <TabsContent value="encrypt">
-          <Encrypt />
-        </TabsContent>
-
-        <TabsContent value="parser">
-          <Parser onOpen={() => handleFormTabChange("group")} />
-        </TabsContent>
-
-        <TabsContent value="profile">
-          <CustomerAccounts />
-        </TabsContent>
-
-      </Tabs>
-
-      <div className="py-2"></div>
-
-      <Tabs value={show} onValueChange={setShow}>
-        <TabsList className="px-3">
-          <TabsTrigger value="groups">Saved Groups</TabsTrigger>
-          <TabsTrigger value="rules">Saved Rules</TabsTrigger>
-          <TabsTrigger value="ltm">LTM Form</TabsTrigger>
-          {import.meta.env.DEV && <TabsTrigger value="test">Test</TabsTrigger>}
-        </TabsList>
-
-        <TabsContent value="groups">
-          <SavedGroups />
-        </TabsContent>
-
-        <TabsContent value="rules">
-          <SavedRules />
-        </TabsContent>
-        <TabsContent value="ltm">
-          <LtmForm />
-        </TabsContent>
-        {import.meta.env.DEV && (
-          <TabsContent value="test">
-            <TestActions />
+          <TabsContent value="group">
+            <RuleGroupForm onClose={() => handleFormTabChange('parser')} />
           </TabsContent>
-        )}
-      </Tabs>
+
+          <TabsContent value="encrypt">
+            <Encrypt />
+          </TabsContent>
+
+          <TabsContent value="parser">
+            <Parser onOpen={() => handleFormTabChange("group")} />
+          </TabsContent>
+
+        </Tabs>
+
+      </section>
+
+      <section aria-label="Saved automation" className="mt-4">
+
+        <Tabs value={show} onValueChange={setShow}>
+          <TabsList className="px-3">
+            <TabsTrigger value="groups">Saved Groups</TabsTrigger>
+            <TabsTrigger value="rules">Saved Rules</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="groups">
+            <SavedGroups />
+          </TabsContent>
+
+          <TabsContent value="rules">
+            <SavedRules />
+          </TabsContent>
+        </Tabs>
+      </section>
     </>
   )
 }
