@@ -55,29 +55,36 @@ async function sendActionWithRetry(tabId, action, password) {
   return lastResult;
 }
 
-export default function SignEncryptSave({ pageReady = true }) {
+export default function SignEncryptSave({ pageReady = true, beforeRun, buttonLabel = "Sign Encrypt Save", className = "default w-full", disabled = false, onRunningChange }) {
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState("");
   const hoverCooldown = useRef(false);
 
   async function handleRunAll() {
-    if (hoverCooldown.current) return;
-
-    const tab = await getActiveTabSafe();
-    if (!tab?.id) {
-      toast.info("Open the tender preparation page before using Sign, Encrypt & Save.");
-      return;
-    }
-
-    const saved = await chrome.storage.local.get(ENCRYPT_PASSWORD_KEY);
-    if (!saved?.[ENCRYPT_PASSWORD_KEY]) {
-      toast.info("Enter and save a password before using Sign, Encrypt & Save.");
-      return;
-    }
+    if (hoverCooldown.current || disabled) return;
 
     hoverCooldown.current = true;
     try {
       setRunning(true);
+      onRunningChange?.(true);
+      const tab = await getActiveTabSafe();
+      if (!tab?.id) {
+        toast.info("Open the tender preparation page before using Sign, Encrypt & Save.");
+        return;
+      }
+      const saved = await chrome.storage.local.get(ENCRYPT_PASSWORD_KEY);
+      if (!saved?.[ENCRYPT_PASSWORD_KEY]) {
+        toast.info("Enter and save a password before using Sign, Encrypt & Save.");
+        return;
+      }
+      if (beforeRun) {
+        setStatus("Filling...");
+        const result = await beforeRun(tab.id);
+        if (!result?.ok) {
+          toast.info(result?.message || "Could not fill this form.");
+          return;
+        }
+      }
       for (let index = 0; index < ACTIONS.length; index += 1) {
         const action = ACTIONS[index];
         setStatus(`${ACTION_LABELS[action]}…`);
@@ -97,6 +104,7 @@ export default function SignEncryptSave({ pageReady = true }) {
       toast.info("This page cannot be controlled by the extension. Reload the page and try again.");
     } finally {
       setRunning(false);
+      onRunningChange?.(false);
       setStatus("");
       window.setTimeout(() => {
         hoverCooldown.current = false;
@@ -105,9 +113,9 @@ export default function SignEncryptSave({ pageReady = true }) {
   }
 
   return (
-    <PageActionButton pageReady={pageReady} className="default w-full" onClick={handleRunAll} disabled={running}>
+    <PageActionButton pageReady={pageReady} className={className} onClick={handleRunAll} disabled={running || disabled} title={beforeRun ? "This will fill the form, sign and verify, encrypt, and save the page." : undefined}>
       {/* Total 3 actions */}
-      {running ? status || "Running..." : pageReady ? "Sign Encrypt Save" : "Waiting for page..."}
+      {running ? status || "Running..." : pageReady ? buttonLabel : "Waiting for page..."}
     </PageActionButton>
   );
 }

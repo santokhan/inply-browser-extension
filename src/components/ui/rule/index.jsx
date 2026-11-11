@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../shared/Tab";
 import Encrypt from "../encrypt/Encrypt";
 import Parser from "../parser";
 import CustomerProfile from "../profile/CustomerProfile";
+import LtmForm from "../ltm/LtmForm";
 
 const ACTIVE_FORM_TAB_KEY = "activeFormTab";
 const FORM_TABS = new Set(["group", "rule", "encrypt", "parser", "profile"]);
@@ -79,6 +80,7 @@ export default function AutoFillRules() {
         <TabsList className="px-3">
           <TabsTrigger value="groups">Saved Groups</TabsTrigger>
           <TabsTrigger value="rules">Saved Rules</TabsTrigger>
+          <TabsTrigger value="ltm">LTM Form</TabsTrigger>
         </TabsList>
 
         <TabsContent value="groups">
@@ -87,6 +89,9 @@ export default function AutoFillRules() {
 
         <TabsContent value="rules">
           <SavedRules />
+        </TabsContent>
+        <TabsContent value="ltm">
+          <LtmForm />
         </TabsContent>
       </Tabs>
     </>

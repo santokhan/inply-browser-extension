@@ -219,6 +219,57 @@ function applyParsedRule(rule) {
   return { ok: true };
 }
 
+function fillLtmForm(formKey, form) {
+  const normalize = (value) => String(value ?? "").replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, " ").trim().toLowerCase();
+  const markers = {
+    e_tender_submission_letter: "e-PW2B-1",
+    tenderer_information: "e-PW2B-2",
+    activity_form: "Activity Form",
+    personnel_information: "e-PW2B-3",
+    priced_bill_of_quantities: "Priced Bill of Quantities",
+    tenderers_quoted_price: "Tenderer's Quoted Price",
+  };
+  const marker = markers[formKey];
+  if (!marker || !normalize(document.body?.innerText).includes(normalize(marker))) {
+    return { ok: false, message: `Open ${form?.name || "the matching LTM form"} before filling and signing.` };
+  }
+  // This form has no preset fields; leave its existing contents in place.
+  if (formKey === "e_tender_submission_letter") return { ok: true, count: 0 };
+  const fields = getCurrentParsedFields();
+  const boq = formKey === "priced_bill_of_quantities";
+  const targets = boq ? fields.filter((field) => field instanceof HTMLSelectElement) : fields;
+  const values = boq
+    ? targets.map(() => form.values?.select_fields?.all)
+    : Object.values(form.values ?? {}).flatMap((section) => Object.values(section));
+  if (!targets.length || (!boq && (targets.length !== form.expectedFieldCount || values.length !== targets.length))) {
+    return { ok: false, message: `Expected ${form.expectedFieldCount ?? "select"} fields for ${form.name}; found ${targets.length}. Nothing was filled or signed.` };
+  }
+  // Resolve every select before changing any field, so an invalid option cannot
+  // leave a partially filled form that is subsequently signed.
+  const assignments = targets.map((field, index) => {
+    const value = values[index];
+    if (typeof value !== "string") return null;
+    if (!(field instanceof HTMLSelectElement)) return { field, value };
+    const option = [...field.options].find((item) => !item.disabled && !item.parentElement?.disabled && item.value === value)
+      || [...field.options].find((item) => !item.disabled && !item.parentElement?.disabled && normalize(item.label || item.textContent) === normalize(value));
+    return option ? { field, value: option.value } : null;
+  });
+  if (assignments.some((item) => !item)) {
+    return { ok: false, message: "A preset value does not match the form's options. Nothing was filled or signed." };
+  }
+  for (const { field, value } of assignments) {
+    const prototype = field instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype
+      : field instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+    if (setter) setter.call(field, value); else field.value = value;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  return { ok: true, count: assignments.length };
+}
+
+window.InplyContentRouter?.register("fillLtmForm", (message) => fillLtmForm(message.formKey, message.form));
+
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onMessage
 window.InplyContentRouter?.register([
   "parse", "applyParsedRule", "highlightParsedField", "setParsedFieldValue",
