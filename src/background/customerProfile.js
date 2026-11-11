@@ -1,4 +1,37 @@
-import { isSiteUrl } from "../config/site.js";
+import { SITE_ORIGIN, isSiteUrl } from "../config/site.js";
+
+// Serialized into the isolated world, alongside the profile content script.
+async function runProfileRequest(action, expectedOrigin) {
+  if (window.location.origin !== expectedOrigin) {
+    throw new Error("Profile collection stopped because the tab left eProcure.");
+  }
+  if (!window.InplyCustomerProfile) return { available: false };
+  return { available: true, response: await window.InplyCustomerProfile.handleRequest(action) };
+}
+
+async function recoverProfileRequest(tabId, action, deadline) {
+  let injected = false;
+  while (Date.now() < deadline) {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId, frameIds: [0] },
+      func: runProfileRequest,
+      args: [action, SITE_ORIGIN],
+    });
+    const result = results[0]?.result;
+    if (result?.available) return result.response;
+    if (!injected) {
+      const files = chrome.runtime.getManifest().content_scripts
+        .flatMap((entry) => entry.js || [])
+        .filter((file) => file.includes("customerProfileEntry.js"));
+      if (!files.length) throw new Error("The profile collection script is missing. Reload the extension and try again.");
+      await chrome.scripting.executeScript({ target: { tabId, frameIds: [0] }, files });
+      injected = true;
+    }
+    // Production content-script loaders import their module asynchronously.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`eProcure took too long to connect for ${action}. Try collecting again.`);
+}
 
 export async function collectCustomerProfile(tabId, { inspectSession, timeout = 120000, fields = ["businessName", "registeredAddress"] }) {
   const deadline = Date.now() + timeout;
@@ -24,8 +57,11 @@ export async function collectCustomerProfile(tabId, { inspectSession, timeout = 
       }
       let response;
       try { response = await chrome.tabs.sendMessage(tabId, { action }, { frameId: 0 }); }
-      catch { await new Promise((resolve) => setTimeout(resolve, 100)); continue; }
-      if (!response?.ok) throw new Error(response?.message || "Could not collect customer profile details.");
+      catch { response = null; }
+      if (typeof response?.ok !== "boolean" || response?.message?.includes("No content-script handler is registered for action")) {
+        response = await recoverProfileRequest(tabId, action, deadline);
+      }
+      if (!response?.ok) throw new Error(response?.message || `eProcure returned an invalid response for ${action}. Try collecting again.`);
       return response;
     }
     throw new Error("eProcure took too long to collect business details.");
@@ -62,7 +98,7 @@ export async function collectCustomerProfile(tabId, { inspectSession, timeout = 
         errors.push(error.message);
       }
     }
-    if (fields.includes("bankName")) {
+    if (fields.some((field) => ["bankName", "branchName"].includes(field))) {
       try {
         await navigate("openBankDetailsTab");
         Object.assign(profile, (await request("readCustomerBankDetails")).profile);

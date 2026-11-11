@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { twMerge } from "tailwind-merge";
 import { ArrowRight, Building2, Check, CircleAlert, Landmark, LoaderCircle, MapPin } from "lucide-react";
 import useCustomerSession from "../../../hooks/useCustomerSession";
 
@@ -6,6 +7,7 @@ const DETAILS = [
   { field: "businessName", label: "Business name", source: "Company Details", Icon: Building2 },
   { field: "registeredAddress", label: "Registered address", source: "Company Details", Icon: MapPin },
   { field: "bankName", label: "Bank name", source: "Bank Details", Icon: Landmark },
+  { field: "branchName", label: "Branch name", source: "Bank Details", Icon: MapPin },
 ];
 
 function CollectBusinessDetails({ customer }) {
@@ -51,7 +53,7 @@ function CollectBusinessDetails({ customer }) {
         </div>
         <div role="progressbar" aria-label="Business profile completion" aria-valuemin={0} aria-valuemax={DETAILS.length} aria-valuenow={completed} className="mt-2 flex gap-1.5">
           {DETAILS.map(({ field }, index) => (
-            <span key={field} className={`h-1.5 flex-1 rounded-full ${index < completed ? "bg-primary-500" : "bg-primary-200/60"}`} />
+            <span key={field} className={twMerge("h-1.5 flex-1 rounded-full", index < completed ? "bg-primary-500" : "bg-primary-200/60")} />
           ))}
         </div>
       </div>
@@ -61,7 +63,7 @@ function CollectBusinessDetails({ customer }) {
           const value = customer?.[field]?.trim();
           return (
             <div key={field} className="flex items-start gap-3 py-3.5">
-              <span className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg ${value ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-400"}`}>
+              <span className={twMerge("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg", value ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-400")}>
                 <Icon size={16} aria-hidden="true" />
               </span>
               <div className="min-w-0 flex-1">
@@ -70,7 +72,7 @@ function CollectBusinessDetails({ customer }) {
                   {value ? <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700"><Check size={12} aria-hidden="true" />Saved</span>
                     : <span className="text-[10px] font-normal text-amber-700">To collect</span>}
                 </dt>
-                <dd className={`mt-1 whitespace-pre-wrap break-words text-xs leading-5 ${value ? "text-gray-600" : "text-gray-400"}`}>
+                <dd className={twMerge("mt-1 whitespace-pre-wrap wrap-break-word text-xs leading-5", value ? "text-gray-600" : "text-gray-400")}>
                   {value || `From ${source}`}
                 </dd>
               </div>

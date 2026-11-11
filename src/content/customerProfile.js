@@ -4,7 +4,7 @@ import { installModalCloser } from "./modalCloser.js";
 function findCustomerProfileLink() {
   for (const anchor of document.querySelectorAll("a[href]")) {
     const url = new URL(anchor.href, window.location.href);
-    if (url.origin === window.location.origin && url.pathname === "/tenderer/ViewRegistrationDetail.jsp") {
+    if (url.origin === window.location.origin && anchor.href.includes("/tenderer/ViewRegistrationDetail.jsp")) {
       return url.href;
     }
   }
@@ -73,7 +73,18 @@ function readCustomerProfile() {
 
 function readCustomerBankDetails() {
   if (!/^\/tenderer\/[^/]+\.jsp$/i.test(window.location.pathname)) return {};
-  return readLabeledDetails({ bankName: ["bankname", "nameofbank", "bankersname", "nameofbanker"] }, true);
+  // jqGrid renders its column headers in a separate table from the account rows.
+  for (const row of document.querySelectorAll("tr.jqgrow")) {
+    const bankName = row.querySelector('[aria-describedby="list_bankName"]')?.textContent?.trim();
+    const branchName = row.querySelector('[aria-describedby="list_branchName"]')?.textContent?.trim();
+    if (bankName && bankName !== "-") {
+      return { bankName, ...(branchName && branchName !== "-" ? { branchName } : {}) };
+    }
+  }
+  return readLabeledDetails({
+    bankName: ["bankname", "nameofbank", "bankersname", "nameofbanker"],
+    branchName: ["branchname", "bankbranch", "bankbranchname", "nameofbranch"],
+  }, true);
 }
 
 function readLabeledDetails(aliases, tableColumns = false) {
@@ -119,8 +130,11 @@ function readLabeledDetails(aliases, tableColumns = false) {
 function clickProfileLink(url) {
   // The profile page can already be open when collection starts or retries.
   if (window.location.href === url) return;
-  const anchor = Array.from(document.querySelectorAll("a[href]")).find((element) =>
-    new URL(element.href, window.location.href).href === url);
+  const path = new URL(url, window.location.href).pathname;
+  const anchor = Array.from(document.querySelectorAll("a[href]")).find((element) => {
+    const link = new URL(element.href, window.location.href);
+    return link.origin === window.location.origin && link.href.includes(path);
+  });
   if (!anchor) throw new Error("The profile navigation link is no longer available. Try collecting again.");
   anchor.click();
 }

@@ -89,6 +89,44 @@ test("requests profile and company navigation from the content script before rea
   assert.deepEqual(actions, ["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile"]);
 });
 
+test("recovers missing profile replies by loading the manifest entry and running in the isolated world", async () => {
+  const { actions } = browser();
+  const send = chrome.tabs.sendMessage;
+  chrome.tabs.sendMessage = async () => undefined;
+  globalThis.window = { location: { origin: "https://www.eprocure.gov.bd" } };
+  const files = ["assets/customerProfileEntry.js-loader-example.js"];
+  chrome.runtime = { getManifest: () => ({ content_scripts: [{ js: ["assets/content.js", ...files] }] }) };
+  let injections = 0;
+  chrome.scripting = { executeScript: async (options) => {
+    assert.deepEqual(options.target, { tabId: 7, frameIds: [0] });
+    if (options.files) {
+      assert.deepEqual(options.files, files);
+      injections += 1;
+      window.InplyCustomerProfile = { handleRequest: (action) => send(7, { action }, { frameId: 0 }) };
+      return [];
+    }
+    return [{ result: await options.func(...options.args) }];
+  } };
+  const result = await collectCustomerProfile(7, { inspectSession: async () => ({ hasLogoutControl: true }) });
+  assert.equal(result.businessName, "Collected Co");
+  assert.equal(injections, 1);
+  assert.deepEqual(actions, ["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile"]);
+});
+
+test("recovery preserves profile errors and rejects pages that leave eProcure", async () => {
+  browser();
+  chrome.tabs.sendMessage = async () => { throw new Error("Receiving end does not exist"); };
+  globalThis.window = {
+    location: { origin: "https://www.eprocure.gov.bd" },
+    InplyCustomerProfile: { handleRequest: async () => { throw new Error("No View Profile link"); } },
+  };
+  chrome.scripting = { executeScript: async ({ func, args }) => [{ result: await func(...args) }] };
+  const options = { inspectSession: async () => ({ hasLogoutControl: true }) };
+  await assert.rejects(collectCustomerProfile(7, options), /No View Profile link/);
+  window.location.origin = "https://example.com";
+  await assert.rejects(collectCustomerProfile(7, options), /left eProcure/);
+});
+
 test("does not navigate before login is confirmed or after leaving eProcure", async () => {
   const { actions } = browser();
   await assert.rejects(collectCustomerProfile(7, { inspectSession: async () => ({}), timeout: 0 }), /Complete eProcure login/);
@@ -219,6 +257,36 @@ test("collects only bank details when company details are already saved", async 
   const profile = await collectCustomerProfile(7, { inspectSession: async () => ({ hasLogoutControl: true }), fields: ["bankName"] });
   assert.deepEqual(profile, { bankName: "Example Bank" });
   assert.deepEqual(actions, ["openViewProfilePage", "openBankDetailsTab", "readCustomerBankDetails"]);
+});
+
+test("reads the bank and branch from the same jqGrid account row", () => {
+  globalThis.window = { location: { pathname: "/tenderer/ViewBankDetail.jsp" } };
+  const account = (bankName, branchName) => ({ querySelector: (selector) => {
+    if (selector === '[aria-describedby="list_bankName"]') return cell(bankName);
+    if (selector === '[aria-describedby="list_branchName"]') return cell(branchName);
+    return null;
+  } });
+  globalThis.document = { querySelectorAll: (selector) => {
+    assert.equal(selector, "tr.jqgrow");
+    return [account(" ", " "), account("UNITED COMMERCIAL BANK LTD. ", "JAMALPUR BRANCH "), account("Other Bank", "Other Branch")];
+  } };
+  assert.deepEqual(readCustomerBankDetails(), {
+    bankName: "UNITED COMMERCIAL BANK LTD.", branchName: "JAMALPUR BRANCH",
+  });
+});
+
+test("collects and saves a missing branch when the bank name is already saved", async () => {
+  const { actions } = browser();
+  const send = chrome.tabs.sendMessage;
+  chrome.tabs.sendMessage = async (id, message, options) => message.action === "readCustomerBankDetails"
+    ? { ok: true, profile: { bankName: "Example Bank", branchName: "Jamalpur" } } : send(id, message, options);
+  const profile = await collectCustomerProfile(7, {
+    inspectSession: async () => ({ hasLogoutControl: true }), fields: ["branchName"],
+  });
+  assert.deepEqual(profile, { bankName: "Example Bank", branchName: "Jamalpur" });
+  assert.deepEqual(missingCustomerDetails({ bankName: "Saved Bank" }, profile), { branchName: "Jamalpur" });
+  assert.deepEqual(missingCustomerDetails({ branchName: "Saved Branch" }, { branchName: "Other Branch" }), {});
+  assert.deepEqual(actions, ["openViewProfilePage", "openBankDetailsTab"]);
 });
 
 test("collects company and bank details and exposes partial results if the bank tab fails", async () => {

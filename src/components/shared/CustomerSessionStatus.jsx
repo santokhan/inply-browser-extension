@@ -39,7 +39,12 @@ export default function CustomerSessionStatus() {
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold" title={customerName}>{customerName}</p>
-          {currentCustomer.businessName?.trim() && <p className="truncate text-gray-500" title={currentCustomer.email}>{currentCustomer.email}</p>}
+          {currentCustomer.businessName?.trim() &&
+            <p
+              className="truncate text-gray-500"
+              title={JSON.stringify(currentCustomer, null, 2)}
+            >{currentCustomer.email}</p>
+          }
         </div>
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700">
           <span aria-hidden="true" className="size-1.5 rounded-full bg-green-500" />

@@ -12,6 +12,7 @@ export async function activateExtensionCustomer({ tenantUid, customer, loginResu
     businessName: customer.businessName || loginResult.profile?.businessName || "",
     registeredAddress: customer.registeredAddress || loginResult.profile?.registeredAddress || "",
     bankName: customer.bankName || loginResult.profile?.bankName || "",
+    branchName: customer.branchName || loginResult.profile?.branchName || "",
     profileTabId: loginResult.tabId ?? null,
   };
   await write({ encryptPassword: customer.password, [ACTIVE_CUSTOMER_KEY]: active });
@@ -28,5 +29,6 @@ export async function restoreExtensionCustomer(stored, tenantUid, loadCustomer) 
     businessName: customer.businessName ?? stored.businessName ?? "",
     registeredAddress: customer.registeredAddress ?? stored.registeredAddress ?? "",
     bankName: customer.bankName ?? stored.bankName ?? "",
+    branchName: customer.branchName ?? stored.branchName ?? "",
   };
 }

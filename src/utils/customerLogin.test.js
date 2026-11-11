@@ -1,7 +1,7 @@
 import { SITE_ORIGIN } from "../config/site.js";
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { loginCustomer, logoutCustomer, submitCustomerLogin, waitForLoginTab } from "./customerLogin.js";
+import { loginCustomer, logoutCustomer, submitCustomerLogin, waitForCustomerLogin, waitForLoginTab } from "./customerLogin.js";
 import { resolveCustomerLogout } from "../content/customerLogout.js";
 
 afterEach(() => {
@@ -30,6 +30,7 @@ function loginPage({ origin = "https://www.eprocure.gov.bd", action = "/LoginSrB
 }
 
 function browser() {
+  let authenticated = false;
   const stored = { encryptPassword: "previous-password" };
   const updated = new Set();
   const removed = new Set();
@@ -58,7 +59,12 @@ function browser() {
     },
     scripting: { executeScript: async ({ target, func, args }) => {
       assert.ok([7, 8].includes(target.tabId));
-      return [{ result: func(...(args || [])) }];
+      if (args?.[0] === "inspectCustomerLogin") {
+        return [{ result: { ok: true, hasLogoutControl: authenticated, loginForm: !authenticated } }];
+      }
+      const result = func(...(args || []));
+      if (func === submitCustomerLogin && result.submitted) authenticated = true;
+      return [{ result }];
     } },
   };
   return { updated, removed, stored, created };
@@ -227,13 +233,14 @@ test("waits through logout navigation before opening the login tab", async () =>
   assert.equal((await loginCustomer({ email: "customer@example.com", password: "secret" })).submitted, true);
 });
 
-test("saves the selected customer's password when login awaits manual verification", async () => {
+test("leaves manual verification pending without activating the customer or replacing the password", async () => {
   loginPage({ challenge: true });
   const { stored } = browser();
   const result = await loginCustomer({ email: "customer@example.com", password: "customer-password" });
   assert.equal(result.ok, true);
   assert.match(result.message, /Complete the verification/);
-  assert.equal(stored.encryptPassword, "customer-password");
+  assert.equal(result.submitted, false);
+  assert.equal(stored.encryptPassword, "previous-password");
 });
 
 test("logs out a shared session discovered in the new tab when starting on another website", async () => {
@@ -294,7 +301,7 @@ test("cleans up listeners on page timeout and tab closure", async () => {
   assert.equal(events.updated.size + events.removed.size, 0);
 });
 
-test("collects profile details only after this customer's login establishes a session", async () => {
+test("login confirms the session without collecting profile details, including for older callers", async () => {
   loginPage();
   browser();
   const calls = [];
@@ -303,27 +310,17 @@ test("collects profile details only after this customer's login establishes a se
     calls.push(func);
     if (func === submitCustomerLogin) {
       loggedIn = true;
-      return [{ result: { ok: true, message: "Login submitted." } }];
+      return [{ result: { ok: true, submitted: true, message: "Login submitted." } }];
     }
     assert.equal(func, resolveCustomerLogout);
     return [{ result: { ok: true, hasLogoutControl: loggedIn, loginForm: !loggedIn } }];
   };
-  let url = "https://www.eprocure.gov.bd/";
-  const actions = [];
-  chrome.tabs.get = async () => ({ url, status: "complete" });
-  chrome.tabs.update = async (id, options) => { url = options.url; };
-  chrome.tabs.sendMessage = async (id, message) => {
-    assert.equal(loggedIn, true);
-    actions.push(message.action);
-    if (message.action === "readCustomerProfile") return { ok: true, profile: { businessName: "Selected Co", registeredAddress: "Dhaka" } };
-    url = message.action === "openViewProfilePage"
-      ? "https://www.eprocure.gov.bd/tenderer/ViewRegistrationDetail.jsp?uId=selected"
-      : "https://www.eprocure.gov.bd/tenderer/ViewCompanyDetail.jsp?uId=selected&tId=tenderer&cId=company";
-    return { ok: true, url };
-  };
+  chrome.tabs.get = async () => ({ url: "https://www.eprocure.gov.bd/", status: "complete" });
+  chrome.tabs.sendMessage = async () => assert.fail("Profile collection requires the Collect business data button");
   const result = await loginCustomer({ email: "customer@example.com", password: "secret", collectProfile: true });
-  assert.deepEqual(result.profile, { businessName: "Selected Co", registeredAddress: "Dhaka" });
-  assert.deepEqual(actions, ["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile"]);
+  assert.equal(result.ok, true);
+  assert.equal(result.submitted, true);
+  assert.equal(result.profile, undefined);
   assert.ok(calls.includes(submitCustomerLogin));
 });
 
@@ -333,5 +330,41 @@ test("does not open a new tab, disclose credentials, or collect a profile if log
   document.querySelectorAll = () => [{ href: "/Logout.jsp", click() { throw new Error("Logout failed"); } }];
   chrome.tabs.query = async () => [{ id: 7, url: "https://www.eprocure.gov.bd/Dashboard.jsp" }];
   chrome.tabs.create = async () => { assert.fail("Do not open a login tab before logout completes"); };
-  await assert.rejects(loginCustomer({ email: "another@example.com", password: "secret", collectProfile: true }), /Logout failed/);
+  await assert.rejects(loginCustomer({ email: "another@example.com", password: "secret" }), /Logout failed/);
+});
+
+test("rejected credentials stop profile collection, preserve the password, and allow another login", async () => {
+  loginPage();
+  const { stored } = browser();
+  const executeScript = chrome.scripting.executeScript;
+  let rejected = true;
+  chrome.scripting.executeScript = async (options) => {
+    if (options.args?.[0] === "inspectCustomerLogin" && rejected) {
+      return [{ result: { ok: true, loginForm: true, loginError: "Invalid email or password." } }];
+    }
+    return executeScript(options);
+  };
+  chrome.tabs.sendMessage = async () => assert.fail("Failed login must stop before collecting profile details");
+  await assert.rejects(loginCustomer({ email: "customer@example.com", password: "wrong" }), /Customer login failed.*Invalid email or password/);
+  assert.equal(stored.encryptPassword, "previous-password");
+  rejected = false;
+  assert.equal((await loginCustomer({ email: "customer@example.com", password: "correct" })).ok, true);
+  assert.equal(stored.encryptPassword, "correct");
+});
+
+test("login confirmation stops on timeout, tab closure, and redirects", async () => {
+  browser();
+  await assert.rejects(waitForCustomerLogin(8, { timeout: 0 }), /Customer login failed/);
+  chrome.tabs.get = async () => { throw new Error("No tab"); };
+  await assert.rejects(waitForCustomerLogin(8), /tab was closed/);
+  chrome.tabs.get = async () => ({ url: "https://example.com", status: "complete" });
+  await assert.rejects(waitForCustomerLogin(8), /left eProcure/);
+});
+
+test("login inspection reads the visible rejection message from the page", () => {
+  loginPage();
+  document.querySelectorAll = (selector) => selector.includes('[role="alert"]')
+    ? [{ textContent: "Invalid email or password.", getClientRects: () => [1] }] : [];
+  const inspect = new Function(`return (${resolveCustomerLogout.toString()})`)();
+  assert.equal(inspect("inspectCustomerLogin", SITE_ORIGIN).loginError, "Invalid email or password.");
 });

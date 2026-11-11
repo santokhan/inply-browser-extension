@@ -22,6 +22,11 @@ export function resolveCustomerLogout(action = "inspectCustomerSession", expecte
   });
   const loginForm = Boolean(document.querySelector('form#frmLogin input[name="emailId"]'));
   const hasLogoutControl = Boolean(control);
+  if (action === "inspectCustomerLogin") {
+    const error = [...document.querySelectorAll('[role="alert"], .error, .error-message, .errorMessage, .alert-danger, #error, #errorMsg, #errorMessage, #popup_message')]
+      .find((element) => element.getClientRects().length > 0 && element.textContent?.trim());
+    return { ok: true, hasLogoutControl, loginForm, loginError: loginForm ? error?.textContent.trim() || "" : "" };
+  }
   if (action === "logoutCustomer" && control) control.click();
   return { ok: true, hasLogoutControl, loginForm };
 }

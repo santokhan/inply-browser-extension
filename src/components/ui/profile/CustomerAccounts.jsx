@@ -7,15 +7,15 @@ import {
   doc,
   getDoc,
   getDocs,
-  runTransaction,
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
-import { Eye, EyeOff, LogIn, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, LogIn, Pencil, Plus, RotateCw, Search, Trash2, X } from "lucide-react";
+import { toast } from "react-toastify";
+import { twMerge } from "tailwind-merge";
 import { tenantAuth, db } from "../../../firebase/config";
 import { CUSTOMER_LOGIN_ACTION } from "../../../utils/customerLogin";
 import useCustomerSession from "../../../hooks/useCustomerSession";
-import { missingCustomerDetails } from "../../../utils/customerProfile";
 
 const EMPTY_CUSTOMER = {
   email: "",
@@ -23,6 +23,7 @@ const EMPTY_CUSTOMER = {
   businessName: "",
   registeredAddress: "",
   bankName: "",
+  branchName: "",
 };
 const CUSTOMERS_PER_PAGE = 10;
 
@@ -39,6 +40,7 @@ export default function CustomerAccounts() {
   const [customer, setCustomer] = useState(EMPTY_CUSTOMER);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
@@ -89,6 +91,20 @@ export default function CustomerAccounts() {
     return () => { active = false; };
   }, [loadCustomers]);
 
+  async function reloadCustomers() {
+    if (refreshing) return;
+    setRefreshing(true);
+    setError("");
+    setMessage("");
+    try {
+      await loadCustomers();
+    } catch (err) {
+      setError(err.message || "Could not reload your customers.");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   function update(field, value) {
     setCustomer((current) => ({ ...current, [field]: value }));
   }
@@ -102,6 +118,7 @@ export default function CustomerAccounts() {
       businessName: item.businessName || "",
       registeredAddress: item.registeredAddress || "",
       bankName: item.bankName || "",
+      branchName: item.branchName || "",
     });
     setShowPassword(false);
     setMessage("");
@@ -145,6 +162,7 @@ export default function CustomerAccounts() {
         businessName: customer.businessName.trim(),
         registeredAddress: customer.registeredAddress.trim(),
         bankName: customer.bankName.trim(),
+        branchName: customer.branchName.trim(),
         updatedAt: serverTimestamp(),
       };
 
@@ -191,34 +209,19 @@ export default function CustomerAccounts() {
         action: CUSTOMER_LOGIN_ACTION,
         email: item.email,
         password: item.password,
-        collectProfile: !item.businessName?.trim() || !item.registeredAddress?.trim(),
       });
       if (!result?.ok) throw new Error(result?.message || "Could not start the customer login.");
+      if (!result.submitted) {
+        toast.info(result.message);
+        return;
+      }
       if (tenantAuth.currentUser?.uid !== tenantUid) throw new Error("Sign in again before selecting a customer.");
       await recordCustomerLogin(item, result);
-      if (result.profile) {
-        if (tenantAuth.currentUser?.uid !== tenantUid) throw new Error("Sign in again to save the collected business details.");
-        const customerRef = doc(db, ...tenantCustomerPath(tenantUid, item.id));
-        const details = await runTransaction(db, async (transaction) => {
-          const snapshot = await transaction.get(customerRef);
-          if (!snapshot.exists()) throw new Error("The customer was removed before business details could be saved.");
-          const current = snapshot.data();
-          if (current.email?.trim().toLowerCase() !== item.email?.trim().toLowerCase()) {
-            throw new Error("The customer email changed before business details could be saved.");
-          }
-          const missing = missingCustomerDetails(current, result.profile);
-          if (Object.keys(missing).length) {
-            transaction.update(customerRef, { ...missing, updatedAt: serverTimestamp() });
-          }
-          return missing;
-        });
-        if (Object.keys(details).length) {
-          setCustomers((records) => records.map((record) => record.id === item.id ? { ...record, ...details } : record));
-        }
-      }
       setMessage(result.message);
     } catch (err) {
-      setError(err.message || "Could not start the customer login.");
+      const message = err.message || "Customer login failed. Try again.";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoggingInId(null);
     }
@@ -260,11 +263,23 @@ export default function CustomerAccounts() {
               <h2 className="text-base font-semibold text-gray-800">Customers</h2>
               <p className="text-xs text-gray-500">{customers.length} saved {customers.length === 1 ? "customer" : "customers"}</p>
             </div>
-            {!editingId && (
-              <button type="button" onClick={() => { resetForm(); setFormOpen(true); setError(""); setMessage(""); }} className="secondary flex items-center gap-1">
-                <Plus size={14} /> Add customer
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={reloadCustomers}
+                disabled={refreshing}
+                aria-label={refreshing ? "Reloading customers" : "Reload customers"}
+                title={refreshing ? "Reloading customers" : "Reload customers"}
+                className="secondary flex items-center justify-center p-2 disabled:cursor-wait disabled:opacity-50"
+              >
+                <RotateCw size={16} aria-hidden="true" className={twMerge(refreshing && "animate-spin motion-reduce:animate-none")} />
               </button>
-            )}
+              {!editingId && (
+                <button type="button" onClick={() => { resetForm(); setFormOpen(true); setError(""); setMessage(""); }} className="secondary flex items-center gap-1">
+                  <Plus size={14} /> Add customer
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="mb-3 space-y-1">
@@ -312,6 +327,7 @@ export default function CustomerAccounts() {
                         ["businessName", item.businessName || "", "break-words text-gray-800"],
                         ["registeredAddress", item.registeredAddress || "", "whitespace-pre-wrap break-words text-gray-600"],
                         ...(item.bankName ? [["bankName", item.bankName, "break-words text-gray-600"]] : []),
+                        ...(item.branchName ? [["branchName", item.branchName, "break-words text-gray-600"]] : []),
                       ].map(([field, displayedValue, style]) => {
                         const copiedKey = `${item.id}:${field}`;
                         const value = field === "password" ? item.password || "" : displayedValue;
@@ -320,9 +336,9 @@ export default function CustomerAccounts() {
                             key={field}
                             type="button"
                             title={copiedField === copiedKey ? "Copied" : "Click to copy"}
-                            aria-label={`Copy ${field === "businessName" ? "name" : field === "registeredAddress" ? "address" : field === "bankName" ? "bank name" : field} for ${item.email}`}
+                            aria-label={`Copy ${field === "businessName" ? "name" : field === "registeredAddress" ? "address" : field === "bankName" ? "bank name" : field === "branchName" ? "branch name" : field} for ${item.email}`}
                             onClick={() => copyField(item, field, value)}
-                            className={`relative block w-full cursor-pointer rounded px-1 text-left transition-colors hover:bg-purple-50 hover:text-purple-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${style}`}
+                            className={twMerge("relative block w-full cursor-pointer rounded px-1 text-left transition-colors hover:bg-purple-50 hover:text-purple-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400", style)}
                           >
                             {displayedValue}
                             {copiedField === copiedKey && (
@@ -401,6 +417,11 @@ export default function CustomerAccounts() {
         <label className="block space-y-1 text-xs font-medium text-gray-700">
           Bank name (optional)
           <input type="text" value={customer.bankName} onChange={(e) => update("bankName", e.target.value)} className="default" />
+        </label>
+
+        <label className="block space-y-1 text-xs font-medium text-gray-700">
+          Branch name (optional)
+          <input type="text" value={customer.branchName} onChange={(e) => update("branchName", e.target.value)} className="default" />
         </label>
 
         <button type="submit" disabled={saving} className="default w-full">

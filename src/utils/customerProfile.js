@@ -1,5 +1,5 @@
 export const COLLECT_CUSTOMER_PROFILE_ACTION = "collectCustomerProfile";
-export const CUSTOMER_DETAIL_FIELDS = ["businessName", "registeredAddress", "bankName"];
+export const CUSTOMER_DETAIL_FIELDS = ["businessName", "registeredAddress", "bankName", "branchName"];
 
 export function missingCustomerDetails(current, collected) {
   return Object.fromEntries(CUSTOMER_DETAIL_FIELDS

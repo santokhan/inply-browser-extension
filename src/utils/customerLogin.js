@@ -86,7 +86,7 @@ export function submitCustomerLogin(email, password, expectedOrigin) {
   });
   if (challenge) {
     challenge.focus();
-    return { ok: true, submitted: true, message: "Credentials filled. Complete the verification in the eProcure tab, then click Login." };
+    return { ok: true, submitted: false, message: "Credentials filled. Complete the verification in the eProcure tab, then click Login." };
   }
 
   // Click the site's control to preserve its validation and login handlers.
@@ -119,7 +119,26 @@ export function waitForLoginTab(tabId, timeout = 45000) {
   });
 }
 
-export async function loginCustomer({ email, password, collectProfile = false }) {
+export async function waitForCustomerLogin(tabId, { timeout = 30000 } = {}) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    let tab;
+    try { tab = await chrome.tabs.get(tabId); }
+    catch { throw new Error("Customer login failed because the eProcure tab was closed. Try again."); }
+    if (tab.url && !isSiteUrl(tab.url)) throw new Error("Customer login failed because the tab left eProcure.");
+    if (tab.status === "complete") {
+      let session;
+      try { session = await inspectCustomerLogout(tabId, "inspectCustomerLogin"); }
+      catch { /* Login navigation can replace the document during inspection. */ }
+      if (session?.hasLogoutControl) return;
+      if (session?.loginError) throw new Error(`Customer login failed. ${session.loginError}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error("Customer login failed. Check the email, password, and any verification on eProcure, then try again.");
+}
+
+export async function loginCustomer({ email, password }) {
   if (typeof email !== "string" || !email.trim() || typeof password !== "string" || !password) {
     throw new Error("Save an email and password for this customer before logging in.");
   }
@@ -148,19 +167,11 @@ export async function loginCustomer({ email, password, collectProfile = false })
   });
   const result = results[0]?.result;
   if (result?.ok) {
+    if (!result.submitted) return { ...result, tabId: tab.id };
+    await waitForCustomerLogin(tab.id);
     await chrome.storage.local.set({ encryptPassword: password });
-    if (collectProfile) {
-      try {
-        const profile = await collectCustomerProfile(tab.id, {
-          inspectSession,
-        });
-        return { ...result, tabId: tab.id, profile, message: "Logged in. Business details collected from Company Details." };
-      } catch (error) {
-        return { ...result, tabId: tab.id, message: `${result.message} ${error.message}` };
-      }
-    }
   }
-  return result ? { ...result, tabId: tab.id } : { ok: false, message: "Could not fill the eProcure login form. Please try again." };
+  return result ? { ...result, tabId: tab.id, message: result.ok ? "Customer logged in." : result.message } : { ok: false, message: "Could not fill the eProcure login form. Please try again." };
 }
 
 export async function collectSignedInCustomerProfile({ tabId, fields }) {
