@@ -602,7 +602,7 @@ window.InplyContentRouter = {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // These actions have dedicated listeners. Responding here would race their
   // asynchronous replies and incorrectly report a missing handler.
-  if (["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile"].includes(message?.action)) return false;
+  if (["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile", "openBankDetailsTab", "readCustomerBankDetails"].includes(message?.action)) return false;
   let handler = messageHandlers.get(message.action);
   if (!handler) {
     // signEncryptSave.js is loaded immediately after this file by the

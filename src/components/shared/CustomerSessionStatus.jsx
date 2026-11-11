@@ -32,7 +32,7 @@ export default function CustomerSessionStatus() {
   const customerInitial = getCustomerInitial(customerName);
 
   return (
-    <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 text-xs text-gray-700">
+    <div className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 text-xs text-gray-700">
       {currentCustomer ? <div role="status" className="flex items-center gap-1">
         <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-green-100 text-sm font-semibold text-green-700">
           {customerInitial}

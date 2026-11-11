@@ -83,7 +83,7 @@ test("recovery executes serialized functions without manifest files or module sc
     } },
   };
   assert.equal((await sendLtmMessage(20, { action: "highlightLtmField", focused: false })).ok, true);
-  for (const action of ["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile"]) {
+  for (const action of ["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile", "openBankDetailsTab", "readCustomerBankDetails"]) {
     assert.equal(listener({ action }, {}, () => assert.fail("Dedicated listeners must own these replies")), false);
   }
   const result = await sendLtmMessage(20, {

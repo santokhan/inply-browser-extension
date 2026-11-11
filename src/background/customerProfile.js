@@ -1,6 +1,6 @@
 import { isSiteUrl } from "../config/site.js";
 
-export async function collectCustomerProfile(tabId, { inspectSession, timeout = 120000 }) {
+export async function collectCustomerProfile(tabId, { inspectSession, timeout = 120000, fields = ["businessName", "registeredAddress"] }) {
   const deadline = Date.now() + timeout;
   let loggedIn = false;
   while (Date.now() < deadline) {
@@ -30,13 +30,11 @@ export async function collectCustomerProfile(tabId, { inspectSession, timeout = 
     }
     throw new Error("eProcure took too long to collect business details.");
   };
-  for (const [action, path] of [
-    ["openViewProfilePage", "/tenderer/ViewRegistrationDetail.jsp"],
-    ["openCompanyDetailsTaba", "/tenderer/ViewCompanyDetail.jsp"],
-  ]) {
+  const navigate = async (action, path) => {
     const { url } = await request(action);
     const destination = new URL(url);
-    if (!isSiteUrl(destination.href) || destination.pathname !== path) {
+    const expectedPage = path ? destination.pathname === path : /^\/tenderer\/[^/]+\.jsp$/i.test(destination.pathname);
+    if (!isSiteUrl(destination.href) || !expectedPage) {
       throw new Error("The profile link does not point to the expected eProcure page.");
     }
     // Navigation is initiated by the content script after its response is sent.
@@ -50,6 +48,32 @@ export async function collectCustomerProfile(tabId, { inspectSession, timeout = 
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     if (!arrived) throw new Error("eProcure took too long to open the profile page.");
+  };
+  const profile = {};
+  const errors = [];
+  try {
+    await navigate("openViewProfilePage", "/tenderer/ViewRegistrationDetail.jsp");
+    const collectCompany = fields.some((field) => ["businessName", "registeredAddress"].includes(field));
+    if (collectCompany) {
+      try {
+        await navigate("openCompanyDetailsTaba", "/tenderer/ViewCompanyDetail.jsp");
+        Object.assign(profile, (await request("readCustomerProfile")).profile);
+      } catch (error) {
+        errors.push(error.message);
+      }
+    }
+    if (fields.includes("bankName")) {
+      try {
+        await navigate("openBankDetailsTab");
+        Object.assign(profile, (await request("readCustomerBankDetails")).profile);
+      } catch (error) {
+        errors.push(error.message);
+      }
+    }
+    if (errors.length) throw new Error(errors.join(" "));
+    return profile;
+  } catch (error) {
+    error.profile = profile;
+    throw error;
   }
-  return (await request("readCustomerProfile")).profile;
 }

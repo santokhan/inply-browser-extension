@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTenantAuth } from "../hooks/useTenantAuth";
 import { CustomerSessionContext } from "../hooks/useCustomerSession";
 import { ACTIVE_CUSTOMER_KEY, activateExtensionCustomer, restoreExtensionCustomer } from "../utils/extensionCustomer";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase/config";
+import { doc, getDoc, runTransaction, serverTimestamp } from "firebase/firestore";
+import { db, tenantAuth } from "../firebase/config";
 import { tenantCustomerPath } from "../data/tenantCustomerPaths";
 import { CUSTOMER_LOGOUT_ACTION } from "../utils/customerLogin";
+import { COLLECT_CUSTOMER_PROFILE_ACTION, CUSTOMER_DETAIL_FIELDS, missingCustomerDetails } from "../utils/customerProfile";
 
 export function CustomerSessionProvider({ children }) {
   const { tenant } = useTenantAuth();
@@ -47,8 +48,48 @@ export function CustomerSessionProvider({ children }) {
     setSelected(null);
   }, []);
 
+  const collectBusinessDetails = useCallback(async () => {
+    if (!currentCustomer?.id || !tenantUid) throw new Error("Log in with a saved customer before collecting business details.");
+    const revision = sessionRevision.current;
+    const assertCurrentSession = () => {
+      if (sessionRevision.current !== revision || tenantAuth.currentUser?.uid !== tenantUid) {
+        throw new Error("The active customer changed. Collect details again for the selected customer.");
+      }
+    };
+    assertCurrentSession();
+    const fields = CUSTOMER_DETAIL_FIELDS.filter((field) => !currentCustomer[field]?.trim());
+    const result = await chrome.runtime.sendMessage({
+      action: COLLECT_CUSTOMER_PROFILE_ACTION,
+      tabId: currentCustomer.profileTabId,
+      fields,
+    });
+    if (!result?.ok) throw new Error(result?.message || "Could not collect business details. Try again.");
+    assertCurrentSession();
+    const customerRef = doc(db, ...tenantCustomerPath(tenantUid, currentCustomer.id));
+    const details = await runTransaction(db, async (transaction) => {
+      assertCurrentSession();
+      const snapshot = await transaction.get(customerRef);
+      if (!snapshot.exists()) throw new Error("The customer was removed before business details could be saved.");
+      const saved = snapshot.data();
+      if (saved.email?.trim().toLowerCase() !== currentCustomer.email.trim().toLowerCase()) {
+        throw new Error("The customer email changed. Log in with the updated customer to collect details.");
+      }
+      const missing = missingCustomerDetails(saved, result.profile);
+      assertCurrentSession();
+      if (Object.keys(missing).length) transaction.update(customerRef, { ...missing, updatedAt: serverTimestamp() });
+      return Object.fromEntries(CUSTOMER_DETAIL_FIELDS.map((field) => [field, missing[field] || saved[field] || ""]));
+    });
+    assertCurrentSession();
+    const updated = { ...currentCustomer, ...details, profileTabId: result.tabId };
+    await chrome.storage.local.set({ [ACTIVE_CUSTOMER_KEY]: updated });
+    assertCurrentSession();
+    setSelected(updated);
+    const remaining = CUSTOMER_DETAIL_FIELDS.filter((field) => !details[field].trim());
+    return { remaining, message: result.message };
+  }, [currentCustomer, tenantUid]);
+
   return (
-    <CustomerSessionContext.Provider value={{ currentCustomer, recordCustomerLogin, signOutCustomer }}>
+    <CustomerSessionContext.Provider value={{ currentCustomer, recordCustomerLogin, signOutCustomer, collectBusinessDetails }}>
       {children}
     </CustomerSessionContext.Provider>
   );

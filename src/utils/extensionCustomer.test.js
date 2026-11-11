@@ -8,7 +8,7 @@ test("a submitted extension login selects its customer and prepares the encrypti
   const writes = [];
   const active = await activateExtensionCustomer({ tenantUid: "owner", customer, loginResult: { ok: true, submitted: true } }, async (values) => writes.push(values));
   assert.deepEqual(writes, [{ encryptPassword: " exact password ", [ACTIVE_CUSTOMER_KEY]: active }]);
-  assert.deepEqual(active, { tenantUid: "owner", id: "saved", email: "customer@example.com", businessName: "Company", registeredAddress: "Dhaka" });
+  assert.deepEqual(active, { tenantUid: "owner", id: "saved", email: "customer@example.com", businessName: "Company", registeredAddress: "Dhaka", bankName: "", profileTabId: null });
   assert.equal("password" in active, false);
 });
 
@@ -59,4 +59,16 @@ test("restoration cannot select another tenant's customer or a removed or change
   assert.equal(await restoreExtensionCustomer(undefined, "owner", neverLoad), null);
   assert.equal(await restoreExtensionCustomer(stored, "owner", async () => null), null);
   assert.equal(await restoreExtensionCustomer(stored, "owner", async () => ({ email: "changed@example.com" })), null);
+});
+
+test("bank details and the login tab survive customer activation and restoration", async () => {
+  const active = await activateExtensionCustomer({
+    tenantUid: "owner", customer: { ...customer, bankName: "Saved Bank" },
+    loginResult: { ok: true, submitted: true, tabId: 7 },
+  }, async () => {});
+  assert.equal(active.bankName, "Saved Bank");
+  assert.equal(active.profileTabId, 7);
+  const restored = await restoreExtensionCustomer(active, "owner", async () => ({ ...customer, bankName: "Updated Bank" }));
+  assert.equal(restored.bankName, "Updated Bank");
+  assert.equal(restored.profileTabId, 7);
 });

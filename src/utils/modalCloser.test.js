@@ -37,7 +37,7 @@ function page({ title = "Tenderer Database", present = true, dismisses = true, o
       disconnect() { disconnected = true; }
     },
   });
-  const install = () => runInContext(`(${installModalCloser.toString()})()`, context);
+  const install = (options = {}) => runInContext(`(${installModalCloser.toString()})(${JSON.stringify(options)})`, context);
   return {
     install, popup, overlay,
     show() { present = true; callback(); },
@@ -108,5 +108,20 @@ test("stops closing notices after sign-out without a page reload", () => {
   browser.install();
   browser.signOut();
   browser.show();
+  assert.equal(browser.clicks, 0);
+});
+
+test("profile navigation uses the background-confirmed session when Logout is collapsed", () => {
+  const browser = page({ logoutVisible: false });
+  const result = browser.install({ sessionConfirmed: true });
+  assert.equal(result.ready, true);
+  assert.equal(browser.clicks, 1);
+});
+
+test("a confirmed session can continue to View Profile when there is no login notice", () => {
+  const browser = page({ present: false, logoutVisible: false });
+  browser.install();
+  const result = browser.install({ sessionConfirmed: true });
+  assert.equal(result.ready, true);
   assert.equal(browser.clicks, 0);
 });

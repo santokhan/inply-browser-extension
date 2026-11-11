@@ -20,7 +20,8 @@ test("main router lets the dedicated profile listener send its asynchronous repl
   const entry = await readFile(new URL("./customerProfileEntry.js", import.meta.url), "utf8");
   runInContext(entry.replace(/^import .*;\r?\n/, ""), context);
   const responses = [];
-  const sender = { id: "extension-id", url: "chrome-extension://extension-id/index.html" };
+  // Background service workers can send tab messages without a sender URL.
+  const sender = { id: "extension-id" };
   for (const listener of listeners) {
     listener({ action: "readCustomerProfile" }, sender, (response) => responses.push(response));
   }
@@ -28,7 +29,14 @@ test("main router lets the dedicated profile listener send its asynchronous repl
   assert.equal(responses.length, 1);
   assert.equal(responses[0].ok, true);
   assert.equal(responses[0].profile.businessName, "Customer company");
-  for (const action of ["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile"]) {
+  for (const action of ["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile", "openBankDetailsTab", "readCustomerBankDetails"]) {
     assert.equal(listeners[0]({ action }, sender, () => assert.fail("Requests belong to their dedicated listener")), false);
+  }
+  for (const sender of [
+    { id: "other-extension" },
+    { id: "extension-id", tab: { id: 7 } },
+    { id: "extension-id", url: "https://example.com/" },
+  ]) {
+    assert.equal(listeners[1]({ action: "openViewProfilePage" }, sender, () => assert.fail("Untrusted senders must be rejected")), false);
   }
 });

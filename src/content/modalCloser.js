@@ -1,12 +1,12 @@
 // Installed by the eProcure content script on each page load.
 
-function installModalCloser() {
+function installModalCloser({ sessionConfirmed = false } = {}) {
   if (window.InplyModalCloser) {
-    return window.InplyModalCloser.close();
+    return window.InplyModalCloser.close({ sessionConfirmed });
   }
 
-  const close = () => {
-    const signedIn = [...document.querySelectorAll("a[href]")].some((anchor) => {
+  const close = ({ sessionConfirmed = false } = {}) => {
+    const signedIn = sessionConfirmed || [...document.querySelectorAll("a[href]")].some((anchor) => {
       const url = new URL(anchor.href, window.location.href);
       return url.origin === window.location.origin && url.pathname === "/Logout.jsp" &&
         anchor.getClientRects().length > 0;
@@ -44,7 +44,7 @@ function installModalCloser() {
     observer.disconnect();
     delete window.InplyModalCloser;
   }, { once: true });
-  return close();
+  return close({ sessionConfirmed });
 }
 
 export { installModalCloser };

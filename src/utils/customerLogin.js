@@ -154,11 +154,39 @@ export async function loginCustomer({ email, password, collectProfile = false })
         const profile = await collectCustomerProfile(tab.id, {
           inspectSession,
         });
-        return { ...result, profile, message: "Logged in. Business details collected from Company Details." };
+        return { ...result, tabId: tab.id, profile, message: "Logged in. Business details collected from Company Details." };
       } catch (error) {
-        return { ...result, message: `${result.message} ${error.message}` };
+        return { ...result, tabId: tab.id, message: `${result.message} ${error.message}` };
       }
     }
   }
-  return result || { ok: false, message: "Could not fill the eProcure login form. Please try again." };
+  return result ? { ...result, tabId: tab.id } : { ok: false, message: "Could not fill the eProcure login form. Please try again." };
+}
+
+export async function collectSignedInCustomerProfile({ tabId, fields }) {
+  let tab;
+  if (Number.isInteger(tabId)) {
+    try { tab = await chrome.tabs.get(tabId); } catch { /* Find another eProcure tab if the login tab was closed. */ }
+  }
+  if (!tab) {
+    const tabs = await chrome.tabs.query({ url: `${SITE_ORIGIN}/*` });
+    tabs.sort((first, second) => Number(Boolean(second.active)) - Number(Boolean(first.active)));
+    tab = tabs[0] || await chrome.tabs.create({ url: EPROCURE_URL, active: true });
+  }
+  if (!tab?.id || !isSiteUrl(tab.url || tab.pendingUrl)) {
+    throw new Error("Open the customer's eProcure tab before collecting business details.");
+  }
+  await chrome.tabs.update(tab.id, { active: true });
+  try {
+    const profile = await collectCustomerProfile(tab.id, {
+      inspectSession: () => inspectCustomerLogout(tab.id),
+      fields,
+    });
+    return { ok: true, profile, tabId: tab.id };
+  } catch (error) {
+    if (error.profile && Object.keys(error.profile).length) {
+      return { ok: true, profile: error.profile, tabId: tab.id, message: error.message };
+    }
+    throw error;
+  }
 }
