@@ -326,8 +326,15 @@ export function installPageParser() {
         || [...field.options].find((item) => !item.disabled && !item.parentElement?.disabled && normalize(item.label || item.textContent) === normalize(value));
       return option ? { field, value: option.value } : null;
     });
-    if (assignments.some((item) => !item)) {
-      return { ok: false, message: "A preset value does not match the form's options. Nothing was filled or signed." };
+    const invalidIndex = assignments.findIndex((item) => !item);
+    if (invalidIndex !== -1) {
+      const fieldKey = boq ? "all" : Object.values(form.values ?? {}).flatMap((section) => Object.keys(section))[invalidIndex];
+      const label = fieldKey.replaceAll("_", " ");
+      const options = targets[invalidIndex] instanceof HTMLSelectElement
+        ? [...targets[invalidIndex].options].filter((option) => !option.disabled && !option.parentElement?.disabled)
+          .map((option) => option.label || option.textContent || option.value).join(", ")
+        : "";
+      return { ok: false, message: `Invalid preset for ${label}.${options ? ` Choose from: ${options}.` : " Enter a text value."} Nothing was filled or signed.` };
     }
     for (const { field, value } of assignments) {
       const prototype = field instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype

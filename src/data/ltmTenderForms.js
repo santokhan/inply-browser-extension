@@ -70,7 +70,7 @@ export const ltmTenderForms = {
         },
         candidate_details: {
           proposed_position: "Copy Enclosed",
-          proposed_position_type: "Copy Enclosed",
+          proposed_position_type: "Prime Candidate",
           name: "Copy Enclosed",
           date_of_birth: "Copy Enclosed",
           years_overall_experience: "Copy Enclosed",
@@ -102,3 +102,23 @@ export const ltmTenderForms = {
     },
   },
 };
+
+export function restoreLtmForms(stored = {}) {
+  return Object.fromEntries(Object.entries(ltmTenderForms.forms).map(([key, form]) => [
+    key,
+    form.values ? {
+      ...form,
+      values: Object.fromEntries(Object.entries(form.values).map(([section, fields]) => [
+        section,
+        Object.fromEntries(Object.entries(fields).map(([field, fallback]) => {
+          const value = stored[key]?.values?.[section]?.[field];
+          // Replace the old text placeholder in the candidate-type dropdown.
+          const legacyCandidateType = key === "personnel_information"
+            && section === "candidate_details" && field === "proposed_position_type"
+            && typeof value === "string" && value.trim().toLowerCase() === "copy enclosed";
+          return [field, typeof value === "string" && !legacyCandidateType ? value : fallback];
+        })),
+      ])),
+    } : form,
+  ]));
+}

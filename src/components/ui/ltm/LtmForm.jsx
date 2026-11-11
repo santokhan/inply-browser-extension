@@ -1,4 +1,4 @@
-import { ltmTenderForms } from "../../../data/ltmTenderForms";
+import { ltmTenderForms, restoreLtmForms } from "../../../data/ltmTenderForms";
 import { useEffect, useRef, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
@@ -101,20 +101,7 @@ export default function LtmForm() {
           return { id: item.id, email: data.email, businessName: data.businessName, registeredAddress: data.registeredAddress };
         }));
         const stored = snapshot.data()?.forms ?? {};
-        const loaded = Object.fromEntries(Object.entries(ltmTenderForms.forms).map(([key, form]) => [
-          key,
-          form.values ? {
-            ...form,
-            values: Object.fromEntries(Object.entries(form.values).map(([section, fields]) => [
-              section,
-              Object.fromEntries(Object.entries(fields).map(([field, fallback]) => [
-                field,
-                typeof stored[key]?.values?.[section]?.[field] === "string"
-                  ? stored[key].values[section][field] : fallback,
-              ])),
-            ])),
-          } : form,
-        ]));
+        const loaded = restoreLtmForms(stored);
         setForms(loaded);
         // Older saves may contain empty placeholders; let customer defaults fill them.
         setCustomerDetails(Object.fromEntries(Object.entries(snapshot.data()?.customerDetails ?? {}).map(([key, fields]) => [

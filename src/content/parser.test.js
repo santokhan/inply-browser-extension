@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createContext, runInContext } from "node:vm";
 import test from "node:test";
-import { ltmTenderForms } from "../data/ltmTenderForms.js";
+import { ltmTenderForms, restoreLtmForms } from "../data/ltmTenderForms.js";
 import { installPageParser } from "../utils/pageParser.js";
 
 const source = installPageParser.toString().replace(
@@ -39,7 +39,13 @@ function page(title, count, selectOptions) {
   runInContext(`(${source})();`, context);
   return {
     fields,
-    fill: (key) => handlers.get("fillLtmForm")({ formKey: key, form: ltmTenderForms.forms[key] }),
+    select: (index, options) => {
+      const field = new Select();
+      field.options = options;
+      fields[index] = field;
+      return field;
+    },
+    fill: (key, form = ltmTenderForms.forms[key]) => handlers.get("fillLtmForm")({ formKey: key, form }),
     highlight: (key, section, field, focused = true) => handlers.get("highlightLtmField")({
       formKey: key, form: ltmTenderForms.forms[key], section, field, focused,
     }),
@@ -155,6 +161,45 @@ test("invalid select options reject the entire fill before any changes", () => {
   fields[1].options = [{ value: "N", label: "No" }];
   assert.equal(fill("priced_bill_of_quantities").ok, false);
   assert.ok(fields.every((field) => field.value === "original"));
+});
+
+test("personnel presets fill the candidate dropdown using its label for new and older saves", () => {
+  for (const stored of [{}, {
+    personnel_information: { values: { candidate_details: { proposed_position_type: "Copy Enclosed" } } },
+  }]) {
+    const { fields, fill, select } = page("Personnel Information (Form e-PW2B-3)", 23);
+    select(16, [{ value: "P", label: "Prime Candidate" }]);
+    assert.equal(fill("personnel_information", restoreLtmForms(stored).personnel_information).ok, true);
+    assert.equal(fields[16].value, "P");
+    assert.equal(fields[15].value, "Copy Enclosed");
+    assert.equal(fields[17].value, "Copy Enclosed");
+    assert.ok(fields.every((field) => field.events.length === 2));
+  }
+});
+
+test("restoring personnel values preserves a customized candidate type and other saved fields", () => {
+  const stored = {
+    personnel_information: { values: { candidate_details: {
+      proposed_position_type: "Alternative Candidate", name: "Saved name",
+    } } },
+    activity_form: { values: { activity: { activity_duration_days: "60" } } },
+  };
+  const forms = restoreLtmForms(stored);
+  assert.equal(forms.personnel_information.values.candidate_details.proposed_position_type, "Alternative Candidate");
+  assert.equal(forms.personnel_information.values.candidate_details.name, "Saved name");
+  assert.equal(forms.activity_form.values.activity.activity_duration_days, "60");
+  assert.equal(forms.activity_form.values.activity.duration_of_activity_start_days, "5");
+  assert.equal(stored.personnel_information.values.candidate_details.name, "Saved name");
+});
+
+test("invalid personnel candidate type names the field and allowed choices before changing any fields", () => {
+  const { fields, fill, select } = page("Personnel Information (Form e-PW2B-3)", 23);
+  select(16, [{ value: "A", label: "Alternative Candidate" }]);
+  const result = fill("personnel_information");
+  assert.equal(result.ok, false);
+  assert.match(result.message, /proposed position type/);
+  assert.match(result.message, /Alternative Candidate/);
+  assert.ok(fields.every((field) => field.value === "original" && field.events.length === 0));
 });
 
 test("submission letter preserves existing contents when there are no presets", () => {
