@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { forgot_password } from "../../firebase/methods";
+import { sendTenantPasswordReset } from "../../firebase/methods";
 
-export default function FormForgotPassword({ switchTo = () => { } }) {
+export default function TenantForgotPasswordForm({ switchTo = () => { } }) {
   const [email, setEmail] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -16,7 +16,7 @@ export default function FormForgotPassword({ switchTo = () => { } }) {
       setError("");
       setSuccess("");
 
-      await forgot_password(email);
+      await sendTenantPasswordReset(email);
 
       setSuccess("Password reset email sent");
 
@@ -42,7 +42,7 @@ export default function FormForgotPassword({ switchTo = () => { } }) {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
+          placeholder="Tenant email"
           className="default"
         />
 
@@ -61,7 +61,7 @@ export default function FormForgotPassword({ switchTo = () => { } }) {
         <p className="text-sm">
           Remember your password?{" "}
           <button type="button" onClick={() => switchTo("signin")} className="text-blue-500">
-            Sign In
+            Tenant sign in
           </button>
         </p>
       </div>

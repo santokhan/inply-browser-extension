@@ -1,3 +1,4 @@
+import { tenantCustomersPath, tenantCustomerPath } from "../../../data/tenantCustomerPaths.js";
 import { useCallback, useEffect, useState } from "react";
 import {
   addDoc,
@@ -11,7 +12,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { Eye, EyeOff, LogIn, Pencil, Plus, Search, Trash2, X } from "lucide-react";
-import { auth, db } from "../../../firebase/config";
+import { tenantAuth, db } from "../../../firebase/config";
 import { CUSTOMER_LOGIN_ACTION } from "../../../utils/customerLogin";
 import useCustomerSession from "../../../hooks/useCustomerSession";
 import { missingCustomerDetails } from "../../../utils/customerProfile";
@@ -21,15 +22,16 @@ const EMPTY_CUSTOMER = {
   password: "",
   businessName: "",
   registeredAddress: "",
+  bankName: "",
 };
 const CUSTOMERS_PER_PAGE = 10;
 
-function customersCollection(uid) {
-  return collection(db, "customerOwners", uid, "customers");
+function customersCollection(tenantUid) {
+  return collection(db, ...tenantCustomersPath(tenantUid));
 }
 
-export default function CustomerProfile() {
-  const loggedIn = useCustomerSession();
+export default function CustomerAccounts() {
+  const { currentCustomer, recordCustomerLogin } = useCustomerSession();
   const [customers, setCustomers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -45,16 +47,16 @@ export default function CustomerProfile() {
   const [loggingInId, setLoggingInId] = useState(null);
 
   const loadCustomers = useCallback(async () => {
-    const user = auth.currentUser;
-    if (!user) throw new Error("Sign in again to load your customers.");
+    const tenant = tenantAuth.currentUser;
+    if (!tenant) throw new Error("Sign in again to load your customers.");
 
-    const customerCollection = customersCollection(user.uid);
+    const customerCollection = customersCollection(tenant.uid);
     const snapshot = await getDocs(customerCollection);
 
     // Bring forward the older single-profile document the first time the new
     // customer list is opened, so existing saved details remain available.
     if (snapshot.empty) {
-      const legacyRef = doc(db, "customerProfiles", user.uid);
+      const legacyRef = doc(db, "customerProfiles", tenant.uid);
       const legacySnapshot = await getDoc(legacyRef);
       if (legacySnapshot.exists()) {
         const legacy = legacySnapshot.data();
@@ -99,6 +101,7 @@ export default function CustomerProfile() {
       password: item.password || "",
       businessName: item.businessName || "",
       registeredAddress: item.registeredAddress || "",
+      bankName: item.bankName || "",
     });
     setShowPassword(false);
     setMessage("");
@@ -134,21 +137,22 @@ export default function CustomerProfile() {
     setError("");
     setMessage("");
     try {
-      const user = auth.currentUser;
-      if (!user) throw new Error("Sign in again to save your customer.");
+      const tenant = tenantAuth.currentUser;
+      if (!tenant) throw new Error("Sign in again to save your customer.");
       const values = {
         email: customer.email.trim(),
         password: customer.password,
         businessName: customer.businessName.trim(),
         registeredAddress: customer.registeredAddress.trim(),
+        bankName: customer.bankName.trim(),
         updatedAt: serverTimestamp(),
       };
 
       if (editingId) {
-        await updateDoc(doc(db, "customerOwners", user.uid, "customers", editingId), values);
+        await updateDoc(doc(db, ...tenantCustomerPath(tenant.uid, editingId)), values);
         setMessage("Customer updated.");
       } else {
-        await addDoc(customersCollection(user.uid), { ...values, createdAt: serverTimestamp() });
+        await addDoc(customersCollection(tenant.uid), { ...values, createdAt: serverTimestamp() });
         setMessage("Customer added.");
       }
       resetForm();
@@ -165,9 +169,9 @@ export default function CustomerProfile() {
     setError("");
     setMessage("");
     try {
-      const user = auth.currentUser;
-      if (!user) throw new Error("Sign in again to delete this customer.");
-      await deleteDoc(doc(db, "customerOwners", user.uid, "customers", item.id));
+      const tenant = tenantAuth.currentUser;
+      if (!tenant) throw new Error("Sign in again to delete this customer.");
+      await deleteDoc(doc(db, ...tenantCustomerPath(tenant.uid, item.id)));
       if (editingId === item.id) resetForm();
       setCustomers((current) => current.filter((record) => record.id !== item.id));
       setMessage("Customer deleted.");
@@ -181,8 +185,8 @@ export default function CustomerProfile() {
     setError("");
     setMessage("");
     try {
-      const ownerUid = auth.currentUser?.uid;
-      if (!ownerUid) throw new Error("Sign in again before logging in a customer.");
+      const tenantUid = tenantAuth.currentUser?.uid;
+      if (!tenantUid) throw new Error("Sign in again before logging in a customer.");
       const result = await chrome.runtime.sendMessage({
         action: CUSTOMER_LOGIN_ACTION,
         email: item.email,
@@ -190,9 +194,11 @@ export default function CustomerProfile() {
         collectProfile: !item.businessName?.trim() || !item.registeredAddress?.trim(),
       });
       if (!result?.ok) throw new Error(result?.message || "Could not start the customer login.");
+      if (tenantAuth.currentUser?.uid !== tenantUid) throw new Error("Sign in again before selecting a customer.");
+      await recordCustomerLogin(item, result);
       if (result.profile) {
-        if (auth.currentUser?.uid !== ownerUid) throw new Error("Sign in again to save the collected business details.");
-        const customerRef = doc(db, "customerOwners", ownerUid, "customers", item.id);
+        if (tenantAuth.currentUser?.uid !== tenantUid) throw new Error("Sign in again to save the collected business details.");
+        const customerRef = doc(db, ...tenantCustomerPath(tenantUid, item.id));
         const details = await runTransaction(db, async (transaction) => {
           const snapshot = await transaction.get(customerRef);
           if (!snapshot.exists()) throw new Error("The customer was removed before business details could be saved.");
@@ -250,7 +256,7 @@ export default function CustomerProfile() {
       {!formOpen && <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div>
-            <h2 className="text-base font-semibold text-gray-800">My customers</h2>
+            <h2 className="text-base font-semibold text-gray-800">eProcure customers</h2>
             <p className="text-xs text-gray-500">{customers.length} saved {customers.length === 1 ? "customer" : "customers"}</p>
           </div>
           {!editingId && (
@@ -286,13 +292,6 @@ export default function CustomerProfile() {
           )}
         </div>
 
-        {loggedIn === true && (
-          <p role="status" className="mb-3 rounded-lg bg-green-50 p-2 text-xs text-green-700">Already logged in to eProcure. Log out on the website to sign in as another customer.</p>
-        )}
-        {loggedIn === null && (
-          <p role="status" className="mb-3 text-xs text-gray-500">Checking eProcure session…</p>
-        )}
-
         {customers.length === 0 ? (
           <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500">No customers yet. Select Add customer to get started.</p>
         ) : filteredCustomers.length === 0 ? (
@@ -303,11 +302,15 @@ export default function CustomerProfile() {
               <li key={item.id} className="rounded-lg border border-gray-200 p-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1 space-y-0.5 text-sm">
+                    {currentCustomer?.email && item.email?.trim().toLowerCase() === currentCustomer.email.trim().toLowerCase() && (
+                      <span className="mb-1 inline-block rounded bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">Active in extension</span>
+                    )}
                     {[
                       ["email", item.email || "", "break-all text-gray-800"],
                       ["password", "********", "text-gray-500"],
                       ["businessName", item.businessName || "", "break-words text-gray-800"],
                       ["registeredAddress", item.registeredAddress || "", "whitespace-pre-wrap break-words text-gray-600"],
+                      ...(item.bankName ? [["bankName", item.bankName, "break-words text-gray-600"]] : []),
                     ].map(([field, displayedValue, style]) => {
                       const copiedKey = `${item.id}:${field}`;
                       const value = field === "password" ? item.password || "" : displayedValue;
@@ -316,7 +319,7 @@ export default function CustomerProfile() {
                           key={field}
                           type="button"
                           title={copiedField === copiedKey ? "Copied" : "Click to copy"}
-                          aria-label={`Copy ${field === "businessName" ? "name" : field === "registeredAddress" ? "address" : field} for ${item.email}`}
+                          aria-label={`Copy ${field === "businessName" ? "name" : field === "registeredAddress" ? "address" : field === "bankName" ? "bank name" : field} for ${item.email}`}
                           onClick={() => copyField(item, field, value)}
                           className={`relative block w-full cursor-pointer rounded px-1 text-left transition-colors hover:bg-purple-50 hover:text-purple-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${style}`}
                         >
@@ -335,7 +338,7 @@ export default function CustomerProfile() {
                     <button type="button" aria-label="Delete customer" title="Delete" onClick={() => removeCustomer(item)} className="flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white p-1 text-gray-900 transition-colors hover:bg-gray-100"><Trash2 size={16} /></button>
                   </div>
                 </div>
-                {loggedIn === false && <button
+                <button
                   type="button"
                   onClick={() => loginCustomer(item)}
                   disabled={loggingInId !== null || !item.email || !item.password}
@@ -343,7 +346,7 @@ export default function CustomerProfile() {
                   className="secondary mt-2 flex w-full items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <LogIn size={14} /> {loggingInId === item.id ? "Opening eProcure…" : "Login"}
-                </button>}
+                </button>
               </li>
             ))}
           </ul>
@@ -392,6 +395,11 @@ export default function CustomerProfile() {
         <label className="block space-y-1 text-xs font-medium text-gray-700">
           Registered address (optional)
           <textarea rows={2} autoComplete="street-address" value={customer.registeredAddress} onChange={(e) => update("registeredAddress", e.target.value)} className="default resize-y" />
+        </label>
+
+        <label className="block space-y-1 text-xs font-medium text-gray-700">
+          Bank name (optional)
+          <input type="text" value={customer.bankName} onChange={(e) => update("bankName", e.target.value)} className="default" />
         </label>
 
         <button type="submit" disabled={saving} className="default w-full">

@@ -10,7 +10,7 @@
         "sidePanel"
     ],
     "host_permissions": [
-        "<all_urls>"
+        "https://www.eprocure.gov.bd/*"
     ],
     "action": {},
     "side_panel": {
@@ -22,18 +22,15 @@
     "content_scripts": [
         {
             "matches": [
-                "<all_urls>"
+                "https://www.eprocure.gov.bd/*"
             ],
             "js": [
                 "src/content/content.js",
                 "src/content/signEncryptSave.js",
-                "src/content/parser.js"
+                "src/content/parser.js",
+                "src/content/modalCloserEntry.js",
+                "src/content/customerProfileEntry.js"
             ],
-            "run_at": "document_idle"
-        },
-        {
-            "matches": ["https://www.eprocure.gov.bd/*"],
-            "js": ["src/content/modalCloser.js"],
             "run_at": "document_idle"
         }
     ],

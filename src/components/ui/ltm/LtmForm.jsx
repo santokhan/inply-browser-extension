@@ -1,22 +1,16 @@
 import { ltmTenderForms } from "../../../data/ltmTenderForms";
 import { useEffect, useRef, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { auth, db } from "../../../firebase/config";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
+import { tenantAuth, db } from "../../../firebase/config";
 import { FillSignEncryptSave } from "../encrypt/actions/FillSignEncryptSave";
 import { getActiveTabSafe } from "../../../utils/chrome";
 import { sendLtmMessage } from "../../../utils/ltmMessaging";
+import useCustomerSession from "../../../hooks/useCustomerSession";
+import { tenantCustomersPath } from "../../../data/tenantCustomerPaths";
+import { resolveTenderCustomer } from "../../../utils/tenderCustomer";
 
 const DEFAULT_FORM_ORDER = Object.keys(ltmTenderForms.forms);
-
-function normalizeFormOrder(storedOrder) {
-  const knownKeys = new Set(DEFAULT_FORM_ORDER);
-  return [...new Set([
-    ...(Array.isArray(storedOrder) ? storedOrder.filter((key) => knownKeys.has(key)) : []),
-    ...DEFAULT_FORM_ORDER,
-  ])];
-}
 
 function fieldLabel(key) {
   return key.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
@@ -24,18 +18,36 @@ function fieldLabel(key) {
 
 function storageError(error, fallback) {
   if (error.code === "permission-denied") {
-    return "Firestore denied access to your LTM forms. Update the ltmTenderForms/{uid} security rule to allow the signed-in owner, then retry.";
+    return "Firestore denied access to your LTM forms. Update the ltmTenderForms/{tenantUid} security rule to allow the signed-in owner, then retry.";
   }
   return error.message || fallback;
 }
 
 export default function LtmForm() {
-  const [forms, setForms] = useState(ltmTenderForms.forms);
-  const [uid, setUid] = useState(null);
+  const { currentCustomer } = useCustomerSession();
+  const [savedForms, setForms] = useState(ltmTenderForms.forms);
+  const [customerDetails, setCustomerDetails] = useState({});
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const formCustomer = resolveTenderCustomer(customers, currentCustomer, selectedCustomerId);
+  const customerKey = formCustomer?.id || formCustomer?.email || "";
+  const details = customerKey ? customerDetails[customerKey] : null;
+  const forms = {
+    ...savedForms,
+    tenderer_information: {
+      ...savedForms.tenderer_information,
+      values: {
+        ...savedForms.tenderer_information.values,
+        tenderer_details: {
+          tenderers_legal_title: details?.tenderers_legal_title ?? formCustomer?.businessName ?? savedForms.tenderer_information.values.tenderer_details.tenderers_legal_title,
+          tenderers_registered_address: details?.tenderers_registered_address ?? formCustomer?.registeredAddress ?? savedForms.tenderer_information.values.tenderer_details.tenderers_registered_address,
+        },
+      },
+    },
+  };
+  const [tenantUid, setTenantUid] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(null);
-  const [formOrder, setFormOrder] = useState(DEFAULT_FORM_ORDER);
-  const [sorting, setSorting] = useState(false);
   const [runningForm, setRunningForm] = useState(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -67,18 +79,27 @@ export default function LtmForm() {
   useEffect(() => {
     let active = true;
     let request = 0;
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(tenantAuth, async (tenant) => {
       const currentRequest = ++request;
-      setUid(null);
+      setTenantUid(null);
       setLoading(true);
       setError("");
       setMessage("");
       setForms(ltmTenderForms.forms);
-      setFormOrder(DEFAULT_FORM_ORDER);
+      setCustomerDetails({});
+      setCustomers([]);
+      setSelectedCustomerId("");
       try {
-        if (!user) throw new Error("Sign in with Firebase to load and save LTM forms.");
-        const snapshot = await getDoc(doc(db, "ltmTenderForms", user.uid));
+        if (!tenant) throw new Error("Sign in to your tenant account to load and save LTM forms.");
+        const [snapshot, customerSnapshot] = await Promise.all([
+          getDoc(doc(db, "ltmTenderForms", tenant.uid)),
+          getDocs(collection(db, ...tenantCustomersPath(tenant.uid))),
+        ]);
         if (!active || currentRequest !== request) return;
+        setCustomers(customerSnapshot.docs.map((item) => {
+          const data = item.data();
+          return { id: item.id, email: data.email, businessName: data.businessName, registeredAddress: data.registeredAddress };
+        }));
         const stored = snapshot.data()?.forms ?? {};
         const loaded = Object.fromEntries(Object.entries(ltmTenderForms.forms).map(([key, form]) => [
           key,
@@ -95,8 +116,11 @@ export default function LtmForm() {
           } : form,
         ]));
         setForms(loaded);
-        setFormOrder(normalizeFormOrder(snapshot.data()?.formOrder));
-        setUid(user.uid);
+        // Older saves may contain empty placeholders; let customer defaults fill them.
+        setCustomerDetails(Object.fromEntries(Object.entries(snapshot.data()?.customerDetails ?? {}).map(([key, fields]) => [
+          key, Object.fromEntries(Object.entries(fields ?? {}).filter(([, value]) => typeof value === "string" && value.trim())),
+        ])));
+        setTenantUid(tenant.uid);
       } catch (err) {
         if (active && currentRequest === request) setError(storageError(err, "Could not load LTM forms."));
       } finally {
@@ -109,16 +133,23 @@ export default function LtmForm() {
   function updateValue(key, section, field, value) {
     setMessage("");
     setError("");
-    setForms((current) => ({
-      ...current,
-      [key]: {
-        ...current[key],
-        values: {
-          ...current[key].values,
-          [section]: { ...current[key].values[section], [field]: value },
+    if (key === "tenderer_information" && section === "tenderer_details" && customerKey) {
+      setCustomerDetails((current) => ({
+        ...current,
+        [customerKey]: { ...(current[customerKey] ?? forms[key].values.tenderer_details), [field]: value },
+      }));
+    } else {
+      setForms((current) => ({
+        ...current,
+        [key]: {
+          ...current[key],
+          values: {
+            ...current[key].values,
+            [section]: { ...current[key].values[section], [field]: value },
+          },
         },
-      },
-    }));
+      }));
+    }
     // Keep edits ordered with focus/blur messages so typing updates the same tab.
     highlightQueue.current = highlightQueue.current.then(async () => {
       const tabId = highlightedTab.current ?? (await getActiveTabSafe())?.id;
@@ -138,9 +169,12 @@ export default function LtmForm() {
     setError("");
     setMessage("");
     try {
-      if (!uid || auth.currentUser?.uid !== uid) throw new Error("Sign in again to save LTM forms.");
-      await setDoc(doc(db, "ltmTenderForms", uid), {
-        forms: { [key]: { values: forms[key].values } },
+      if (!tenantUid || tenantAuth.currentUser?.uid !== tenantUid) throw new Error("Sign in again to save LTM forms.");
+      await setDoc(doc(db, "ltmTenderForms", tenantUid), {
+        forms: { [key]: { values: savedForms[key].values } },
+        ...(key === "tenderer_information" && customerKey ? {
+          customerDetails: { [customerKey]: forms[key].values.tenderer_details },
+        } : {}),
         updatedAt: serverTimestamp(),
       }, { merge: true });
       setMessage(`${forms[key].name} saved.`);
@@ -151,72 +185,54 @@ export default function LtmForm() {
     }
   }
 
-  async function moveForm(key, direction) {
-    if (sorting || saving !== null || runningForm !== null) return;
-    const index = formOrder.indexOf(key);
-    const nextIndex = index + direction;
-    if (index < 0 || nextIndex < 0 || nextIndex >= formOrder.length) return;
-    const nextOrder = [...formOrder];
-    [nextOrder[index], nextOrder[nextIndex]] = [nextOrder[nextIndex], nextOrder[index]];
-    setSorting(true);
-    setError("");
-    setMessage("");
-    try {
-      if (!uid || auth.currentUser?.uid !== uid) throw new Error("Sign in again to sort LTM forms.");
-      await setDoc(doc(db, "ltmTenderForms", uid), {
-        formOrder: nextOrder,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
-      if (auth.currentUser?.uid !== uid) return;
-      setFormOrder(nextOrder);
-      setMessage("Form order saved.");
-    } catch (err) {
-      setError(storageError(err, "Could not save form order."));
-    } finally {
-      setSorting(false);
-    }
-  }
-
   if (loading) return <p role="status" className="p-3 text-sm text-gray-500">Loading LTM forms...</p>;
 
   return (
     <div className="p-3 space-y-2">
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
       {message && <p role="status" className="text-xs text-green-700">{message}</p>}
-      {!uid ? (
+      {!tenantUid ? (
         <button type="button" onClick={() => setReload((value) => value + 1)} className="secondary">Retry loading</button>
-      ) : formOrder.map((key, index) => {
+      ) : DEFAULT_FORM_ORDER.map((key) => {
         const form = forms[key];
         return (
           <div key={key} className="flex items-start gap-2 bg-white rounded-xl p-3 shadow-sm">
-            <div className="flex shrink-0 flex-col gap-1">
-              <button type="button" onClick={() => moveForm(key, -1)} disabled={index === 0 || sorting || saving !== null || runningForm !== null} aria-label={`Move ${form.name} up`} title="Move up" className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-indigo-500 rounded">
-                <ArrowUp size={16} />
-              </button>
-              <button type="button" onClick={() => moveForm(key, 1)} disabled={index === formOrder.length - 1 || sorting || saving !== null || runningForm !== null} aria-label={`Move ${form.name} down`} title="Move down" className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-indigo-500 rounded">
-                <ArrowDown size={16} />
-              </button>
-            </div>
             <details className="min-w-0 flex-1">
               <summary className="cursor-pointer text-sm font-medium text-gray-800">
                 {form.name}
                 <div className="flex gap-1 mt-1">
                   <FillSignEncryptSave
-                    formKey={key}
-                    form={form}
+                    beforeRun={(tabId) => {
+                      return sendLtmMessage(tabId, { action: "fillLtmForm", formKey: key, form });
+                    }}
                     className="sm whitespace-nowrap"
-                    disabled={saving !== null || sorting || (runningForm !== null && runningForm !== key)}
+                    disabled={saving !== null || (runningForm !== null && runningForm !== key)}
                     onRunningChange={(running) => setRunningForm(running ? key : null)}
                   />
                 </div>
               </summary>
               <form onSubmit={(event) => saveForm(event, key)} className="mt-3 space-y-3">
-                <fieldset disabled={saving !== null || sorting || runningForm !== null} className="space-y-3">
+                <fieldset className="space-y-3">
                   {form.values ? Object.entries(form.values).map(([section, fields]) => (
                     <section key={section}>
                       <h2 className="text-xs font-semibold text-gray-500 mb-1">
                         {fieldLabel(section)}
                       </h2>
+                      {key === "tenderer_information" && section === "tenderer_details" && customers.length > 0 && (
+                        <label className="mb-2 block text-xs text-gray-600">
+                          Customer for this form
+                          <select
+                            value={formCustomer?.id || ""}
+                            onChange={(event) => { setSelectedCustomerId(event.target.value); setMessage(""); }}
+                            className="default mt-1 bg-white"
+                          >
+                            <option value="">Select a customer</option>
+                            {customers.map((customer) => (
+                              <option key={customer.id} value={customer.id}>{customer.businessName || customer.email}</option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
                       <div className="space-y-1">
                         {Object.entries(fields).map(([field, value]) => (
                           <label
@@ -227,6 +243,7 @@ export default function LtmForm() {
                             <input
                               type="text"
                               value={value}
+                              disabled={!(key === "tenderer_information" && section === "tenderer_details") && (saving !== null || runningForm !== null)}
                               onFocus={() => highlightField(key, form, section, field, true)}
                               onBlur={() => highlightField(key, form, section, field, false)}
                               onChange={(event) => updateValue(key, section, field, event.target.value)}
@@ -239,7 +256,7 @@ export default function LtmForm() {
                   )) : (
                     <p className="text-xs text-gray-500">No preset values for this form.</p>
                   )}
-                  {form.values && <button type="submit" className="default w-full">{saving === key ? "Saving..." : "Save values"}</button>}
+                  {form.values && <button type="submit" disabled={saving !== null || runningForm !== null} className="default w-full">{saving === key ? "Saving..." : "Save values"}</button>}
                 </fieldset>
               </form>
             </details>

@@ -1,7 +1,8 @@
+import { SITE_ORIGIN } from "../config/site.js";
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { findCustomerLogout, getCustomerSession, loginCustomer, submitCustomerLogin, waitForLoginTab } from "./customerLogin.js";
-import { findCustomerCompanyLink, findCustomerProfileLink, readCustomerProfile } from "./customerProfile.js";
+import { loginCustomer, logoutCustomer, submitCustomerLogin, waitForLoginTab } from "./customerLogin.js";
+import { resolveCustomerLogout } from "../content/customerLogout.js";
 
 afterEach(() => {
   for (const key of ["chrome", "window", "document", "HTMLInputElement"]) delete globalThis[key];
@@ -32,17 +33,22 @@ function browser() {
   const stored = { encryptPassword: "previous-password" };
   const updated = new Set();
   const removed = new Set();
+  const created = [];
   const event = (listeners) => ({ addListener: (fn) => listeners.add(fn), removeListener: (fn) => listeners.delete(fn) });
   globalThis.chrome = {
     storage: { local: { set: async (values) => { Object.assign(stored, values); } } },
     tabs: {
-      create: async () => { assert.fail("Customer login must reuse the active tab."); },
+      create: async (options) => {
+        assert.deepEqual(options, { url: "https://www.eprocure.gov.bd/", active: true });
+        created.push(options);
+        return { id: 8 };
+      },
       query: async (options) => {
         assert.deepEqual(options, { active: true, lastFocusedWindow: true });
-        return [{ id: 7 }];
+        return [{ id: 7, url: "https://www.eprocure.gov.bd/" }];
       },
       update: async (tabId, options) => {
-        assert.equal(tabId, 7);
+        assert.equal(tabId, 8);
         assert.deepEqual(options, { url: "https://www.eprocure.gov.bd/" });
         return { id: tabId };
       },
@@ -51,14 +57,75 @@ function browser() {
       onRemoved: event(removed),
     },
     scripting: { executeScript: async ({ target, func, args }) => {
-      assert.equal(target.tabId, 7);
+      assert.ok([7, 8].includes(target.tabId));
       return [{ result: func(...(args || [])) }];
     } },
   };
-  return { updated, removed, stored };
+  return { updated, removed, stored, created };
 }
 
-test("reuses the active tab for eProcure, fills the selected credentials, and clicks login once", async () => {
+test("customer logout clicks the website control in an existing eProcure tab", async () => {
+  loginPage();
+  const events = browser();
+  let signedIn = true;
+  let clicks = 0;
+  const control = { href: "/Logout.jsp", click() { clicks++; signedIn = false; } };
+  document.querySelectorAll = () => signedIn ? [control] : [];
+  chrome.tabs.query = async (options) => {
+    assert.deepEqual(options, { url: `${SITE_ORIGIN}/*` });
+    return [{ id: 7, active: true }];
+  };
+  assert.deepEqual(await logoutCustomer(), { ok: true });
+  assert.equal(clicks, 1);
+  assert.equal(events.created.length, 0);
+});
+
+test("customer logout opens eProcure when its tabs are closed and clicks Logout", async () => {
+  loginPage();
+  const events = browser();
+  let signedIn = true;
+  const control = { href: "/Logout.jsp", click() { signedIn = false; } };
+  document.querySelectorAll = () => signedIn ? [control] : [];
+  chrome.tabs.query = async () => [];
+  assert.deepEqual(await logoutCustomer(), { ok: true });
+  assert.equal(signedIn, false);
+  assert.equal(events.created.length, 1);
+});
+
+test("customer logout reports website failures", async () => {
+  loginPage();
+  browser();
+  document.querySelectorAll = () => [{ href: "/Logout.jsp", click() { throw new Error("Website logout failed"); } }];
+  chrome.tabs.query = async () => [{ id: 7 }];
+  await assert.rejects(logoutCustomer(), /Website logout failed/);
+});
+
+test("customer logout runs in MAIN world even without a content-script listener", async () => {
+  loginPage();
+  browser();
+  let signedIn = true;
+  const control = { href: "javascript:logout()", textContent: "Logout", click() { signedIn = false; } };
+  document.querySelectorAll = () => signedIn ? [control] : [];
+  chrome.tabs.query = async () => [{ id: 7 }];
+  chrome.tabs.sendMessage = async () => { throw new Error("Receiving end does not exist"); };
+  chrome.scripting.executeScript = async ({ world, func, args }) => {
+    assert.equal(world, "MAIN");
+    // Match Chrome's serialization so references to module helpers cannot pass.
+    const injected = new Function(`return (${func.toString()})`)();
+    return [{ result: injected(...args) }];
+  };
+  assert.deepEqual(await logoutCustomer(), { ok: true });
+  assert.equal(signedIn, false);
+});
+
+test("customer logout rejects an unrecognized page instead of reporting success", async () => {
+  loginPage({ missing: true });
+  browser();
+  chrome.tabs.query = async () => [{ id: 7 }];
+  await assert.rejects(logoutCustomer(), /Could not find.*Logout control/);
+});
+
+test("opens a new eProcure tab, fills the selected credentials, and clicks login once", async () => {
   const page = loginPage();
   const events = browser();
   const result = await loginCustomer({ email: " customer@example.com ", password: " exact password " });
@@ -69,60 +136,66 @@ test("reuses the active tab for eProcure, fills the selected credentials, and cl
   assert.equal(page.button.clicks, 1);
   assert.equal(events.updated.size + events.removed.size, 0);
   assert.equal(events.stored.encryptPassword, " exact password ");
+  assert.equal(events.created.length, 1);
 });
 
 test("does not disclose credentials after a redirect or a changed form destination", () => {
   for (const options of [{ origin: "https://example.com" }, { action: "https://example.com/login" }]) {
     const page = loginPage(options);
-    assert.equal(submitCustomerLogin("customer@example.com", "secret").ok, false);
+    assert.equal(submitCustomerLogin("customer@example.com", "secret", SITE_ORIGIN).ok, false);
     assert.equal(page.email.savedValue, undefined);
     assert.equal(page.password.savedValue, undefined);
     assert.equal(page.button.clicks, 0);
   }
 });
 
-test("recognizes the provided Logout.jsp link and ignores foreign or hidden links", () => {
+test("recognizes Logout.jsp even in a collapsed menu and ignores foreign links", () => {
   loginPage();
   const link = (href, visible = true) => ({ href, getClientRects: () => visible ? [1] : [] });
-  document.querySelectorAll = () => [link("https://example.com/Logout.jsp"), link("/Logout.jsp", false)];
-  assert.equal(findCustomerLogout().logoutUrl, null);
-  document.querySelectorAll = () => [link("/Logout.jsp")];
-  assert.equal(findCustomerLogout().logoutUrl, "https://www.eprocure.gov.bd/Logout.jsp");
+  document.querySelectorAll = () => [link("https://example.com/Logout.jsp")];
+  assert.equal(resolveCustomerLogout().hasLogoutControl, false);
+  document.querySelectorAll = () => [link("/Logout.jsp", false)];
+  assert.equal(resolveCustomerLogout().hasLogoutControl, true);
+  document.querySelectorAll = () => [link("/tenderer/LogOut.jsp?action=logout")];
+  assert.equal(resolveCustomerLogout().hasLogoutControl, true);
 });
 
-test("reports login visibility from the current eProcure page without navigating", async () => {
+test("recognizes a JavaScript logout menu by its label", () => {
   loginPage();
-  browser();
-  chrome.tabs.query = async () => [{ id: 7, url: "https://www.eprocure.gov.bd/Dashboard.jsp", status: "complete" }];
-  chrome.tabs.update = async () => { assert.fail("Session checks must not navigate."); };
-  document.querySelectorAll = () => [{ href: "/Logout.jsp", getClientRects: () => [1] }];
-  assert.deepEqual(await getCustomerSession(), { loggedIn: true });
-  document.querySelectorAll = () => [];
-  assert.deepEqual(await getCustomerSession(), { loggedIn: false });
+  document.querySelectorAll = (selector) => selector === "a[href]" ? [] : [{ textContent: " Log out " }];
+  assert.equal(resolveCustomerLogout().hasLogoutControl, true);
 });
 
-test("does not report logged out while the eProcure tab is loading or inspection fails", async () => {
-  browser();
-  chrome.tabs.query = async () => [{ id: 7, url: "https://www.eprocure.gov.bd/", status: "loading" }];
-  await assert.rejects(getCustomerSession(), /loading/);
-  chrome.tabs.query = async () => [{ id: 7, url: "https://www.eprocure.gov.bd/", status: "complete" }];
-  chrome.scripting.executeScript = async () => [];
-  await assert.rejects(getCustomerSession(), /Could not check/);
+test("the injected logout function clicks the page control only for logout", () => {
+  loginPage();
+  let clicks = 0;
+  document.querySelectorAll = () => [{ href: "/Logout.jsp", click() { clicks++; } }];
+  window.location.assign = () => assert.fail("Logout must click the page control");
+  assert.equal(resolveCustomerLogout("inspectCustomerSession").ok, true);
+  assert.equal(clicks, 0);
+  assert.equal(resolveCustomerLogout("logoutCustomer").hasLogoutControl, true);
+  assert.equal(clicks, 1);
 });
 
-test("preserves the existing session without navigating or sending credentials", async () => {
+test("clicks the website Logout control and waits before logging in", async () => {
   const page = loginPage();
   const { stored } = browser();
+  let loggedIn = true;
+  let logoutClicks = 0;
+  const logout = { href: "/Logout.jsp", click() { logoutClicks++; loggedIn = false; } };
   chrome.tabs.query = async () => [{ id: 7, url: "https://www.eprocure.gov.bd/Dashboard.jsp" }];
-  document.querySelectorAll = () => [{ href: "/Logout.jsp", getClientRects: () => [1] }];
-  chrome.tabs.update = async () => { assert.fail("An active session must be left alone."); };
+  document.querySelectorAll = () => loggedIn ? [logout] : [];
+  chrome.tabs.create = async () => {
+    assert.equal(loggedIn, false);
+    assert.equal(logoutClicks, 1);
+    return { id: 8 };
+  };
   const result = await loginCustomer({ email: "customer@example.com", password: "secret" });
   assert.equal(result.ok, true);
-  assert.match(result.message, /Already logged in/);
-  assert.equal(page.email.savedValue, undefined);
-  assert.equal(page.password.savedValue, undefined);
-  assert.equal(page.button.clicks, 0);
-  assert.equal(stored.encryptPassword, "previous-password");
+  assert.equal(page.email.savedValue, "customer@example.com");
+  assert.equal(page.password.savedValue, "secret");
+  assert.equal(page.button.clicks, 1);
+  assert.equal(stored.encryptPassword, "secret");
 });
 
 test("keeps the saved password when the login form is unavailable", async () => {
@@ -131,6 +204,27 @@ test("keeps the saved password when the login form is unavailable", async () => 
   const result = await loginCustomer({ email: "customer@example.com", password: "secret" });
   assert.equal(result.ok, false);
   assert.equal(stored.encryptPassword, "previous-password");
+});
+
+test("waits through logout navigation before opening the login tab", async () => {
+  loginPage();
+  browser();
+  let loggingOut = false;
+  let finished = false;
+  let loadingChecks = 0;
+  document.querySelectorAll = () => finished ? [] : [{ href: "/Logout.jsp", click() { loggingOut = true; } }];
+  chrome.tabs.get = async () => {
+    if (loggingOut && !finished) {
+      if (loadingChecks++ === 0) return { status: "loading" };
+      finished = true;
+    }
+    return { status: "complete" };
+  };
+  chrome.tabs.create = async () => {
+    assert.equal(finished, true);
+    return { id: 8 };
+  };
+  assert.equal((await loginCustomer({ email: "customer@example.com", password: "secret" })).submitted, true);
 });
 
 test("saves the selected customer's password when login awaits manual verification", async () => {
@@ -142,27 +236,30 @@ test("saves the selected customer's password when login awaits manual verificati
   assert.equal(stored.encryptPassword, "customer-password");
 });
 
-test("skips login if a shared session appears after navigating to the home page", async () => {
+test("logs out a shared session discovered in the new tab when starting on another website", async () => {
   const page = loginPage();
   browser();
-  chrome.tabs.query = async () => [{ id: 7, url: "https://www.eprocure.gov.bd/Dashboard.jsp" }];
+  chrome.tabs.query = async () => [{ id: 7, url: "https://example.com" }];
   let loggedIn = false;
-  document.querySelectorAll = () => loggedIn ? [{ href: "/Logout.jsp", getClientRects: () => [1] }] : [];
+  let clicks = 0;
+  document.querySelectorAll = () => loggedIn ? [{ href: "/Logout.jsp", click() { clicks++; loggedIn = false; } }] : [];
+  chrome.tabs.create = async () => { loggedIn = true; return { id: 8 }; };
   chrome.tabs.update = async (id, { url }) => {
+    assert.equal(id, 8);
     assert.equal(url, "https://www.eprocure.gov.bd/");
-    loggedIn = true;
+    assert.equal(loggedIn, false);
     return { id };
   };
   const result = await loginCustomer({ email: "customer@example.com", password: "secret" });
   assert.equal(result.ok, true);
-  assert.match(result.message, /Already logged in/);
-  assert.equal(page.password.savedValue, undefined);
-  assert.equal(page.button.clicks, 0);
+  assert.equal(clicks, 1);
+  assert.equal(page.password.savedValue, "secret");
+  assert.equal(page.button.clicks, 1);
 });
 
 test("leaves a visible verification challenge for the user", () => {
   const page = loginPage({ challenge: true });
-  const result = submitCustomerLogin("customer@example.com", "secret");
+  const result = submitCustomerLogin("customer@example.com", "secret", SITE_ORIGIN);
   assert.equal(result.ok, true);
   assert.match(result.message, /Complete the verification/);
   assert.equal(page.password.savedValue, "secret");
@@ -172,7 +269,7 @@ test("leaves a visible verification challenge for the user", () => {
 
 test("reports an unavailable login form", () => {
   loginPage({ missing: true });
-  assert.equal(submitCustomerLogin("customer@example.com", "secret").ok, false);
+  assert.equal(submitCustomerLogin("customer@example.com", "secret", SITE_ORIGIN).ok, false);
 });
 
 test("rejects missing credentials before navigating a tab", async () => {
@@ -204,34 +301,37 @@ test("collects profile details only after this customer's login establishes a se
   let loggedIn = false;
   chrome.scripting.executeScript = async ({ func }) => {
     calls.push(func);
-    if (func === findCustomerLogout) return [{ result: { ok: true, logoutUrl: loggedIn ? "/Logout.jsp" : null } }];
     if (func === submitCustomerLogin) {
       loggedIn = true;
       return [{ result: { ok: true, message: "Login submitted." } }];
     }
-    if (func === findCustomerProfileLink) return [{ result: "https://www.eprocure.gov.bd/tenderer/ViewRegistrationDetail.jsp?uId=selected" }];
-    if (func === findCustomerCompanyLink) return [{ result: "https://www.eprocure.gov.bd/tenderer/ViewCompanyDetail.jsp?uId=selected&tId=tenderer&cId=company" }];
-    if (func === readCustomerProfile) return [{ result: { businessName: "Selected Co", registeredAddress: "Dhaka" } }];
-    assert.fail("Unexpected injection");
+    assert.equal(func, resolveCustomerLogout);
+    return [{ result: { ok: true, hasLogoutControl: loggedIn, loginForm: !loggedIn } }];
   };
-  const destinations = [];
-  chrome.tabs.update = async (id, { url }) => { destinations.push(url); };
+  let url = "https://www.eprocure.gov.bd/";
+  const actions = [];
+  chrome.tabs.get = async () => ({ url, status: "complete" });
+  chrome.tabs.update = async (id, options) => { url = options.url; };
+  chrome.tabs.sendMessage = async (id, message) => {
+    assert.equal(loggedIn, true);
+    actions.push(message.action);
+    if (message.action === "readCustomerProfile") return { ok: true, profile: { businessName: "Selected Co", registeredAddress: "Dhaka" } };
+    url = message.action === "openViewProfilePage"
+      ? "https://www.eprocure.gov.bd/tenderer/ViewRegistrationDetail.jsp?uId=selected"
+      : "https://www.eprocure.gov.bd/tenderer/ViewCompanyDetail.jsp?uId=selected&tId=tenderer&cId=company";
+    return { ok: true, url };
+  };
   const result = await loginCustomer({ email: "customer@example.com", password: "secret", collectProfile: true });
   assert.deepEqual(result.profile, { businessName: "Selected Co", registeredAddress: "Dhaka" });
-  assert.deepEqual(destinations.slice(-2), [
-    "https://www.eprocure.gov.bd/tenderer/ViewRegistrationDetail.jsp?uId=selected",
-    "https://www.eprocure.gov.bd/tenderer/ViewCompanyDetail.jsp?uId=selected&tId=tenderer&cId=company",
-  ]);
-  assert.ok(calls.indexOf(submitCustomerLogin) < calls.indexOf(findCustomerProfileLink));
+  assert.deepEqual(actions, ["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile"]);
+  assert.ok(calls.includes(submitCustomerLogin));
 });
 
-test("does not collect another customer's profile from an existing signed-in session", async () => {
+test("does not open a new tab, disclose credentials, or collect a profile if logout fails", async () => {
   loginPage();
   browser();
-  document.querySelectorAll = () => [{ href: "/Logout.jsp", getClientRects: () => [1] }];
+  document.querySelectorAll = () => [{ href: "/Logout.jsp", click() { throw new Error("Logout failed"); } }];
   chrome.tabs.query = async () => [{ id: 7, url: "https://www.eprocure.gov.bd/Dashboard.jsp" }];
-  chrome.tabs.update = async () => { assert.fail("Existing sessions must not be navigated for profile collection"); };
-  const result = await loginCustomer({ email: "another@example.com", password: "secret", collectProfile: true });
-  assert.match(result.message, /Already logged in/);
-  assert.equal(result.profile, undefined);
+  chrome.tabs.create = async () => { assert.fail("Do not open a login tab before logout completes"); };
+  await assert.rejects(loginCustomer({ email: "another@example.com", password: "secret", collectProfile: true }), /Logout failed/);
 });

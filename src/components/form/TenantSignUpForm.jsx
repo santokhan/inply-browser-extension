@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { sign_up_with_email } from "../../firebase/methods";
-import { useAuth } from "../../hooks/useAuth";
+import { signUpTenantWithEmail } from "../../firebase/methods";
+import { useTenantAuth } from "../../hooks/useTenantAuth";
 
-export default function FormSignup({ switchTo = () => { } }) {
+export default function TenantSignUpForm({ switchTo = () => { } }) {
   const [email, setEmail] = useState(import.meta.env.VITE_EMAIL || "");
   const [password, setPassword] = useState(import.meta.env.VITE_PASSWORD || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const { setToken, setUser } = useAuth();
+  const { setTenantToken, setTenant } = useTenantAuth();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -18,7 +18,7 @@ export default function FormSignup({ switchTo = () => { } }) {
       setError("");
       setSuccess("");
 
-      const credential = await sign_up_with_email(email, password);
+      const credential = await signUpTenantWithEmail(email, password);
 
       localStorage.setItem("refreshToken", credential.user.refreshToken);
 
@@ -27,10 +27,10 @@ export default function FormSignup({ switchTo = () => { } }) {
         auth_token: accessToken,
         auth_user: credential.user.toJSON(),
       });
-      setToken(accessToken);
-      setUser(credential.user.toJSON());
+      setTenantToken(accessToken);
+      setTenant(credential.user.toJSON());
 
-      setSuccess("Account created successfully");
+      setSuccess("Tenant account created successfully");
       setEmail("");
       setPassword("");
     } catch (err) {
@@ -43,7 +43,7 @@ export default function FormSignup({ switchTo = () => { } }) {
   return (
     <div className="p-3 space-y-3 my-4">
       <div className="text-center">
-        <h1 className="text-lg font-semibold">Create Account</h1>
+        <h1 className="text-lg font-semibold">Create tenant account</h1>
       </div>
 
       <form
@@ -54,7 +54,7 @@ export default function FormSignup({ switchTo = () => { } }) {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
+          placeholder="Tenant email"
           className="default"
         />
 
@@ -62,7 +62,7 @@ export default function FormSignup({ switchTo = () => { } }) {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
+          placeholder="Tenant password"
           className="default"
         />
 
@@ -73,7 +73,7 @@ export default function FormSignup({ switchTo = () => { } }) {
           disabled={loading}
           className="default w-full"
         >
-          {loading ? "Creating..." : "Sign Up"}
+          {loading ? "Creating..." : "Create tenant account"}
         </button>
       </form>
 
@@ -81,7 +81,7 @@ export default function FormSignup({ switchTo = () => { } }) {
         <p className="text-sm">
           Already have an account?{" "}
           <button type="button" onClick={() => switchTo("signin")} className="text-blue-500">
-            Sign In
+            Tenant sign in
           </button>
         </p>
       </div>

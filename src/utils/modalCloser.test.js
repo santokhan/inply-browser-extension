@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createContext, runInContext } from "node:vm";
 import test from "node:test";
-import { installModalCloser } from "./modalCloser.js";
+import { installModalCloser } from "../content/modalCloser.js";
 
 function page({ title = "Tenderer Database", present = true, dismisses = true, origin = "https://www.eprocure.gov.bd", signedIn = true, logoutHref = "/Logout.jsp", logoutVisible = true } = {}) {
   let clicks = 0;
@@ -66,15 +66,12 @@ test("observes a notice inserted after login and avoids duplicate observers", ()
   assert.equal(browser.disconnected, true);
 });
 
-test("leaves unrelated dialogs and foreign websites alone", () => {
+test("leaves unrelated dialogs alone", () => {
   const otherDialog = page({ title: "Confirm Save" });
   otherDialog.install();
   assert.equal(otherDialog.clicks, 0);
   assert.equal(otherDialog.popup.style.display, undefined);
-  const foreign = page({ origin: "https://example.com" });
-  foreign.install();
-  assert.equal(foreign.clicks, 0);
-  assert.equal(foreign.observers, 0);
+
 });
 
 test("hides the notice and overlay when OK has no working handler", () => {

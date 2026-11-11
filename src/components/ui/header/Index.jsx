@@ -1,16 +1,17 @@
-import React, { useState } from "react";
-import { useAuth } from "../../../hooks/useAuth";
+import { useState } from "react";
+import CustomerSessionStatus from "../../shared/CustomerSessionStatus";
+import { useTenantAuth } from "../../../hooks/useTenantAuth";
 
 const Header = () => {
-    const { user, logout } = useAuth();
-    const [loggingOut, setLoggingOut] = useState(false);
+    const { tenant, signOutTenant } = useTenantAuth();
+    const [signingOutTenant, setSigningOutTenant] = useState(false);
 
-    const handleLogout = async () => {
+    const handleTenantSignOut = async () => {
         try {
-            setLoggingOut(true);
-            await logout();
+            setSigningOutTenant(true);
+            await signOutTenant();
         } finally {
-            setLoggingOut(false);
+            setSigningOutTenant(false);
         }
     };
 
@@ -23,7 +24,7 @@ const Header = () => {
                     className="rounded-full size-9 object-cover aspect-square"
                 />
 
-                <div className="grow">
+                <div className="min-w-0 grow">
                     <h2 className="text-lg font-bold leading-none text-primary-600">
                         Inply
                     </h2>
@@ -42,11 +43,13 @@ const Header = () => {
                             <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073c0 6.026 4.388 11.021 10.125 11.927v-8.437H7.078v-3.49h3.047v-2.66c0-3.026 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.971h-1.513c-1.491 0-1.956.931-1.956 1.887v2.263h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.099 24 12.073Z" />
                         </svg>
                     </a>
-                    {user && (
+                    {tenant && (
                         <button
                             type="button"
-                            onClick={handleLogout}
-                            disabled={loggingOut}
+                            onClick={handleTenantSignOut}
+                            aria-label="Sign out of tenant account"
+                            title="Sign out of tenant account"
+                            disabled={signingOutTenant}
                             className="rounded-lg border border-primary-200 hover:bg-primary-100 px-2 py-1.5 text-sm font-semibold text-primary-700 transition hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className="size-4">
@@ -56,6 +59,7 @@ const Header = () => {
                     )}
                 </div>
             </div>
+            <CustomerSessionStatus />
         </header>
     );
 };

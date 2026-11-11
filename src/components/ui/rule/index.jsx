@@ -1,19 +1,19 @@
 import { useEffect, useState } from "react";
-import RuleElementForm from "./ElementForm";
 import RuleGroupForm from "../group/Group";
 import SavedRules from "./Saved";
 import SavedGroups from "../group/Saved";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../shared/Tab";
 import Encrypt from "../encrypt/Encrypt";
 import Parser from "../parser";
-import CustomerProfile from "../profile/CustomerProfile";
+import CustomerAccounts from "../profile/CustomerAccounts";
 import LtmForm from "../ltm/LtmForm";
+import TestActions from "../test/TestActions";
 
 const ACTIVE_FORM_TAB_KEY = "activeFormTab";
-const FORM_TABS = new Set(["group", "rule", "encrypt", "parser", "profile"]);
+const FORM_TABS = new Set(["group", "encrypt", "parser", "profile"]);
 
 export default function AutoFillRules() {
-  const [show, setShow] = useState('rules');
+  const [show, setShow] = useState('ltm');
   const [whichForm, setWhichForm] = useState(null);
 
   useEffect(() => {
@@ -47,17 +47,12 @@ export default function AutoFillRules() {
         <TabsList className="px-3">
           <TabsTrigger value="encrypt">Encrypt</TabsTrigger>
           <TabsTrigger value="group">Group</TabsTrigger>
-          <TabsTrigger value="rule">Rule</TabsTrigger>
           <TabsTrigger value="parser">Parser</TabsTrigger>
           <TabsTrigger value="profile">Customers</TabsTrigger>
         </TabsList>
 
         <TabsContent value="group">
-          <RuleGroupForm onClose={() => handleFormTabChange('rule')} />
-        </TabsContent>
-
-        <TabsContent value="rule">
-          <RuleElementForm onOpen={() => handleFormTabChange('group')} />
+          <RuleGroupForm onClose={() => handleFormTabChange('parser')} />
         </TabsContent>
 
         <TabsContent value="encrypt">
@@ -69,7 +64,7 @@ export default function AutoFillRules() {
         </TabsContent>
 
         <TabsContent value="profile">
-          <CustomerProfile />
+          <CustomerAccounts />
         </TabsContent>
 
       </Tabs>
@@ -81,6 +76,7 @@ export default function AutoFillRules() {
           <TabsTrigger value="groups">Saved Groups</TabsTrigger>
           <TabsTrigger value="rules">Saved Rules</TabsTrigger>
           <TabsTrigger value="ltm">LTM Form</TabsTrigger>
+          {import.meta.env.DEV && <TabsTrigger value="test">Test</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="groups">
@@ -93,6 +89,11 @@ export default function AutoFillRules() {
         <TabsContent value="ltm">
           <LtmForm />
         </TabsContent>
+        {import.meta.env.DEV && (
+          <TabsContent value="test">
+            <TestActions />
+          </TabsContent>
+        )}
       </Tabs>
     </>
   )

@@ -1,38 +1,63 @@
-import { collectCustomerProfile } from "./customerProfile.js";
+import { SITE_ORIGIN, SITE_URL, isSiteUrl } from "../config/site.js";
+import { collectCustomerProfile } from "../background/customerProfile.js";
+import { resolveCustomerLogout } from "../content/customerLogout.js";
 
 export const CUSTOMER_LOGIN_ACTION = "loginCustomer";
-export const EPROCURE_URL = "https://www.eprocure.gov.bd/";
+export const CUSTOMER_LOGOUT_ACTION = "signOutCustomer";
+export const EPROCURE_URL = SITE_URL;
 
-// Inspect the page without sending customer credentials into an active session.
-export function findCustomerLogout() {
-  if (window.location.origin !== "https://www.eprocure.gov.bd") {
-    return { ok: false, message: "Login stopped because the page left eProcure." };
-  }
-  const link = [...document.querySelectorAll("a[href]")].find((anchor) => {
-    const url = new URL(anchor.href, window.location.href);
-    return url.origin === window.location.origin && url.pathname === "/Logout.jsp" &&
-      anchor.getClientRects().length > 0;
-  });
-  return { ok: true, logoutUrl: link ? new URL(link.href, window.location.href).href : null };
-}
-
-export async function getCustomerSession() {
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  if (!tab?.id) throw new Error("No active browser tab.");
-  if (!tab.url?.startsWith(EPROCURE_URL)) return { loggedIn: false };
-  if (tab.status === "loading") throw new Error("eProcure is loading.");
+async function inspectCustomerLogout(tabId, action = "inspectCustomerSession") {
   const results = await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: findCustomerLogout,
+    target: { tabId },
+    world: "MAIN",
+    func: resolveCustomerLogout,
+    args: [action, SITE_ORIGIN],
   });
   const result = results[0]?.result;
-  if (!result?.ok) throw new Error("Could not check the eProcure session.");
-  return { loggedIn: Boolean(result.logoutUrl) };
+  if (!result?.ok) throw new Error(result?.message || "Could not run the customer logout script on eProcure.");
+  return result;
+}
+
+async function logoutCustomerTab(tabId) {
+  const session = await inspectCustomerLogout(tabId);
+  if (!session.hasLogoutControl) return false;
+  await inspectCustomerLogout(tabId, "logoutCustomer");
+  // Navigation can return before loading begins. Wait for Logout to disappear
+  // before opening the login tab so shared cookies have time to be cleared.
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    const tab = await chrome.tabs.get(tabId);
+    if (tab.url && !isSiteUrl(tab.url)) throw new Error("Logout stopped because the page left eProcure.");
+    if (tab.status === "complete") {
+      try {
+        const result = await inspectCustomerLogout(tabId);
+        if (!result.hasLogoutControl && result.loginForm) return true;
+      } catch { /* The document may be replaced while logout navigates. */ }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error("eProcure did not finish logging out. Please try Login again.");
+}
+
+export async function logoutCustomer() {
+  const tabs = await chrome.tabs.query({ url: `${SITE_ORIGIN}/*` });
+  if (tabs.length === 0) {
+    const tab = await chrome.tabs.create({ url: EPROCURE_URL, active: true });
+    if (!tab?.id) throw new Error("Could not open eProcure to log out.");
+    tabs.push(tab);
+  }
+  tabs.sort((first, second) => Number(Boolean(second.active)) - Number(Boolean(first.active)));
+  for (const tab of tabs) {
+    await waitForLoginTab(tab.id);
+    if (await logoutCustomerTab(tab.id)) return { ok: true };
+    if ((await inspectCustomerLogout(tab.id)).loginForm) return { ok: true };
+  }
+  throw new Error("Could not find the eProcure Logout control or login form in the open tabs.");
 }
 
 // This function is serialized by executeScript, so keep it self-contained.
-export function submitCustomerLogin(email, password) {
-  if (window.location.origin !== "https://www.eprocure.gov.bd") {
+export function submitCustomerLogin(email, password, expectedOrigin) {
+  if (window.location.origin !== expectedOrigin) {
     return { ok: false, message: "Login stopped because the page left eProcure." };
   }
 
@@ -61,12 +86,12 @@ export function submitCustomerLogin(email, password) {
   });
   if (challenge) {
     challenge.focus();
-    return { ok: true, message: "Credentials filled. Complete the verification in the eProcure tab, then click Login." };
+    return { ok: true, submitted: true, message: "Credentials filled. Complete the verification in the eProcure tab, then click Login." };
   }
 
   // Click the site's control to preserve its validation and login handlers.
   button.click();
-  return { ok: true, message: "Login submitted. Check the eProcure tab for the result." };
+  return { ok: true, submitted: true, message: "Login submitted. Check the eProcure tab for the result." };
 }
 
 export function waitForLoginTab(tabId, timeout = 45000) {
@@ -98,41 +123,28 @@ export async function loginCustomer({ email, password, collectProfile = false })
   if (typeof email !== "string" || !email.trim() || typeof password !== "string" || !password) {
     throw new Error("Save an email and password for this customer before logging in.");
   }
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  if (!tab?.id) {
+  const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!activeTab?.id) {
     throw new Error("Select a browser tab before starting customer login.");
   }
-  const navigate = async (url) => {
-    await chrome.tabs.update(tab.id, { url });
-    await waitForLoginTab(tab.id);
-  };
-  const inspectSession = async () => {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: findCustomerLogout,
-    });
-    const result = results[0]?.result;
-    if (!result?.ok) throw new Error(result?.message || "Could not check the eProcure session.");
-    return result;
-  };
-
-  if (!tab.url?.startsWith(EPROCURE_URL)) await navigate(EPROCURE_URL);
+  if (isSiteUrl(activeTab.url)) {
+    await waitForLoginTab(activeTab.id);
+    await logoutCustomerTab(activeTab.id);
+  }
+  const tab = await chrome.tabs.create({ url: EPROCURE_URL, active: true });
+  if (!tab?.id) throw new Error("Could not open the eProcure login tab.");
   await waitForLoginTab(tab.id);
-  const session = await inspectSession();
-  if (session.logoutUrl) {
-    return { ok: true, message: "Already logged in to eProcure. Log out first to sign in as another customer." };
+  // Also handles starting from an unrelated tab with shared eProcure cookies.
+  if (await logoutCustomerTab(tab.id)) {
+    await chrome.tabs.update(tab.id, { url: EPROCURE_URL });
+    await waitForLoginTab(tab.id);
   }
-  // The login form lives on the home page. Recheck after navigation in case
-  // another tab has established a shared session in the meantime.
-  await navigate(EPROCURE_URL);
-  const refreshedSession = await inspectSession();
-  if (refreshedSession.logoutUrl) {
-    return { ok: true, message: "Already logged in to eProcure. Log out first to sign in as another customer." };
-  }
+  const inspectSession = () => inspectCustomerLogout(tab.id);
+  if ((await inspectSession()).hasLogoutControl) throw new Error("eProcure is still logged in. Please try Login again.");
   const results = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: submitCustomerLogin,
-    args: [email.trim(), password],
+    args: [email.trim(), password, SITE_ORIGIN],
   });
   const result = results[0]?.result;
   if (result?.ok) {
@@ -140,7 +152,7 @@ export async function loginCustomer({ email, password, collectProfile = false })
     if (collectProfile) {
       try {
         const profile = await collectCustomerProfile(tab.id, {
-          inspectSession, waitForTab: waitForLoginTab,
+          inspectSession,
         });
         return { ...result, profile, message: "Logged in. Business details collected from Company Details." };
       } catch (error) {

@@ -1,15 +1,15 @@
 import { useState } from "react";
-import { sign_in_with_email } from "../../firebase/methods";
-import { useAuth } from "../../hooks/useAuth";
+import { signInTenantWithEmail } from "../../firebase/methods";
+import { useTenantAuth } from "../../hooks/useTenantAuth";
 
-export default function FormSignin({ switchTo = () => { } }) {
+export default function TenantSignInForm({ switchTo = () => { } }) {
   const [email, setEmail] = useState(import.meta.env.VITE_EMAIL || "");
   const [password, setPassword] = useState(import.meta.env.VITE_PASSWORD || "");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { setToken, setUser } = useAuth();
+  const { setTenantToken, setTenant } = useTenantAuth();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -18,15 +18,15 @@ export default function FormSignin({ switchTo = () => { } }) {
       setLoading(true);
       setError("");
 
-      const credential = await sign_in_with_email(email, password);
+      const credential = await signInTenantWithEmail(email, password);
       const idToken = await credential.user.getIdToken();
       await chrome.storage.local.set({
         auth_token: idToken,
         auth_user: credential.user.toJSON(),
       });
 
-      setToken(idToken);
-      setUser(credential.user.toJSON());
+      setTenantToken(idToken);
+      setTenant(credential.user.toJSON());
 
       setEmail("");
       setPassword("");
@@ -40,7 +40,7 @@ export default function FormSignin({ switchTo = () => { } }) {
   return (
     <div className="p-3 space-y-3 my-4">
       <div className="text-center">
-        <h1 className="text-lg font-semibold">Sign In</h1>
+        <h1 className="text-lg font-semibold">Tenant sign in</h1>
       </div>
 
       <form
@@ -51,7 +51,7 @@ export default function FormSignin({ switchTo = () => { } }) {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
+          placeholder="Tenant email"
           className="default"
         />
 
@@ -60,7 +60,7 @@ export default function FormSignin({ switchTo = () => { } }) {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
+            placeholder="Tenant password"
             className="default"
           />
           <div className="flex justify-end mt-1">
@@ -76,7 +76,7 @@ export default function FormSignin({ switchTo = () => { } }) {
           disabled={loading}
           className="w-full default"
         >
-          {loading ? "Signing in..." : "Sign In"}
+          {loading ? "Signing in..." : "Sign in to tenant"}
         </button>
       </form>
 
@@ -84,7 +84,7 @@ export default function FormSignin({ switchTo = () => { } }) {
         <p className="text-sm">
           Don't have an account?{" "}
           <button type="button" onClick={() => switchTo("signup")} className="text-blue-500">
-            Sign Up
+            Create tenant account
           </button>
         </p>
       </div>

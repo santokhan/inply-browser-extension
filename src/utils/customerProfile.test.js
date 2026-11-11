@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { collectCustomerProfile, findCustomerCompanyLink, findCustomerProfileLink, missingCustomerDetails, readCustomerProfile } from "./customerProfile.js";
+import { missingCustomerDetails } from "./customerProfile.js";
+import { collectCustomerProfile } from "../background/customerProfile.js";
+import { openCompanyDetailsTaba, handleCustomerProfileRequest, findCustomerCompanyLink, findCustomerProfileLink, readCustomerProfile } from "../content/customerProfile.js";
 
 afterEach(() => {
   for (const key of ["window", "document", "chrome"]) delete globalThis[key];
@@ -54,52 +56,86 @@ test("fills either missing detail and preserves already saved fields", () => {
 });
 
 function browser(profile = { businessName: "Collected Co", registeredAddress: "Dhaka" }) {
-  const navigation = [];
-  const injections = [];
+  const actions = [];
+  let url = "https://www.eprocure.gov.bd/Dashboard.jsp";
   globalThis.chrome = {
     tabs: {
-      get: async () => ({ url: "https://www.eprocure.gov.bd/Dashboard.jsp", status: "complete" }),
-      update: async (id, options) => { navigation.push({ id, ...options }); },
+      get: async () => ({ url, status: "complete" }),
+      sendMessage: async (id, message, options) => {
+        assert.equal(id, 7);
+        assert.deepEqual(options, { frameId: 0 });
+        actions.push(message.action);
+        if (message.action === "readCustomerProfile") return { ok: true, profile };
+        url = message.action === "openViewProfilePage"
+          ? "https://www.eprocure.gov.bd/tenderer/ViewRegistrationDetail.jsp?uId=current"
+          : "https://www.eprocure.gov.bd/tenderer/ViewCompanyDetail.jsp?uId=current&tId=tenderer&cId=company";
+        return { ok: true, url };
+      },
     },
-    scripting: { executeScript: async ({ func }) => {
-      injections.push(func);
-      return [{ result: func === findCustomerProfileLink
-        ? "https://www.eprocure.gov.bd/tenderer/ViewRegistrationDetail.jsp?uId=current"
-        : func === findCustomerCompanyLink
-          ? "https://www.eprocure.gov.bd/tenderer/ViewCompanyDetail.jsp?uId=current&tId=tenderer&cId=company"
-          : profile }];
-    } },
   };
-  return { navigation, injections };
+  return { actions };
 }
 
-test("waits for login and both profile and company navigation before reading details", async () => {
-  const { navigation, injections } = browser();
-  let waited = 0;
-  const result = await collectCustomerProfile(7, {
-    inspectSession: async () => ({ logoutUrl: "/Logout.jsp" }),
-    waitForTab: async (id) => { assert.equal(id, 7); waited += 1; },
-  });
-  assert.equal(waited, 2);
+test("requests profile and company navigation from the content script before reading details", async () => {
+  const { actions } = browser();
+  const result = await collectCustomerProfile(7, { inspectSession: async () => ({ hasLogoutControl: true }) });
   assert.equal(result.businessName, "Collected Co");
-  assert.deepEqual(navigation, [
-    { id: 7, url: "https://www.eprocure.gov.bd/tenderer/ViewRegistrationDetail.jsp?uId=current" },
-    { id: 7, url: "https://www.eprocure.gov.bd/tenderer/ViewCompanyDetail.jsp?uId=current&tId=tenderer&cId=company" },
-  ]);
-  assert.deepEqual(injections, [findCustomerProfileLink, findCustomerCompanyLink, readCustomerProfile]);
+  assert.deepEqual(actions, ["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile"]);
 });
 
 test("does not navigate before login is confirmed or after leaving eProcure", async () => {
-  const { navigation } = browser();
+  const { actions } = browser();
   await assert.rejects(collectCustomerProfile(7, { inspectSession: async () => ({}), timeout: 0 }), /Complete eProcure login/);
   chrome.tabs.get = async () => ({ url: "https://example.com", status: "complete" });
-  await assert.rejects(collectCustomerProfile(7, { inspectSession: async () => ({ logoutUrl: "/Logout.jsp" }) }), /left eProcure/);
-  assert.equal(navigation.length, 0);
+  await assert.rejects(collectCustomerProfile(7, { inspectSession: async () => ({ hasLogoutControl: true }) }), /left eProcure/);
+  assert.equal(actions.length, 0);
 });
 
-test("reports missing profile details without returning empty data as a success", async () => {
-  browser({});
+test("reports content script errors without continuing navigation", async () => {
+  browser();
+  chrome.tabs.sendMessage = async () => ({ ok: false, message: "Close the login notice first." });
   await assert.rejects(collectCustomerProfile(7, {
-    inspectSession: async () => ({ logoutUrl: "/Logout.jsp" }), waitForTab: async () => {},
-  }), /Could not find business details/);
+    inspectSession: async () => ({ hasLogoutControl: true }),
+  }), /Close the login notice first/);
+});
+
+test("waits for content-script navigation instead of reading the previous document", async () => {
+  browser();
+  let gets = 0;
+  const get = chrome.tabs.get;
+  chrome.tabs.get = async () => {
+    gets += 1;
+    if (gets === 3) return { url: "https://www.eprocure.gov.bd/Dashboard.jsp", status: "complete" };
+    return get();
+  };
+  const result = await collectCustomerProfile(7, { inspectSession: async () => ({ hasLogoutControl: true }) });
+  assert.equal(result.businessName, "Collected Co");
+  assert.ok(gets >= 6);
+});
+
+test("content script waits for the login notice before visiting View Profile", async () => {
+  globalThis.window = { location: { origin: "https://www.eprocure.gov.bd" }, InplyModalCloser: {
+    close: async () => ({ ready: false, message: "Close the login notice first." }),
+  } };
+  await assert.rejects(handleCustomerProfileRequest("openViewProfilePage", () => assert.fail("Must not navigate")), /Close the login notice first/);
+});
+
+test("content script navigates to the account company link after responding", async () => {
+  globalThis.window = { location: {
+    origin: "https://www.eprocure.gov.bd", pathname: "/tenderer/ViewRegistrationDetail.jsp",
+    href: "https://www.eprocure.gov.bd/tenderer/ViewRegistrationDetail.jsp?uId=current",
+  } };
+  globalThis.document = { querySelectorAll: () => [{ href: "ViewCompanyDetail.jsp?uId=current&cId=company" }] };
+  let destination;
+  const response = await openCompanyDetailsTaba((url) => { destination = url; });
+  assert.equal(response.ok, true);
+  assert.equal(destination, undefined);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(destination, "https://www.eprocure.gov.bd/tenderer/ViewCompanyDetail.jsp?uId=current&cId=company");
+});
+
+test("content script rejects empty business details", async () => {
+  globalThis.window = { location: { origin: "https://www.eprocure.gov.bd", pathname: "/tenderer/ViewCompanyDetail.jsp" } };
+  globalThis.document = { querySelectorAll: () => [] };
+  await assert.rejects(handleCustomerProfileRequest("readCustomerProfile"), /Could not find business details/);
 });

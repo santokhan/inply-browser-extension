@@ -17,6 +17,8 @@ function installLtmRouter(resetRouter) {
     },
   };
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Leave the dedicated profile listener free to send its own reply.
+    if (["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile"].includes(message?.action)) return false;
     const handler = handlers.get(message.action);
     if (!handler) {
       sendResponse({ ok: false, message: `No content-script handler is registered for action "${message.action}".` });
