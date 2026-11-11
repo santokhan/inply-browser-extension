@@ -1,10 +1,12 @@
 import { ltmTenderForms } from "../../../data/ltmTenderForms";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../../../firebase/config";
 import { ArrowDown, ArrowUp } from "lucide-react";
-import SignEncryptSave from "../encrypt/actions/SignEncryptSave";
+import { FillSignEncryptSave } from "../encrypt/actions/FillSignEncryptSave";
+import { getActiveTabSafe } from "../../../utils/chrome";
+import { sendLtmMessage } from "../../../utils/ltmMessaging";
 
 const DEFAULT_FORM_ORDER = Object.keys(ltmTenderForms.forms);
 
@@ -38,6 +40,29 @@ export default function LtmForm() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [reload, setReload] = useState(0);
+  const highlightQueue = useRef(Promise.resolve());
+  const highlightedTab = useRef(null);
+
+  function highlightField(formKey, form, section, field, focused) {
+    highlightQueue.current = highlightQueue.current.then(async () => {
+      if (highlightedTab.current !== null) {
+        const tabId = highlightedTab.current;
+        highlightedTab.current = null;
+        await sendLtmMessage(tabId, { action: "highlightLtmField", focused: false }).catch(() => {});
+      }
+      if (!focused) return;
+      const tab = await getActiveTabSafe();
+      if (!tab?.id) return;
+      highlightedTab.current = tab.id;
+      await sendLtmMessage(tab.id, {
+        action: "highlightLtmField", formKey, form, section, field, focused: true,
+      });
+    }).catch(() => {});
+  }
+
+  useEffect(() => () => {
+    highlightField(null, null, null, null, false);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -83,6 +108,7 @@ export default function LtmForm() {
 
   function updateValue(key, section, field, value) {
     setMessage("");
+    setError("");
     setForms((current) => ({
       ...current,
       [key]: {
@@ -93,6 +119,17 @@ export default function LtmForm() {
         },
       },
     }));
+    // Keep edits ordered with focus/blur messages so typing updates the same tab.
+    highlightQueue.current = highlightQueue.current.then(async () => {
+      const tabId = highlightedTab.current ?? (await getActiveTabSafe())?.id;
+      if (tabId == null) throw new Error("Open the matching LTM webpage to apply this value.");
+      const result = await sendLtmMessage(tabId, {
+        action: "setLtmFieldValue", formKey: key, form: forms[key], section, field, value,
+      });
+      if (!result?.ok) throw new Error(result?.message || "Could not apply the value to the webpage.");
+    }).catch((err) => {
+      setError(err.message || "Reload the webpage and try editing again.");
+    });
   }
 
   async function saveForm(event, key) {
@@ -151,57 +188,62 @@ export default function LtmForm() {
       ) : formOrder.map((key, index) => {
         const form = forms[key];
         return (
-        <div key={key} className="flex items-start gap-2 bg-white rounded-xl p-3 shadow-sm">
-          <div className="flex shrink-0 flex-col gap-1">
-            <button type="button" onClick={() => moveForm(key, -1)} disabled={index === 0 || sorting || saving !== null || runningForm !== null} aria-label={`Move ${form.name} up`} title="Move up" className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-indigo-500 rounded">
-              <ArrowUp size={16} />
-            </button>
-            <button type="button" onClick={() => moveForm(key, 1)} disabled={index === formOrder.length - 1 || sorting || saving !== null || runningForm !== null} aria-label={`Move ${form.name} down`} title="Move down" className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-indigo-500 rounded">
-              <ArrowDown size={16} />
-            </button>
-          </div>
-        <details className="min-w-0 flex-1">
-          <summary className="cursor-pointer text-sm font-medium text-gray-800">
-            {form.name}
-            <div className="flex gap-1 mt-1">
-              <SignEncryptSave
-                buttonLabel="Fill Sign Encrypt Save"
-                className="sm whitespace-nowrap"
-                disabled={saving !== null || sorting || (runningForm !== null && runningForm !== key)}
-                onRunningChange={(running) => setRunningForm(running ? key : null)}
-                beforeRun={(tabId) => chrome.tabs.sendMessage(tabId, { action: "fillLtmForm", formKey: key, form })}
-              />
+          <div key={key} className="flex items-start gap-2 bg-white rounded-xl p-3 shadow-sm">
+            <div className="flex shrink-0 flex-col gap-1">
+              <button type="button" onClick={() => moveForm(key, -1)} disabled={index === 0 || sorting || saving !== null || runningForm !== null} aria-label={`Move ${form.name} up`} title="Move up" className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-indigo-500 rounded">
+                <ArrowUp size={16} />
+              </button>
+              <button type="button" onClick={() => moveForm(key, 1)} disabled={index === formOrder.length - 1 || sorting || saving !== null || runningForm !== null} aria-label={`Move ${form.name} down`} title="Move down" className="text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-indigo-500 rounded">
+                <ArrowDown size={16} />
+              </button>
             </div>
-          </summary>
-          <form onSubmit={(event) => saveForm(event, key)} className="mt-3 space-y-3">
-            <fieldset disabled={saving !== null || sorting || runningForm !== null} className="space-y-3">
-            {form.values ? Object.entries(form.values).map(([section, fields]) => (
-              <section key={section}>
-                <h2 className="text-xs font-semibold text-gray-500 mb-1">
-                  {fieldLabel(section)}
-                </h2>
-                <div className="space-y-1">
-                  {Object.entries(fields).map(([field, value]) => (
-                    <label key={field} className="block text-xs rounded-md bg-indigo-50 px-2 py-2">
-                      <span className="text-gray-600">{fieldLabel(field)}</span>
-                      <input
-                        type="text"
-                        value={value}
-                        onChange={(event) => updateValue(key, section, field, event.target.value)}
-                        className="default mt-1 bg-white"
-                      />
-                    </label>
-                  ))}
+            <details className="min-w-0 flex-1">
+              <summary className="cursor-pointer text-sm font-medium text-gray-800">
+                {form.name}
+                <div className="flex gap-1 mt-1">
+                  <FillSignEncryptSave
+                    formKey={key}
+                    form={form}
+                    className="sm whitespace-nowrap"
+                    disabled={saving !== null || sorting || (runningForm !== null && runningForm !== key)}
+                    onRunningChange={(running) => setRunningForm(running ? key : null)}
+                  />
                 </div>
-              </section>
-            )) : (
-              <p className="text-xs text-gray-500">No preset values for this form.</p>
-            )}
-            {form.values && <button type="submit" className="default w-full">{saving === key ? "Saving..." : "Save values"}</button>}
-            </fieldset>
-          </form>
-        </details>
-        </div>
+              </summary>
+              <form onSubmit={(event) => saveForm(event, key)} className="mt-3 space-y-3">
+                <fieldset disabled={saving !== null || sorting || runningForm !== null} className="space-y-3">
+                  {form.values ? Object.entries(form.values).map(([section, fields]) => (
+                    <section key={section}>
+                      <h2 className="text-xs font-semibold text-gray-500 mb-1">
+                        {fieldLabel(section)}
+                      </h2>
+                      <div className="space-y-1">
+                        {Object.entries(fields).map(([field, value]) => (
+                          <label
+                            key={field}
+                            className="block text-xs rounded-md bg-indigo-50 px-2 py-2"
+                          >
+                            <span className="text-gray-600">{fieldLabel(field)}</span>
+                            <input
+                              type="text"
+                              value={value}
+                              onFocus={() => highlightField(key, form, section, field, true)}
+                              onBlur={() => highlightField(key, form, section, field, false)}
+                              onChange={(event) => updateValue(key, section, field, event.target.value)}
+                              className="default mt-1 bg-white"
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </section>
+                  )) : (
+                    <p className="text-xs text-gray-500">No preset values for this form.</p>
+                  )}
+                  {form.values && <button type="submit" className="default w-full">{saving === key ? "Saving..." : "Save values"}</button>}
+                </fieldset>
+              </form>
+            </details>
+          </div>
         );
       })}
     </div>
