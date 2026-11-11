@@ -20,6 +20,7 @@ const EMPTY_CUSTOMER = {
   businessName: "",
   registeredAddress: "",
 };
+const CUSTOMERS_PER_PAGE = 10;
 
 function customersCollection(uid) {
   return collection(db, "customerOwners", uid, "customers");
@@ -29,6 +30,8 @@ export default function CustomerProfile() {
   const loggedIn = useCustomerSession();
   const [customers, setCustomers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [formOpen, setFormOpen] = useState(false);
   const [customer, setCustomer] = useState(EMPTY_CUSTOMER);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -87,6 +90,7 @@ export default function CustomerProfile() {
   }
 
   function startEdit(item) {
+    setFormOpen(true);
     setEditingId(item.id);
     setCustomer({
       email: item.email || "",
@@ -100,6 +104,7 @@ export default function CustomerProfile() {
   }
 
   function resetForm() {
+    setFormOpen(false);
     setEditingId(null);
     setCustomer(EMPTY_CUSTOMER);
     setShowPassword(false);
@@ -210,17 +215,21 @@ export default function CustomerProfile() {
       (value || "").toLowerCase().includes(normalizedQuery)
     )
   );
+  const pageCount = Math.max(1, Math.ceil(filteredCustomers.length / CUSTOMERS_PER_PAGE));
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = (currentPage - 1) * CUSTOMERS_PER_PAGE;
+  const visibleCustomers = filteredCustomers.slice(pageStart, pageStart + CUSTOMERS_PER_PAGE);
 
   return (
     <div className="m-3 space-y-3">
-      <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+      {!formOpen && <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div>
             <h2 className="text-base font-semibold text-gray-800">My customers</h2>
             <p className="text-xs text-gray-500">{customers.length} saved {customers.length === 1 ? "customer" : "customers"}</p>
           </div>
           {!editingId && (
-            <button type="button" onClick={() => { setError(""); setMessage(""); }} className="secondary flex items-center gap-1">
+            <button type="button" onClick={() => { resetForm(); setFormOpen(true); setError(""); setMessage(""); }} className="secondary flex items-center gap-1">
               <Plus size={14} /> Add customer
             </button>
           )}
@@ -234,13 +243,13 @@ export default function CustomerProfile() {
               <input
                 type="search"
                 value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={(event) => { setSearchQuery(event.target.value); setPage(1); }}
                 placeholder="Search by email, name, or address"
                 className="default pl-8!"
               />
             </label>
             {searchQuery && (
-              <button type="button" onClick={() => setSearchQuery("")} aria-label="Clear customer search" title="Clear search" className="secondary shrink-0 p-2">
+              <button type="button" onClick={() => { setSearchQuery(""); setPage(1); }} aria-label="Clear customer search" title="Clear search" className="secondary shrink-0 p-2">
                 <X size={16} />
               </button>
             )}
@@ -260,12 +269,12 @@ export default function CustomerProfile() {
         )}
 
         {customers.length === 0 ? (
-          <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500">No customers yet. Add a customer below.</p>
+          <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500">No customers yet. Select Add customer to get started.</p>
         ) : filteredCustomers.length === 0 ? (
           <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500">No customers match your search.</p>
         ) : (
           <ul className="space-y-2">
-            {filteredCustomers.map((item) => (
+            {visibleCustomers.map((item) => (
               <li key={item.id} className="rounded-lg border border-gray-200 p-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1 space-y-0.5 text-sm">
@@ -314,17 +323,30 @@ export default function CustomerProfile() {
             ))}
           </ul>
         )}
-      </div>
+        {pageCount > 1 && (
+          <nav aria-label="Customer pages" className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+            <p role="status">{pageStart + 1}–{Math.min(pageStart + CUSTOMERS_PER_PAGE, filteredCustomers.length)} of {filteredCustomers.length}</p>
+            <div className="flex items-center gap-2">
+              <button type="button" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)} className="secondary disabled:opacity-50">Previous</button>
+              <span>Page {currentPage} of {pageCount}</span>
+              <button type="button" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)} className="secondary disabled:opacity-50">Next</button>
+            </div>
+          </nav>
+        )}
+      </div>}
 
-      <form onSubmit={saveCustomer} className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm space-y-3">
+      {formOpen && <form onSubmit={saveCustomer} className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-800">{editingId ? "Edit customer" : "Add a customer"}</h3>
-          {editingId && <button type="button" aria-label="Cancel edit" onClick={resetForm} className="secondary p-1"><X size={16} /></button>}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800">{editingId ? "Edit customer" : "Add a customer"}</h3>
+            <p>Add e-GP Customer Details</p>
+          </div>
+          <button type="button" disabled={saving} aria-label={editingId ? "Cancel edit" : "Cancel adding customer"} onClick={() => { resetForm(); setError(""); setMessage(""); }} className="secondary flex items-center gap-1"><X size={16} /> Cancel</button>
         </div>
 
         <label className="block space-y-1 text-xs font-medium text-gray-700">
           Customer email
-          <input type="email" autoComplete="off" value={customer.email} onChange={(e) => update("email", e.target.value)} className="default" required />
+          <input type="email" autoComplete="off" autoFocus value={customer.email} onChange={(e) => update("email", e.target.value)} className="default" required />
         </label>
 
         <label className="block space-y-1 text-xs font-medium text-gray-700">
@@ -347,13 +369,12 @@ export default function CustomerProfile() {
           <textarea rows={2} autoComplete="street-address" value={customer.registeredAddress} onChange={(e) => update("registeredAddress", e.target.value)} className="default resize-y" />
         </label>
 
-        {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
-        {message && <p role="status" className="text-xs text-green-700">{message}</p>}
-
         <button type="submit" disabled={saving} className="default w-full">
           {saving ? "Saving…" : editingId ? "Save changes" : "Add customer"}
         </button>
-      </form>
+      </form>}
+      {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+      {message && <p role="status" className="text-xs text-green-700">{message}</p>}
     </div>
   );
 }
