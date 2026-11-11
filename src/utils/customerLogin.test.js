@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { findCustomerLogout, getCustomerSession, loginCustomer, submitCustomerLogin, waitForLoginTab } from "./customerLogin.js";
+import { findCustomerCompanyLink, findCustomerProfileLink, readCustomerProfile } from "./customerProfile.js";
 
 afterEach(() => {
   for (const key of ["chrome", "window", "document", "HTMLInputElement"]) delete globalThis[key];
@@ -194,4 +195,43 @@ test("cleans up listeners on page timeout and tab closure", async () => {
   for (const listener of events.removed) listener(7);
   await assert.rejects(pending, /closed/);
   assert.equal(events.updated.size + events.removed.size, 0);
+});
+
+test("collects profile details only after this customer's login establishes a session", async () => {
+  loginPage();
+  browser();
+  const calls = [];
+  let loggedIn = false;
+  chrome.scripting.executeScript = async ({ func }) => {
+    calls.push(func);
+    if (func === findCustomerLogout) return [{ result: { ok: true, logoutUrl: loggedIn ? "/Logout.jsp" : null } }];
+    if (func === submitCustomerLogin) {
+      loggedIn = true;
+      return [{ result: { ok: true, message: "Login submitted." } }];
+    }
+    if (func === findCustomerProfileLink) return [{ result: "https://www.eprocure.gov.bd/tenderer/ViewRegistrationDetail.jsp?uId=selected" }];
+    if (func === findCustomerCompanyLink) return [{ result: "https://www.eprocure.gov.bd/tenderer/ViewCompanyDetail.jsp?uId=selected&tId=tenderer&cId=company" }];
+    if (func === readCustomerProfile) return [{ result: { businessName: "Selected Co", registeredAddress: "Dhaka" } }];
+    assert.fail("Unexpected injection");
+  };
+  const destinations = [];
+  chrome.tabs.update = async (id, { url }) => { destinations.push(url); };
+  const result = await loginCustomer({ email: "customer@example.com", password: "secret", collectProfile: true });
+  assert.deepEqual(result.profile, { businessName: "Selected Co", registeredAddress: "Dhaka" });
+  assert.deepEqual(destinations.slice(-2), [
+    "https://www.eprocure.gov.bd/tenderer/ViewRegistrationDetail.jsp?uId=selected",
+    "https://www.eprocure.gov.bd/tenderer/ViewCompanyDetail.jsp?uId=selected&tId=tenderer&cId=company",
+  ]);
+  assert.ok(calls.indexOf(submitCustomerLogin) < calls.indexOf(findCustomerProfileLink));
+});
+
+test("does not collect another customer's profile from an existing signed-in session", async () => {
+  loginPage();
+  browser();
+  document.querySelectorAll = () => [{ href: "/Logout.jsp", getClientRects: () => [1] }];
+  chrome.tabs.query = async () => [{ id: 7, url: "https://www.eprocure.gov.bd/Dashboard.jsp" }];
+  chrome.tabs.update = async () => { assert.fail("Existing sessions must not be navigated for profile collection"); };
+  const result = await loginCustomer({ email: "another@example.com", password: "secret", collectProfile: true });
+  assert.match(result.message, /Already logged in/);
+  assert.equal(result.profile, undefined);
 });

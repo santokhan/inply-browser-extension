@@ -6,11 +6,13 @@ import { AuthProvider } from "./contexts/AuthProvider";
 import { GroupProvider } from "./contexts/GroupContext";
 import { RulesProvider } from "./contexts/RulesContext";
 import FormAuth from "./components/form/auth";
+import ModalCloser from "./components/shared/ModalCloser";
 
 export default function App() {
   return (
     <AuthProvider>
       <Header />
+      <ModalCloser />
       <Protected
         fallback={
           <FormAuth />

@@ -1,3 +1,5 @@
+import { collectCustomerProfile } from "./customerProfile.js";
+
 export const CUSTOMER_LOGIN_ACTION = "loginCustomer";
 export const EPROCURE_URL = "https://www.eprocure.gov.bd/";
 
@@ -92,7 +94,7 @@ export function waitForLoginTab(tabId, timeout = 45000) {
   });
 }
 
-export async function loginCustomer({ email, password }) {
+export async function loginCustomer({ email, password, collectProfile = false }) {
   if (typeof email !== "string" || !email.trim() || typeof password !== "string" || !password) {
     throw new Error("Save an email and password for this customer before logging in.");
   }
@@ -135,6 +137,16 @@ export async function loginCustomer({ email, password }) {
   const result = results[0]?.result;
   if (result?.ok) {
     await chrome.storage.local.set({ encryptPassword: password });
+    if (collectProfile) {
+      try {
+        const profile = await collectCustomerProfile(tab.id, {
+          inspectSession, waitForTab: waitForLoginTab,
+        });
+        return { ...result, profile, message: "Logged in. Business details collected from Company Details." };
+      } catch (error) {
+        return { ...result, message: `${result.message} ${error.message}` };
+      }
+    }
   }
   return result || { ok: false, message: "Could not fill the eProcure login form. Please try again." };
 }

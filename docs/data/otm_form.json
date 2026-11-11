@@ -1,0 +1,60 @@
+{
+  "method": "OTM",
+  "standardDocument": "e-PW3",
+  "source": "https://bppa.gov.bd/upload/standarddocument/2025-10-26-15-24-51-e-PW3.pdf",
+  "notes": "Documentation template for the e-PW3 tender forms. Field values and editable webpage field counts must be confirmed before implementing autofill. Other OTM standard documents may use different forms.",
+  "forms": {
+    "e_tender_submission_letter": {
+      "name": "Tender Submission Letter (Form e-PW3-1)",
+      "encrypted": false,
+      "expectedFieldCount": null,
+      "values": {}
+    },
+    "tenderer_information": {
+      "name": "Tenderer Information (Form e-PW3-2)",
+      "encrypted": false,
+      "expectedFieldCount": null,
+      "values": {}
+    },
+    "jv_partner_information": {
+      "name": "JV Partner Information (Form e-PW3-3)",
+      "applicability": "If applicable",
+      "encrypted": false,
+      "expectedFieldCount": null,
+      "values": {}
+    },
+    "subcontractor_information": {
+      "name": "Subcontractor Information (Form e-PW3-4)",
+      "applicability": "If applicable",
+      "encrypted": false,
+      "expectedFieldCount": null,
+      "values": {}
+    },
+    "personnel_information": {
+      "name": "Personnel Information (Form e-PW3-5)",
+      "encrypted": false,
+      "expectedFieldCount": null,
+      "values": {}
+    },
+    "tenderers_capacity_information": {
+      "name": "Tenderer's Capacity Information (Form e-PW3-6)",
+      "encrypted": false,
+      "expectedFieldCount": null,
+      "values": {}
+    },
+    "bank_guarantee_for_tender_security": {
+      "name": "Bank Guarantee for Tender Security (Form e-PW3-7)",
+      "applicability": "When this option is chosen",
+      "encrypted": false,
+      "expectedFieldCount": null,
+      "values": {}
+    },
+    "banks_letter_of_commitment_for_line_of_credit": {
+      "name": "Bank's Letter of Commitment for Line of Credit (Form e-PW3-8)",
+      "applicability": "When this option is chosen",
+      "encrypted": false,
+      "expectedFieldCount": null,
+      "values": {}
+    }
+  }
+}

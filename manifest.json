@@ -30,6 +30,11 @@
                 "src/content/parser.js"
             ],
             "run_at": "document_idle"
+        },
+        {
+            "matches": ["https://www.eprocure.gov.bd/*"],
+            "js": ["src/content/modalCloser.js"],
+            "run_at": "document_idle"
         }
     ],
     "icons": {

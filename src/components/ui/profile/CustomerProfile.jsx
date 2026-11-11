@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  runTransaction,
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
@@ -13,6 +14,7 @@ import { Eye, EyeOff, LogIn, Pencil, Plus, Search, Trash2, X } from "lucide-reac
 import { auth, db } from "../../../firebase/config";
 import { CUSTOMER_LOGIN_ACTION } from "../../../utils/customerLogin";
 import useCustomerSession from "../../../hooks/useCustomerSession";
+import { missingCustomerDetails } from "../../../utils/customerProfile";
 
 const EMPTY_CUSTOMER = {
   email: "",
@@ -179,12 +181,35 @@ export default function CustomerProfile() {
     setError("");
     setMessage("");
     try {
+      const ownerUid = auth.currentUser?.uid;
+      if (!ownerUid) throw new Error("Sign in again before logging in a customer.");
       const result = await chrome.runtime.sendMessage({
         action: CUSTOMER_LOGIN_ACTION,
         email: item.email,
         password: item.password,
+        collectProfile: !item.businessName?.trim() || !item.registeredAddress?.trim(),
       });
       if (!result?.ok) throw new Error(result?.message || "Could not start the customer login.");
+      if (result.profile) {
+        if (auth.currentUser?.uid !== ownerUid) throw new Error("Sign in again to save the collected business details.");
+        const customerRef = doc(db, "customerOwners", ownerUid, "customers", item.id);
+        const details = await runTransaction(db, async (transaction) => {
+          const snapshot = await transaction.get(customerRef);
+          if (!snapshot.exists()) throw new Error("The customer was removed before business details could be saved.");
+          const current = snapshot.data();
+          if (current.email?.trim().toLowerCase() !== item.email?.trim().toLowerCase()) {
+            throw new Error("The customer email changed before business details could be saved.");
+          }
+          const missing = missingCustomerDetails(current, result.profile);
+          if (Object.keys(missing).length) {
+            transaction.update(customerRef, { ...missing, updatedAt: serverTimestamp() });
+          }
+          return missing;
+        });
+        if (Object.keys(details).length) {
+          setCustomers((records) => records.map((record) => record.id === item.id ? { ...record, ...details } : record));
+        }
+      }
       setMessage(result.message);
     } catch (err) {
       setError(err.message || "Could not start the customer login.");
