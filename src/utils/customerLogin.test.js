@@ -333,9 +333,9 @@ test("does not open a new tab, disclose credentials, or collect a profile if log
   await assert.rejects(loginCustomer({ email: "another@example.com", password: "secret" }), /Logout failed/);
 });
 
-test("rejected credentials stop profile collection, preserve the password, and allow another login", async () => {
-  loginPage();
-  const { stored } = browser();
+test("failed login submits once and a separate login call starts the next attempt", async () => {
+  const page = loginPage();
+  const { stored, created } = browser();
   const executeScript = chrome.scripting.executeScript;
   let rejected = true;
   chrome.scripting.executeScript = async (options) => {
@@ -346,9 +346,13 @@ test("rejected credentials stop profile collection, preserve the password, and a
   };
   chrome.tabs.sendMessage = async () => assert.fail("Failed login must stop before collecting profile details");
   await assert.rejects(loginCustomer({ email: "customer@example.com", password: "wrong" }), /Customer login failed.*Invalid email or password/);
+  assert.equal(page.button.clicks, 1);
+  assert.equal(created.length, 1);
   assert.equal(stored.encryptPassword, "previous-password");
   rejected = false;
   assert.equal((await loginCustomer({ email: "customer@example.com", password: "correct" })).ok, true);
+  assert.equal(page.button.clicks, 2);
+  assert.equal(created.length, 2);
   assert.equal(stored.encryptPassword, "correct");
 });
 
@@ -367,4 +371,30 @@ test("login inspection reads the visible rejection message from the page", () =>
     ? [{ textContent: "Invalid email or password.", getClientRects: () => [1] }] : [];
   const inspect = new Function(`return (${resolveCustomerLogout.toString()})`)();
   assert.equal(inspect("inspectCustomerLogin", SITE_ORIGIN).loginError, "Invalid email or password.");
+});
+
+test("a completed rejected response fails on the first check even without a recognized error element", async () => {
+  browser();
+  let inspections = 0;
+  chrome.scripting.executeScript = async () => {
+    inspections += 1;
+    assert.equal(inspections, 1);
+    return [{ documentId: "rejected-page", result: { ok: true, hasLogoutControl: false, loginForm: true } }];
+  };
+  await assert.rejects(waitForCustomerLogin(8, { submittedDocumentId: "original-login-page" }), /Customer login failed/);
+  assert.equal(inspections, 1);
+});
+
+test("visible login rejection is detected while page resources are still loading", async () => {
+  browser();
+  chrome.tabs.get = async () => ({ status: "loading" });
+  chrome.scripting.executeScript = async () => [{ result: { ok: true, loginError: "Incorrect password." } }];
+  await assert.rejects(waitForCustomerLogin(8), /Incorrect password/);
+});
+
+test("login inspection recognizes a password rejection outside the known error selectors", () => {
+  loginPage();
+  document.body = { innerText: "Login\nYour email ID or Password is incorrect.\nForgot password?" };
+  const inspect = new Function(`return (${resolveCustomerLogout.toString()})`)();
+  assert.equal(inspect("inspectCustomerLogin", SITE_ORIGIN).loginError, "Your email ID or Password is incorrect.");
 });

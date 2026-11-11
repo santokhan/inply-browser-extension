@@ -25,7 +25,9 @@ export function resolveCustomerLogout(action = "inspectCustomerSession", expecte
   if (action === "inspectCustomerLogin") {
     const error = [...document.querySelectorAll('[role="alert"], .error, .error-message, .errorMessage, .alert-danger, #error, #errorMsg, #errorMessage, #popup_message')]
       .find((element) => element.getClientRects().length > 0 && element.textContent?.trim());
-    return { ok: true, hasLogoutControl, loginForm, loginError: loginForm ? error?.textContent.trim() || "" : "" };
+    const rejection = /(?:invalid|incorrect|wrong)\s+(?:user(?:name)?|e-?mail|password|credentials)|(?:user(?:name)?|e-?mail|password|credentials)[^\n.]{0,60}(?:invalid|incorrect|wrong)|authentication\s+failed|login\s+failed|account[^\n.]{0,40}(?:locked|disabled|blocked)/i;
+    const message = error?.textContent.trim() || (document.body?.innerText || "").split("\n").find((line) => rejection.test(line))?.trim() || "";
+    return { ok: true, hasLogoutControl, loginForm, loginError: loginForm ? message : "" };
   }
   if (action === "logoutCustomer" && control) control.click();
   return { ok: true, hasLogoutControl, loginForm };

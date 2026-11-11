@@ -15,7 +15,7 @@ async function inspectCustomerLogout(tabId, action = "inspectCustomerSession") {
   });
   const result = results[0]?.result;
   if (!result?.ok) throw new Error(result?.message || "Could not run the customer logout script on eProcure.");
-  return result;
+  return { ...result, documentId: results[0]?.documentId };
 }
 
 async function logoutCustomerTab(tabId) {
@@ -119,21 +119,25 @@ export function waitForLoginTab(tabId, timeout = 45000) {
   });
 }
 
-export async function waitForCustomerLogin(tabId, { timeout = 30000 } = {}) {
+export async function waitForCustomerLogin(tabId, { timeout = 30000, submittedDocumentId } = {}) {
   const deadline = Date.now() + timeout;
+  let navigationStarted = false;
   while (Date.now() < deadline) {
     let tab;
     try { tab = await chrome.tabs.get(tabId); }
     catch { throw new Error("Customer login failed because the eProcure tab was closed. Try again."); }
     if (tab.url && !isSiteUrl(tab.url)) throw new Error("Customer login failed because the tab left eProcure.");
-    if (tab.status === "complete") {
-      let session;
-      try { session = await inspectCustomerLogout(tabId, "inspectCustomerLogin"); }
-      catch { /* Login navigation can replace the document during inspection. */ }
-      if (session?.hasLogoutControl) return;
-      if (session?.loginError) throw new Error(`Customer login failed. ${session.loginError}`);
+    if (tab.status === "loading") navigationStarted = true;
+    let session;
+    try { session = await inspectCustomerLogout(tabId, "inspectCustomerLogin"); }
+    catch { /* Login navigation can replace the document during inspection. */ }
+    if (session?.hasLogoutControl) return;
+    if (session?.loginError) throw new Error(`Customer login failed. ${session.loginError}`);
+    const documentChanged = submittedDocumentId && session?.documentId && session.documentId !== submittedDocumentId;
+    if (tab.status === "complete" && session?.loginForm && (documentChanged || navigationStarted)) {
+      throw new Error("Customer login failed. Check the email and password, then click Login to try again.");
     }
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error("Customer login failed. Check the email, password, and any verification on eProcure, then try again.");
 }
@@ -168,7 +172,7 @@ export async function loginCustomer({ email, password }) {
   const result = results[0]?.result;
   if (result?.ok) {
     if (!result.submitted) return { ...result, tabId: tab.id };
-    await waitForCustomerLogin(tab.id);
+    await waitForCustomerLogin(tab.id, { submittedDocumentId: results[0]?.documentId });
     await chrome.storage.local.set({ encryptPassword: password });
   }
   return result ? { ...result, tabId: tab.id, message: result.ok ? "Customer logged in." : result.message } : { ok: false, message: "Could not fill the eProcure login form. Please try again." };

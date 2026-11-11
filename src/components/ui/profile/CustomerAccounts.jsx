@@ -1,5 +1,5 @@
 import { tenantCustomersPath, tenantCustomerPath } from "../../../data/tenantCustomerPaths.js";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   addDoc,
   collection,
@@ -47,6 +47,7 @@ export default function CustomerAccounts() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loggingInId, setLoggingInId] = useState(null);
+  const loginPending = useRef(false);
 
   const loadCustomers = useCallback(async () => {
     const tenant = tenantAuth.currentUser;
@@ -199,6 +200,8 @@ export default function CustomerAccounts() {
   }
 
   async function loginCustomer(item) {
+    if (loginPending.current) return;
+    loginPending.current = true;
     setLoggingInId(item.id);
     setError("");
     setMessage("");
@@ -223,6 +226,7 @@ export default function CustomerAccounts() {
       setError(message);
       toast.error(message);
     } finally {
+      loginPending.current = false;
       setLoggingInId(null);
     }
   }
