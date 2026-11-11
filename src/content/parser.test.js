@@ -9,10 +9,12 @@ const source = installPageParser.toString().replace(
   "function getCurrentParsedFields() { return fields;",
 );
 
-function page(title, count, selectOptions) {
+function page(title, count, selectOptions, timers = { setTimeout }) {
+  const interactions = [];
   class Input {
     value = "original";
     events = [];
+    listeners = new Map();
     style = {
       outline: "1px solid red", outlineOffset: "0px", boxShadow: "none",
       setProperty(name, value) {
@@ -20,25 +22,53 @@ function page(title, count, selectOptions) {
       },
     };
     scrollIntoView() {}
-    dispatchEvent(event) { this.events.push(event.type); }
+    focus() { interactions.push("focus"); }
+    blur() {
+      if (timers.nativeBlur !== false) this.dispatchEvent({ type: "blur" });
+    }
+    addEventListener(type, callback) { this.listeners.set(type, callback); }
+    removeEventListener(type) { this.listeners.delete(type); }
+    dispatchEvent(event) {
+      this.events.push(event.type);
+      interactions.push(event.type);
+      this.listeners.get(event.type)?.(event);
+    }
   }
   class Select extends Input {
     options = selectOptions;
   }
   const fields = Array.from({ length: count }, () => selectOptions ? new Select() : new Input());
+  const elements = new Map();
+  const bodyAttributes = new Map();
   const handlers = new Map();
   const context = createContext({
     window: { InplyContentRouter: { register: (key, handler) => handlers.set(key, handler) } },
-    document: { body: { innerText: title } },
+    document: {
+      body: {
+        innerText: title,
+        click: () => interactions.push("document click"),
+        focus: () => interactions.push("document focus"),
+        getAttribute: (name) => bodyAttributes.get(name) ?? null,
+        setAttribute: (name, value) => bodyAttributes.set(name, value),
+        removeAttribute: (name) => bodyAttributes.delete(name),
+      },
+      getElementById: (id) => elements.get(id),
+    },
+    setTimeout: timers.setTimeout,
+    Date: timers.Date || Date,
     HTMLInputElement: Input,
     HTMLSelectElement: Select,
     HTMLTextAreaElement: class extends Input {},
     Event: class { constructor(type) { this.type = type; } },
+    FocusEvent: class { constructor(type) { this.type = type; } },
     fields,
   });
   runInContext(`(${source})();`, context);
   return {
     fields,
+    elements,
+    bodyAttributes,
+    interactions,
     select: (index, options) => {
       const field = new Select();
       field.options = options;
@@ -118,6 +148,89 @@ test("fills the expected table fields in preset order, including blank strings",
   assert.equal(fields[10].value, "3000000");
   assert.equal(fields[12].value, "");
   assert.deepEqual(fields[0].events, ["input", "change"]);
+});
+
+function quotedPricePage(nativeBlur = true) {
+  let now = 0;
+  let nextCheck;
+  const fixture = page("Tenderer's Quoted Price", 1, undefined, {
+    Date: { now: () => now },
+    nativeBlur,
+    setTimeout: (callback) => { nextCheck = callback; },
+  });
+  fixture.fields[0].id = "row2820025_1_2";
+  const outputs = ["1_3", "1_4", "2_3", "2_4"].map((suffix) => {
+    const output = { value: "Previous calculation", readOnly: true };
+    fixture.elements.set(`row2820025_${suffix}`, output);
+    return output;
+  });
+  return {
+    ...fixture,
+    outputs,
+    advance(milliseconds) { now += milliseconds; nextCheck(); },
+  };
+}
+
+test("quoted price waits for delayed server outputs and a stable grand total before completing", async () => {
+  const { fields, outputs, interactions, fill, advance } = quotedPricePage();
+  let completed = false;
+  const pending = fill("tenderers_quoted_price").then((result) => {
+    completed = true;
+    return result;
+  });
+  assert.equal(fields[0].value, "-5");
+  assert.deepEqual(interactions, ["focus", "input", "change", "blur", "document focus", "document click"]);
+  assert.ok(outputs.every((output) => output.value === ""));
+  advance(2000);
+  outputs[0].value = "1330000.000";
+  outputs[1].value = "Thirteen lakh thirty thousand";
+  advance(100);
+  await Promise.resolve();
+  assert.equal(completed, false);
+  outputs[2].value = "1330000.000";
+  outputs[3].value = "Thirteen lakh thirty thousand";
+  advance(100);
+  advance(200);
+  await Promise.resolve();
+  assert.equal(completed, false);
+  outputs[3].value += " taka";
+  advance(100);
+  advance(200);
+  await Promise.resolve();
+  assert.equal(completed, false);
+  advance(100);
+  assert.equal((await pending).ok, true);
+  assert.equal(completed, true);
+});
+
+test("quoted price stops the workflow if server outputs never finish", async () => {
+  const { outputs, fill, advance } = quotedPricePage();
+  const pending = fill("tenderers_quoted_price");
+  outputs[0].value = "0";
+  advance(30000);
+  const result = await pending;
+  assert.equal(result.ok, false);
+  assert.match(result.message, /30 seconds/);
+});
+
+test("quoted price dispatches blur when native blur is suppressed and restores body tabindex", async () => {
+  for (const tabIndex of [null, "0"]) {
+    const { fields, bodyAttributes, interactions, fill, advance } = quotedPricePage(false);
+    if (tabIndex !== null) bodyAttributes.set("tabindex", tabIndex);
+    const pending = fill("tenderers_quoted_price");
+    assert.deepEqual(interactions, ["focus", "input", "change", "document focus", "blur", "focusout", "document click"]);
+    assert.equal(bodyAttributes.get("tabindex") ?? null, tabIndex);
+    assert.equal(fields[0].events.filter((event) => event === "blur").length, 1);
+    advance(30000);
+    assert.equal((await pending).ok, false);
+  }
+});
+
+test("quoted price reports missing calculation controls before triggering a request", () => {
+  const { elements, fill, interactions } = quotedPricePage();
+  elements.delete("row2820025_2_4");
+  assert.equal(fill("tenderers_quoted_price").ok, false);
+  assert.equal(interactions.includes("document click"), false);
 });
 
 test("rejects mismatched form identity and counts without changing any fields", () => {

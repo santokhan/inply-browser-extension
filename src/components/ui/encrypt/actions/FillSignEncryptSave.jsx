@@ -115,7 +115,7 @@ export function FillSignEncryptSave({ pageReady = true, beforeRun, className = "
   return (
     <PageActionButton pageReady={pageReady} className={className} onClick={handleRunAll} disabled={running || disabled} title={beforeRun ? "This will fill the form, sign and verify, encrypt, and save the page." : undefined}>
       {/* Total 3 actions */}
-      {running ? status || "Running..." : pageReady ? "Sign Encrypt Save" : "Waiting for page..."}
+      {running ? status || "Running..." : pageReady ? "Fill Sign Encrypt Save" : "Waiting for page..."}
     </PageActionButton>
   );
 }

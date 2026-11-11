@@ -301,6 +301,65 @@ export function installPageParser() {
 
   window.InplyContentRouter?.register("setLtmFieldValue", setLtmFieldValue);
 
+  function waitForQuotedPriceCalculation(field) {
+    const tableId = (field.id || field.name || "").match(/^row(\d+)_\d+_2$/)?.[1];
+    const outputIds = ["1_3", "1_4", "2_3", "2_4"].map((suffix) => `row${tableId}_${suffix}`);
+    const outputs = outputIds.map((id) => document.getElementById(id));
+    if (!tableId || outputs.some((output) => !output?.readOnly)) {
+      return { ok: false, message: "Could not find the quoted price calculation fields. Reload the page and try again." };
+    }
+
+    // Invalidate previous results so only the new calculation can permit signing.
+    for (const output of outputs) output.value = "";
+    let blurFired = false;
+    const onBlur = () => { blurFired = true; };
+    field.addEventListener("blur", onBlur);
+    field.blur();
+    // Clicking body programmatically does not move focus. Move it explicitly,
+    // preserving the page's original tabindex.
+    const bodyTabIndex = document.body.getAttribute("tabindex");
+    document.body.setAttribute("tabindex", "-1");
+    document.body.focus({ preventScroll: true });
+    if (bodyTabIndex === null) document.body.removeAttribute("tabindex");
+    else document.body.setAttribute("tabindex", bodyTabIndex);
+    field.removeEventListener("blur", onBlur);
+    // The extension side panel can leave the webpage unfocused. In that case
+    // native blur may emit no event, so explicitly trigger the page's onblur.
+    if (!blurFired) {
+      field.dispatchEvent(new FocusEvent("blur", { relatedTarget: document.body }));
+      field.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: document.body }));
+    }
+    document.body.click();
+
+    return new Promise((resolve) => {
+      const deadline = Date.now() + 30000;
+      let previousValues = "";
+      let stableSince = null;
+      function checkCalculation() {
+        // Read live values because the page may replace controls or set .value
+        // without changing an HTML attribute or dispatching a DOM event.
+        const values = outputIds.map((id) => String(document.getElementById(id)?.value ?? "").trim());
+        const snapshot = JSON.stringify(values);
+        if (values.every((value) => value !== "")) {
+          if (snapshot !== previousValues) stableSince = Date.now();
+          if (Date.now() - stableSince >= 300) {
+            resolve({ ok: true, count: 1 });
+            return;
+          }
+        } else {
+          stableSince = null;
+        }
+        previousValues = snapshot;
+        if (Date.now() >= deadline) {
+          resolve({ ok: false, message: "Quoted price calculation did not finish within 30 seconds. Wait for the server response and try again." });
+          return;
+        }
+        setTimeout(checkCalculation, 100);
+      }
+      setTimeout(checkCalculation, 100);
+    });
+  }
+
   function fillLtmForm(formKey, form) {
     const normalize = (value) => String(value ?? "").replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, " ").trim().toLowerCase();
     if (!matchesLtmForm(formKey)) {
@@ -337,12 +396,16 @@ export function installPageParser() {
       return { ok: false, message: `Invalid preset for ${label}.${options ? ` Choose from: ${options}.` : " Enter a text value."} Nothing was filled or signed.` };
     }
     for (const { field, value } of assignments) {
+      if (formKey === "tenderers_quoted_price") field.focus();
       const prototype = field instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype
         : field instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
       const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
       if (setter) setter.call(field, value); else field.value = value;
       field.dispatchEvent(new Event("input", { bubbles: true }));
       field.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    if (formKey === "tenderers_quoted_price") {
+      return waitForQuotedPriceCalculation(assignments[0].field);
     }
     return { ok: true, count: assignments.length };
   }
