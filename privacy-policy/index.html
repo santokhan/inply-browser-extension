@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <meta name="description" content="Privacy policy for Inply (Auto Field Filler), covering browser permissions, Firebase account and customer data, local storage, and deletion requests." />
+    <meta name="referrer" content="no-referrer" />
+    <title>Privacy Policy | Inply — Auto Field Filler</title>
+    <style>
+      :root {
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #243047;
+        background: #f5f6fa;
+        line-height: 1.75;
+        -webkit-text-size-adjust: 100%;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      a { color: #6335a2; text-underline-offset: 0.2em; overflow-wrap: anywhere; }
+      a:hover { color: #43216f; }
+      a:focus-visible { outline: 3px solid #6335a2; outline-offset: 4px; }
+      .skip-link { position: absolute; top: -100px; left: 16px; padding: 8px 16px; background: white; }
+      .skip-link:focus { top: 12px; }
+      .page { max-width: 880px; margin: auto; padding: 52px 24px 36px; }
+      header { padding: 0 8px 30px; }
+      .brand { margin: 0 0 18px; color: #6335a2; font-weight: 750; font-size: 1.1rem; }
+      h1 { margin: 0 0 12px; color: #192339; font-size: clamp(2.1rem, 6vw, 3rem); line-height: 1.15; letter-spacing: -0.035em; }
+      .date { margin: 0; color: #586478; font-size: 0.9rem; }
+      main { padding: 36px 40px; border: 1px solid #e1e4ed; border-radius: 18px; background: #fff; }
+      h2 { margin: 0 0 12px; color: #192339; font-size: 1.25rem; line-height: 1.4; letter-spacing: -0.015em; }
+      h3 { margin: 22px 0 6px; color: #192339; font-size: 1rem; }
+      p { margin: 0 0 16px; }
+      section { margin-top: 32px; scroll-margin-top: 24px; }
+      ul { margin: 12px 0 16px; padding-left: 22px; }
+      li { padding-left: 3px; margin: 8px 0; }
+      strong { color: #192339; }
+      nav { margin-top: 24px; padding: 18px 22px; border-radius: 10px; background: #f6f3fb; }
+      nav ul { display: flex; flex-wrap: wrap; gap: 8px 22px; list-style: none; margin: 0; padding: 0; }
+      nav li { padding: 0; margin: 0; }
+      .notice { padding: 18px 20px; border-left: 3px solid #8054bc; background: #f6f3fb; border-radius: 0 8px 8px 0; }
+      .notice p:last-child, section > p:last-child { margin-bottom: 0; }
+      footer { padding: 24px 8px 0; color: #586478; font-size: 0.85rem; }
+      footer p { margin: 0; }
+      @media (max-width: 600px) {
+        .page { padding: 32px 16px 24px; }
+        main { padding: 24px 20px; border-radius: 12px; }
+        nav ul { gap: 8px 16px; }
+      }
+      @media print {
+        :root { color: #000; background: #fff; font-size: 10pt; }
+        .page { max-width: none; padding: 0; }
+        main { padding: 0; border: 0; }
+        nav, .skip-link { display: none; }
+        header { padding-left: 0; }
+        h2, h3 { break-after: avoid; }
+        a { color: inherit; }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#policy">Skip to privacy policy</a>
+    <div class="page">
+      <header>
+        <p class="brand">Inply · Auto Field Filler</p>
+        <h1>Privacy policy</h1>
+        <p class="date">Effective and last updated <time datetime="2026-11-12">November 12, 2026</time></p>
+      </header>
+
+      <main id="policy">
+        <p>Inply, listed in the extension manifest as <strong>Auto Field Filler</strong>, is a browser extension developed by Santo Khan. It helps users manage customer accounts, fill forms, and perform tender-related actions on Bangladesh's e-GP website at www.eprocure.gov.bd.</p>
+        <p>This policy explains how the extension processes information when you use these features, and how to contact the developer about your data.</p>
+
+        <nav aria-label="Privacy policy sections">
+          <ul>
+            <li><a href="#information">Information</a></li>
+            <li><a href="#use">Use and storage</a></li>
+            <li><a href="#permissions">Permissions</a></li>
+            <li><a href="#providers">Service providers</a></li>
+            <li><a href="#choices">Your choices</a></li>
+            <li><a href="#contact">Contact</a></li>
+          </ul>
+        </nav>
+
+        <section id="information" aria-labelledby="information-heading">
+          <h2 id="information-heading">Information the extension processes</h2>
+          <ul>
+            <li><strong>Your extension account.</strong> Your email address and password are sent to Firebase Authentication for account creation and sign-in. Account identifiers, authentication tokens, and session information are used to maintain your signed-in session and support password reset requests.</li>
+            <li><strong>Saved customer accounts.</strong> Customer email addresses, e-GP passwords, business names, registered addresses, bank names, and branch names that you enter are saved with your extension account in Cloud Firestore. Records also include identifiers and creation or update timestamps.</li>
+            <li><strong>Business details collected from e-GP.</strong> When you request collection of missing customer details, the extension reads the business name, registered address, bank name, and branch name from the signed-in customer's e-GP profile and saves available missing details to that customer's record.</li>
+            <li><strong>Form and tender information.</strong> The extension reads form structure, field labels, selectors, options, and field values to parse, highlight, and fill forms. Saved rules can contain the values you enter or capture. Saved LTM tender forms and customer-specific tenderer details can include business, personnel, financial, or other information you choose to enter.</li>
+            <li><strong>Local preferences and workflow state.</strong> Saved form-filling rules, rule groups, the selected form tab, active customer details, relevant tab identifiers, a reusable signing or encryption password, and temporary action state are kept in browser storage.</li>
+          </ul>
+        </section>
+
+        <section id="use" aria-labelledby="use-heading">
+          <h2 id="use-heading">How information is used and stored</h2>
+          <p>Information is used to authenticate your extension account, retrieve and maintain saved customers and tender forms, restore preferences, log in to e-GP with your selected customer, collect requested business details, and carry out form-filling, signing, encryption, decryption, and saving actions.</p>
+          <h3>Storage on your device</h3>
+          <p>The extension uses browser extension local storage and browser-managed authentication persistence. Account setup also stores a refresh token in localStorage. Local rules, preferences, selected customer details, tokens, and reusable passwords may persist between browser sessions.</p>
+          <h3>Cloud storage</h3>
+          <p>Firebase Authentication handles your extension account. Google Cloud Firestore stores saved customer records, including customer passwords, and saved LTM tender forms under your account identifier. Older customer profile records may also exist from earlier versions.</p>
+          <div class="notice">
+            <p><strong>How saved passwords work</strong></p>
+            <p>Customer e-GP passwords are stored as retrievable values in Firestore. The reusable signing or encryption password is stored as a retrievable value in browser local storage. The extension writes these values directly, with protection relying on the browser, device, and Firebase service configuration. Authorized application access can retrieve these values for login and password-verification workflows.</p>
+          </div>
+          <h3>Interaction with e-GP</h3>
+          <p>When you use customer login, the selected customer's credentials are entered into the e-GP login form and submitted to e-GP. Form values and saved passwords are inserted into relevant e-GP fields when you run the associated actions. Actions can activate the website's own sign, encrypt, decrypt, and save controls. e-GP processes the resulting submissions and manages its own website session.</p>
+          <p>When you choose a copy action, the selected value, including a customer password when selected, is written to your device's clipboard.</p>
+        </section>
+
+        <section id="permissions" aria-labelledby="permissions-heading">
+          <h2 id="permissions-heading">Browser permissions</h2>
+          <ul>
+            <li><strong>storage</strong> saves rules, preferences, authentication information, selected customer details, reusable passwords, and workflow state.</li>
+            <li><strong>activeTab</strong> allows interaction with the active tab for extension actions.</li>
+            <li><strong>scripting</strong> runs extension code to inspect, highlight, and fill fields and operate supported website controls.</li>
+            <li><strong>sidePanel</strong> displays the extension interface in the browser side panel.</li>
+            <li><strong>Access to https://www.eprocure.gov.bd/*</strong> allows content scripts to run on matching e-GP pages, read relevant page content and session indicators, navigate supported customer profile pages, and carry out extension workflows.</li>
+          </ul>
+          <p>Content scripts load automatically on matching e-GP pages. They can monitor page changes and continue pending actions, such as password verification or saving, across page navigation. Relevant tab URLs and page links are inspected to direct these workflows.</p>
+        </section>
+
+        <section id="providers" aria-labelledby="providers-heading">
+          <h2 id="providers-heading">Service providers and recipients</h2>
+          <p>Data flows to the services used for the features described above.</p>
+          <ul>
+            <li><strong>Google Firebase</strong> provides account authentication and cloud database storage. Firebase may process technical information, such as IP addresses and request metadata, when servicing these connections. Processing locations depend on the Firebase services and project configuration. <a href="https://firebase.google.com/support/privacy">Firebase privacy and security information</a>.</li>
+            <li><strong>Bangladesh e-GP</strong> receives credentials, form values, and website actions through its pages. Its own privacy terms and practices govern its handling of that information. <a href="https://www.eprocure.gov.bd/">Bangladesh e-GP website</a>.</li>
+            <li><strong>Netlify</strong> hosts this privacy policy page when deployed there. Serving the page involves processing connection information, such as an IP address and request metadata. <a href="https://www.netlify.com/privacy/">Netlify privacy statement</a>.</li>
+          </ul>
+          <p>The extension's implemented data flows serve authentication, account and form storage, and the e-GP workflows described in this policy. This policy page consists of static HTML and CSS, with all styling included in the file.</p>
+        </section>
+
+        <section id="choices" aria-labelledby="choices-heading">
+          <h2 id="choices-heading">Retention, deletion, and your choices</h2>
+          <p>Local information persists until it is overwritten, removed through available extension controls, or cleared using browser controls. You can edit or delete saved rules and groups, edit or delete customer records, and update saved tender form values through the extension.</p>
+          <p>Cloud records persist until deleted. Deleting a customer removes that customer record from the current customer list in Firestore. Related saved tender details, legacy profile records, and local password copies have separate storage and may require additional deletion. Uninstalling the extension removes its local extension storage, while cloud account records and e-GP submissions have their own retention.</p>
+          <p>For account deletion, removal of associated cloud data or legacy records, or questions about access and correction, contact Santo Khan using the link below. Include the email address associated with your extension account and describe your request. Identity verification may be needed to identify the correct records. Keep passwords and authentication tokens private when contacting support.</p>
+          <p>You control the customer information you enter and the collection actions you initiate. Use customer credentials and personal information with the account holder's authorization. You can manage the extension's site access, disable it, or uninstall it through your browser's extension settings.</p>
+        </section>
+
+        <section id="changes" aria-labelledby="changes-heading">
+          <h2 id="changes-heading">Changes to this policy</h2>
+          <p>Updates to this policy will be published on this page with a revised date. Review it when installing an updated extension or using newly added features.</p>
+        </section>
+
+        <section id="contact" aria-labelledby="contact-heading">
+          <h2 id="contact-heading">Contact the developer</h2>
+          <p>For privacy questions or data requests, contact Santo Khan through the developer profile linked in the extension. Mention Inply / Auto Field Filler so the request can be identified. <a href="https://facebook.com/SantoKhan1999" rel="noreferrer">Contact Santo Khan on Facebook</a>.</p>
+        </section>
+      </main>
+
+      <footer>
+        <p>Inply · Auto Field Filler · Developed by Santo Khan</p>
+      </footer>
+    </div>
+  </body>
+</html>
