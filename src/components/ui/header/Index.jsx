@@ -19,13 +19,13 @@ const Header = () => {
             <div className="flex items-center">
                 <img
                     src="/assets/images/logo-white.png"
-                    alt="logo"
+                    alt="Tenddoo logo"
                     className="rounded-full size-9 object-cover aspect-square"
                 />
 
                 <div className="min-w-0 grow">
                     <h2 className="text-lg font-bold leading-none text-primary-600">
-                        Inply
+                        Tenddoo
                     </h2>
                 </div>
 

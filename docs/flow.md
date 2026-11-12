@@ -6,7 +6,7 @@
 
 ```mermaid
 flowchart TD
-    Open["Open Inply"] --> Session{"Tenant session available?"}
+    Open["Open Tenddoo"] --> Session{"Tenant session available?"}
     Session -->|Yes| Dashboard["Show dashboard"]
     Session -->|No| SignIn["Show sign-in form"]
 ```
@@ -135,7 +135,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Tender["Open target tender form in eProcure"] --> Ltm["Open LTM Form in Inply"]
+    Tender["Open target tender form in eProcure"] --> Ltm["Open LTM Form in Tenddoo"]
     Ltm --> Load["Load presets and customer details"]
     Load --> Review["Review or edit values"]
     Review --> Run["Click Fill Sign Encrypt Save"]
@@ -169,7 +169,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Page["Open target form in browser"] --> Rules["Open Saved Rules in Inply"]
+    Page["Open target form in browser"] --> Rules["Open Saved Rules in Tenddoo"]
     Rules --> Select["Select a saved rule"]
     Select --> Apply["Click Apply"]
 ```

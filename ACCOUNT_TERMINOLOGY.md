@@ -2,7 +2,7 @@
 
 | Name | Meaning | Code |
 | --- | --- | --- |
-| Tenant | The person or organization signed in to the Inply extension through Firebase. Owns saved customers and automation data. | `tenantAuth`, `TenantAuthProvider`, `useTenantAuth()`, `tenant`, `tenantUid` |
+| Tenant | The person or organization signed in to the Tenddoo extension through Firebase. Owns saved customers and automation data. | `tenantAuth`, `TenantAuthProvider`, `useTenantAuth()`, `tenant`, `tenantUid` |
 | Customer | A saved eProcure account that the tenant can select and log in to. | `CustomerAccounts`, `CustomerSessionProvider`, `useCustomerSession()`, `currentCustomer` |
 | Active customer | A saved customer selected only by submitting a login through the extension's Login button. Selected independently of the browser's website session. The customer logout button clicks the website Logout control before clearing the selection. | `CustomerSessionProvider`, `currentCustomer` |
 
