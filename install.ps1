@@ -1,10 +1,10 @@
 $ErrorActionPreference = 'Stop'
 
-$url = 'https://github.com/santokhan/download/raw/refs/heads/main/inply.zip'
-$tempDir = Join-Path $env:TEMP 'inply-extension-install'
-$zipFile = Join-Path $tempDir 'inply.zip'
+$url = 'https://github.com/santokhan/download/raw/refs/heads/main/tenddoo.zip'
+$tempDir = Join-Path $env:TEMP 'tenddoo-extension-install'
+$zipFile = Join-Path $tempDir 'tenddoo.zip'
 $extractDir = Join-Path $tempDir 'extracted'
-$targetDir = Join-Path $env:LOCALAPPDATA 'BrowserExtensions\inply'
+$targetDir = Join-Path $env:LOCALAPPDATA 'BrowserExtensions\tenddoo'
 
 try {
     Write-Host "`n1. Preparing temporary directory..." -ForegroundColor Cyan
