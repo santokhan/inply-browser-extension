@@ -1,3 +1,6 @@
+import AuthLayout from "./AuthLayout";
+import { EmailField } from "./AuthFields";
+import { ArrowRight, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import { sendTenantPasswordReset } from "../../firebase/methods";
 
@@ -20,7 +23,7 @@ export default function TenantForgotPasswordForm({ switchTo = () => { } }) {
 
       setSuccess("Password reset email sent");
 
-      switchTo("signin");
+
     } catch (err) {
       setError(err.message || "Request failed");
     } finally {
@@ -29,42 +32,18 @@ export default function TenantForgotPasswordForm({ switchTo = () => { } }) {
   }
 
   return (
-    <div className="p-3 space-y-3 my-4">
-      <div className="text-center">
-        <h1 className="text-lg font-semibold">Forgot Password</h1>
-      </div>
-
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm space-y-3"
-      >
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Tenant email"
-          className="default"
-        />
-
-        {error && <p className="text-xs text-red-500">{error}</p>}
-        {success && <p className="text-xs text-green-600">{success}</p>}
-
-        <button
-          disabled={loading}
-          className="w-full py-2 text-white bg-indigo-600 rounded-lg"
-        >
-          {loading ? "Sending..." : "Send Reset Email"}
+    <AuthLayout mode="forgot">
+      <form onSubmit={handleSubmit} className="auth-form" aria-busy={loading}>
+        <EmailField value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} />
+        {error && <p className="auth-message auth-error" role="alert">{error}</p>}
+        {success && <p className="auth-message auth-success" role="status">{success}. Check your inbox for the link.</p>}
+        <button type="submit" disabled={loading} className="auth-submit">
+          {loading && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
+          {loading ? "Sending reset link..." : "Send reset link"}
+          {!loading && <ArrowRight size={16} aria-hidden="true" />}
         </button>
       </form>
-
-      <div className="text-center">
-        <p className="text-sm">
-          Remember your password?{" "}
-          <button type="button" onClick={() => switchTo("signin")} className="text-blue-500">
-            Tenant sign in
-          </button>
-        </p>
-      </div>
-    </div>
+      <p className="auth-switch">Ready to return? <button type="button" onClick={() => switchTo("signin")} className="auth-link" disabled={loading}>Back to sign in</button></p>
+    </AuthLayout>
   );
 }

@@ -1,3 +1,6 @@
+import AuthLayout from "./AuthLayout";
+import { EmailField, PasswordField } from "./AuthFields";
+import { ArrowRight, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import { signUpTenantWithEmail } from "../../firebase/methods";
 import { useTenantAuth } from "../../hooks/useTenantAuth";
@@ -41,50 +44,20 @@ export default function TenantSignUpForm({ switchTo = () => { } }) {
   }
 
   return (
-    <div className="p-3 space-y-3 my-4">
-      <div className="text-center">
-        <h1 className="text-lg font-semibold">Create tenant account</h1>
-      </div>
-
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm space-y-2"
-      >
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Tenant email"
-          className="default"
-        />
-
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Tenant password"
-          className="default"
-        />
-
-        {error && <p className="text-xs text-red-500">{error}</p>}
-        {success && <p className="text-xs text-green-600">{success}</p>}
-
-        <button
-          disabled={loading}
-          className="default w-full"
-        >
-          {loading ? "Creating..." : "Create tenant account"}
+    <AuthLayout mode="signup">
+      <form onSubmit={handleSubmit} className="auth-form" aria-busy={loading}>
+        <EmailField value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} />
+        <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} creating />
+        {error && <p className="auth-message auth-error" role="alert">{error}</p>}
+        {success && <p className="auth-message auth-success" role="status">{success}</p>}
+        <button type="submit" disabled={loading} className="auth-submit">
+          {loading ? <LoaderCircle size={16} className="animate-spin" aria-hidden="true" /> : null}
+          {loading ? "Creating your account..." : "Create account"}
+          {!loading && <ArrowRight size={16} aria-hidden="true" />}
         </button>
       </form>
-
-      <div className="text-center">
-        <p className="text-sm">
-          Already have an account?{" "}
-          <button type="button" onClick={() => switchTo("signin")} className="text-blue-500">
-            Tenant sign in
-          </button>
-        </p>
-      </div>
-    </div>
+      <p className="auth-switch">Already have an account? <button type="button" onClick={() => switchTo("signin")} className="auth-link" disabled={loading}>Sign in</button></p>
+      <p className="auth-account-note">Your Tenddoo account is separate from your eProcure login.</p>
+    </AuthLayout>
   );
 }

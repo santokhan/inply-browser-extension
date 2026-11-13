@@ -1,3 +1,6 @@
+import AuthLayout from "./AuthLayout";
+import { EmailField, PasswordField } from "./AuthFields";
+import { ArrowRight, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import { signInTenantWithEmail } from "../../firebase/methods";
 import { useTenantAuth } from "../../hooks/useTenantAuth";
@@ -38,56 +41,20 @@ export default function TenantSignInForm({ switchTo = () => { } }) {
   }
 
   return (
-    <div className="p-3 space-y-3 my-4">
-      <div className="text-center">
-        <h1 className="text-lg font-semibold">Tenant sign in</h1>
-      </div>
-
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm space-y-3"
-      >
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Tenant email"
-          className="default"
-        />
-
-        <div className="">
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Tenant password"
-            className="default"
-          />
-          <div className="flex justify-end mt-1">
-            <button type="button" className="text-blue-500" onClick={() => { switchTo("forgot") }}>
-              Forgot Password
-            </button>
-          </div>
-        </div>
-
-        {error && <p className="text-xs text-red-500">{error}</p>}
-
-        <button
-          disabled={loading}
-          className="w-full default"
-        >
-          {loading ? "Signing in..." : "Sign in to tenant"}
+    <AuthLayout mode="signin">
+      <form onSubmit={handleSubmit} className="auth-form" aria-busy={loading}>
+        <EmailField value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} />
+        <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} />
+        <div className="auth-forgot"><button type="button" className="auth-link" onClick={() => switchTo("forgot")} disabled={loading}>Forgot password?</button></div>
+        {error && <p className="auth-message auth-error" role="alert">{error}</p>}
+        <button type="submit" disabled={loading} className="auth-submit">
+          {loading ? <LoaderCircle size={16} className="animate-spin" aria-hidden="true" /> : null}
+          {loading ? "Signing in..." : "Sign in"}
+          {!loading && <ArrowRight size={16} aria-hidden="true" />}
         </button>
       </form>
-
-      <div className="text-center">
-        <p className="text-sm">
-          Don't have an account?{" "}
-          <button type="button" onClick={() => switchTo("signup")} className="text-blue-500">
-            Create tenant account
-          </button>
-        </p>
-      </div>
-    </div>
+      <p className="auth-switch">New to Tenddoo? <button type="button" onClick={() => switchTo("signup")} className="auth-link" disabled={loading}>Create an account</button></p>
+      <p className="auth-account-note">Use your Tenddoo account to manage your saved eProcure customers.</p>
+    </AuthLayout>
   );
 }
