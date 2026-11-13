@@ -1,75 +1,54 @@
-# Tenant wallet
+﻿# Tenant wallet
 
 Each Firebase tenant has one wallet at `tenantWallets/{tenantUid}`, shared across
-their devices and customers. New wallets receive 50 credits. Each following week
-starts Monday at 00:00 UTC and adds 50 credits. Credits carry over. When a tenant
-returns after several weeks, all weeks since the last grant are credited.
+their devices and customers. It stores two balances.
 
-Grants are applied in a Firestore transaction when the extension opens, returns
-to the foreground, reconnects, or remains open across the weekly boundary. No
-background server job is required; inactive wallets receive their accumulated
-grants on their next successful refresh. Concurrent sessions and transaction
-retries cannot grant the same week twice. Offline failures show a retry action.
-There are no purchases, transfers, spending, or automation charges in this change.
+- `grantBalance` contains the current week's free credits. Each Monday at 00:00
+  UTC, unused grants expire and this balance resets to 50. Missed weeks do not
+  accumulate.
+- `purchasedBalance` contains purchased credits. These have no expiry date and
+  survive weekly grant resets. Only a trusted server or administrator can change
+  this balance.
 
-## Required Firestore rules
+`lastGrantWeek` identifies the grant week. The badge shows the main purchased
+credit balance. The profile dropdown shows this balance and a separate weekly
+free-credit bucket with its remaining allowance out of 50. Users can use the
+bucket throughout the week, including emptying it. Each weekly refill resets
+the bucket to 50. The two balances are independent and are never added together.
 
-The complete combined rules, including the existing customer and LTM rules
-provided by the user, are saved in [`../firestore.rules`](../firestore.rules).
-This local file has not been published to Firebase.
+The extension loads the wallet when it opens and schedules one timer for the
+weekly refill. Failed requests can be retried with the Retry button. Reopen the
+extension to see balance changes made on another device. An inactive wallet is
+updated on its next successful refresh. Previous weeks' grants are excluded
+from the displayed free-credit bucket even if a refresh fails. A Firestore
+transaction prevents concurrent sessions from refilling the same week twice.
 
-Add this block **inside the existing `match /databases/{database}/documents`
-block** in the Firebase Console and publish it. Preserve the existing rules for
-other collections. Do not deploy this block as a replacement for the whole rules
-file. No rule deployment is configured in this repository.
+## Existing wallets
 
-```text
-match /tenantWallets/{uid} {
-  function ownsWallet() {
-    return request.auth != null && request.auth.uid == uid;
-  }
-  function currentWeek() {
-    return int((request.time.toMillis() - 345600000) / 604800000);
-  }
-  function validWallet() {
-    let data = request.resource.data;
-    return data.keys().hasOnly(['balance', 'lastGrantWeek', 'createdAt', 'updatedAt'])
-      && data.balance is int
-      && data.balance >= 0
-      && data.balance <= 9007199254740991
-      && data.lastGrantWeek is int
-      && data.lastGrantWeek == currentWeek()
-      && data.updatedAt == request.time;
-  }
+The previous `balance` field contained only grants. On the next successful
+refresh, the extension replaces it with `grantBalance` and `purchasedBalance`.
+For a wallet already credited this week, it retains up to 50 remaining grant
+credits. For an older wallet, it replaces expired grants with this week's 50
+credits. Purchased credits start at zero for these legacy wallets.
 
-  allow get: if ownsWallet();
-  allow create: if ownsWallet()
-    && validWallet()
-    && request.resource.data.balance == 50
-    && request.resource.data.createdAt == request.time;
-  allow update: if ownsWallet()
-    && validWallet()
-    && request.resource.data.createdAt == resource.data.createdAt
-    && resource.data.lastGrantWeek < currentWeek()
-    && request.resource.data.balance == resource.data.balance
-      + (currentWeek() - resource.data.lastGrantWeek) * 50;
-}
-```
+## Firestore rules
 
-The server clock validates the grant week and exact credit increase. An incorrect
-device clock cannot claim future grants; correct the clock and retry if needed.
-Ensure no broader overlapping rule permits wallet writes: Firestore allows an
-operation when **any** matching allow rule grants it.
+The complete combined rules are saved in [`firestore.rules`](../firestore.rules).
+Publish the updated rules in the Firebase Console before using the updated
+extension. The local rules file has not been deployed from this repository.
 
-Before production, verify these rules in the Firebase Rules Playground or
-Firestore emulator: allow owner reads and initial 50-credit creation; allow an
-exact 50-credit increase per elapsed week; reject another tenant, unauthenticated
-access, same-week grants, arbitrary balances, future weeks, changed creation
-timestamps, added fields, listing and deletion. The Node unit tests exercise the
-grant calculations; they do not execute Firebase security rules.
+The wallet rules validate the current week using Firebase's server clock. They
+allow creation with 50 grant credits and zero purchased credits, legacy wallet
+migration, and weekly grant resets that preserve purchased credits. Same-week
+resets and client changes to purchased credits are rejected. Existing customer
+and LTM collection rules are included in the file.
 
-The amount is defined in `src/utils/tenantWallet.js` and in the rules above.
-Change both together when changing the weekly allowance.
+Verify these rules in the Firebase Rules Playground or emulator before
+production. Check initial creation, legacy migration, weekly resets with
+purchased credits preserved, and denial of same-week resets, purchased-balance
+changes, other tenants, unauthenticated requests, listing and deletion. The Node
+tests cover wallet calculations and migration. Security rules have not been
+executed locally.
 
-References: [field validation](https://firebase.google.com/docs/firestore/security/rules-fields),
-[server request time](https://firebase.google.com/docs/reference/rules/rules.firestore.Request).
+The weekly amount is defined in `src/utils/tenantWallet.js` and `firestore.rules`.
+Update both when changing the allowance.

@@ -3,6 +3,7 @@ import { db, tenantAuth } from "./config";
 import { weeklyWalletUpdate } from "../utils/tenantWallet.js";
 
 export async function refreshTenantWallet(tenantUid) {
+  await tenantAuth.authStateReady();
   if (!tenantUid || tenantAuth.currentUser?.uid !== tenantUid) {
     throw new Error("Sign in to load your tenant wallet.");
   }
@@ -15,9 +16,9 @@ export async function refreshTenantWallet(tenantUid) {
 
     transaction.set(reference, {
       ...update,
-      ...(wallet ? {} : { createdAt: serverTimestamp() }),
+      createdAt: wallet ? wallet.createdAt : serverTimestamp(),
       updatedAt: serverTimestamp(),
-    }, { merge: true });
-    return { ...wallet, ...update };
+    });
+    return update;
   });
 }

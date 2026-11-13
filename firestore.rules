@@ -30,29 +30,51 @@ service cloud.firestore {
         let data = request.resource.data;
 
         return data.keys().hasOnly([
-            'balance', 'lastGrantWeek', 'createdAt', 'updatedAt'
+            'grantBalance', 'purchasedBalance', 'lastGrantWeek', 'createdAt', 'updatedAt'
           ])
-          && data.balance is int
-          && data.balance >= 0
-          && data.balance <= 9007199254740991
+          && data.grantBalance is int
+          && data.grantBalance >= 0
+          && data.grantBalance <= 50
+          && data.purchasedBalance is int
+          && data.purchasedBalance >= 0
+          && data.purchasedBalance <= 9007199254740991
           && data.lastGrantWeek is int
           && data.lastGrantWeek == currentWeek()
           && data.updatedAt == request.time;
+      }
+
+      function migratesLegacyWallet() {
+        let previous = resource.data;
+        let next = request.resource.data;
+        return previous.keys().hasOnly(['balance', 'lastGrantWeek', 'createdAt', 'updatedAt'])
+          && previous.balance is int
+          && previous.balance >= 0
+          && previous.lastGrantWeek is int
+          && previous.lastGrantWeek <= currentWeek()
+          && next.purchasedBalance == 0
+          && next.grantBalance == (previous.lastGrantWeek < currentWeek()
+            ? 50 : (previous.balance < 50 ? previous.balance : 50));
+      }
+
+      function refreshesWeeklyGrant() {
+        return resource.data.lastGrantWeek < currentWeek()
+          && request.resource.data.grantBalance == 50
+          && request.resource.data.purchasedBalance == resource.data.purchasedBalance;
       }
 
       allow get: if ownsWallet();
 
       allow create: if ownsWallet()
         && validWallet()
-        && request.resource.data.balance == 50
+        && request.resource.data.grantBalance == 50
+        && request.resource.data.purchasedBalance == 0
         && request.resource.data.createdAt == request.time;
 
       allow update: if ownsWallet()
         && validWallet()
         && request.resource.data.createdAt == resource.data.createdAt
-        && resource.data.lastGrantWeek < currentWeek()
-        && request.resource.data.balance == resource.data.balance
-          + (currentWeek() - resource.data.lastGrantWeek) * 50;
+        && (('balance' in resource.data && migratesLegacyWallet())
+          || (!('balance' in resource.data) && refreshesWeeklyGrant()));
     }
 
     match /{document=**} {

@@ -13,15 +13,30 @@ export function nextWalletGrantAt(now = Date.now()) {
 
 export function weeklyWalletUpdate(wallet, now = Date.now()) {
   const week = walletWeek(now);
-  if (!wallet) return { balance: WEEKLY_FREE_CREDITS, lastGrantWeek: week };
+  if (!wallet) return { grantBalance: WEEKLY_FREE_CREDITS, purchasedBalance: 0, lastGrantWeek: week };
 
-  if (!Number.isSafeInteger(wallet.balance) || wallet.balance < 0 ||
-      !Number.isSafeInteger(wallet.lastGrantWeek)) {
+  if (!Number.isSafeInteger(wallet.lastGrantWeek)) {
     throw new Error("The tenant wallet data is invalid.");
   }
-  const elapsedWeeks = week - wallet.lastGrantWeek;
-  if (elapsedWeeks <= 0) return null;
-  const balance = wallet.balance + elapsedWeeks * WEEKLY_FREE_CREDITS;
-  if (!Number.isSafeInteger(balance)) throw new Error("The tenant wallet balance is too large.");
-  return { balance, lastGrantWeek: week };
+
+  // The original wallet contained only grants, with no purchased credits.
+  if (Object.hasOwn(wallet, "balance")) {
+    if (!Number.isSafeInteger(wallet.balance) || wallet.balance < 0 ||
+        Object.hasOwn(wallet, "purchasedBalance") || Object.hasOwn(wallet, "grantBalance")) {
+      throw new Error("The tenant wallet data is invalid.");
+    }
+    if (wallet.lastGrantWeek > week) throw new Error("Check your device clock and retry.");
+    const grantBalance = wallet.lastGrantWeek === week
+      ? Math.min(wallet.balance, WEEKLY_FREE_CREDITS)
+      : WEEKLY_FREE_CREDITS;
+    return { grantBalance, purchasedBalance: 0, lastGrantWeek: week };
+  }
+
+  if (!Number.isSafeInteger(wallet.grantBalance) || wallet.grantBalance < 0 ||
+      wallet.grantBalance > WEEKLY_FREE_CREDITS ||
+      !Number.isSafeInteger(wallet.purchasedBalance) || wallet.purchasedBalance < 0) {
+    throw new Error("The tenant wallet data is invalid.");
+  }
+  if (wallet.lastGrantWeek >= week) return null;
+  return { grantBalance: WEEKLY_FREE_CREDITS, purchasedBalance: wallet.purchasedBalance, lastGrantWeek: week };
 }

@@ -1,21 +1,33 @@
-import { useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { tenantAuth } from "../../../firebase/config";
+import { useEffect, useId, useRef, useState } from "react";
+import { LogOut } from "lucide-react";
 import { refreshTenantWallet } from "../../../firebase/tenantWallet";
-import { nextWalletGrantAt, WEEKLY_FREE_CREDITS } from "../../../utils/tenantWallet.js";
+import { nextWalletGrantAt, walletWeek, WEEKLY_FREE_CREDITS } from "../../../utils/tenantWallet.js";
 
-export default function TenantWallet({ tenantUid }) {
+export default function TenantWallet({ tenantUid, tenantName, tenantInitial, tenantEmail, onSignOut, signingOut }) {
   const [wallet, setWallet] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const triggerRef = useRef(null);
+  const dropdownId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event) => {
+      if (!dropdownRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [open]);
 
   useEffect(() => {
     let active = true;
     let pending = false;
     let timer;
     const refresh = async () => {
-      if (!active || pending || tenantAuth.currentUser?.uid !== tenantUid) return;
+      if (!active || pending) return;
       pending = true;
       setLoading(true);
       setError("");
@@ -34,46 +46,90 @@ export default function TenantWallet({ tenantUid }) {
         }
       }
     };
-    const unsubscribe = onAuthStateChanged(tenantAuth, (user) => {
-      if (user?.uid === tenantUid) {
-        void refresh();
-      } else {
-        setWallet(null);
-        setLoading(false);
-        setError("Sign in to load your tenant wallet.");
-      }
-    });
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("online", refresh);
+    void refresh();
     return () => {
       active = false;
       clearTimeout(timer);
-      unsubscribe();
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("online", refresh);
     };
   }, [tenantUid, attempt]);
 
+  const grantBalance = wallet?.lastGrantWeek === walletWeek() ? wallet.grantBalance : 0;
+  const balance = wallet?.purchasedBalance ?? 0;
+
   return (
-    <section aria-label="Tenant wallet" className="mx-3 my-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-primary-700">Wallet</h2>
-        <span role="status" className="text-sm font-bold text-primary-700">
-          {loading ? "Updating…" : wallet ? `${wallet.balance.toLocaleString()} credits` : "Unavailable"}
+    <div
+      ref={dropdownRef}
+      className="relative"
+      onBlur={(event) => {
+        if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) {
+          setOpen(false);
+        }
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && open) {
+          setOpen(false);
+          triggerRef.current?.focus();
+        }
+      }}
+    >
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label={`Tenant profile for ${tenantName}`}
+        aria-expanded={open}
+        aria-controls={dropdownId}
+        onClick={() => setOpen((value) => !value)}
+        className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 p-1 pr-3 text-primary-700 hover:bg-primary-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+      >
+        <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold">
+          {tenantInitial}
         </span>
-      </div>
-      <p className="mt-1 text-xs text-gray-600">
-        {WEEKLY_FREE_CREDITS} free credits every Monday (UTC). Unused credits carry over.
-      </p>
-      {error && (
-        <div role="alert" className="mt-1 text-xs text-red-700">
-          {error}{" "}
-          <button type="button" disabled={loading} onClick={() => setAttempt((value) => value + 1)} className="underline disabled:opacity-50">Retry</button>
+        <span role="status" aria-label="Credit balance" className="max-w-32 truncate whitespace-nowrap text-xs font-semibold">
+          {loading ? "Updating…" : wallet ? balance.toLocaleString() : "Unavailable"}
+        </span>
+      </button>
+      {open && (
+        <div id={dropdownId} className="absolute right-0 top-full z-50 mt-2 w-64 max-w-[calc(100vw-1.5rem)] rounded-xl border border-gray-200 bg-white p-3 text-sm shadow-lg">
+          <p className="break-words font-semibold text-gray-900">{tenantName}</p>
+          {tenantEmail && tenantEmail !== tenantName && (
+            <p className="mt-0.5 break-words text-xs text-gray-500">{tenantEmail}</p>
+          )}
+          <div className="my-3 border-y border-gray-100 py-3">
+            {wallet && (
+              <dl className="mt-2 space-y-1 text-xs text-gray-700">
+                <div className="flex justify-between gap-2">
+                  <dt>Main credit balance</dt>
+                  <dd>{balance.toLocaleString()}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt>Weekly free credits</dt>
+                  <dd>{grantBalance.toLocaleString()} / {WEEKLY_FREE_CREDITS}</dd>
+                </div>
+              </dl>
+            )}
+            <p className="mt-1 text-xs leading-relaxed text-gray-600">
+              Free credits reset to {WEEKLY_FREE_CREDITS} every Monday at 00:00 UTC.
+            </p>
+            {error && (
+              <p role="alert" className="mt-2 text-xs text-red-700">
+                {error}{" "}
+                <button type="button" disabled={loading} onClick={() => setAttempt((value) => value + 1)} className="underline disabled:opacity-50">
+                  Retry
+                </button>
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onSignOut}
+            disabled={signingOut}
+            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left font-semibold text-red-700 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <LogOut className="size-4 shrink-0" aria-hidden="true" />
+            {signingOut ? "Signing out…" : "Log out"}
+          </button>
         </div>
       )}
-    </section>
+    </div>
   );
 }
