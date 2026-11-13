@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { arrayRemove, arrayUnion, doc, onSnapshot, serverTimestamp, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
 import { Bot, Plus, ShoppingBasket, Trash2 } from "lucide-react";
 import { db, tenantAuth } from "../../../firebase/config";
 import { tenantCustomerPath } from "../../../data/tenantCustomerPaths";
-import { normalizeTenderId } from "../../../utils/tenderBasket";
+import { getTenderStatus, normalizeTenderId, updateTenderBasket } from "../../../utils/tenderBasket";
 import { SITE_ORIGIN, SITE_URL, isSiteUrl } from "../../../config/site";
 import { waitForLoginTab } from "../../../utils/customerLogin";
 import { openMyTenders, searchMyTender } from "../../../utils/tenderMessaging";
 
 export default function TenderBasket({ customer }) {
   const [tenderIds, setTenderIds] = useState([]);
+  const [tenderStatuses, setTenderStatuses] = useState({});
   const [tenderId, setTenderId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -23,6 +24,7 @@ export default function TenderBasket({ customer }) {
     setLoading(true);
     setError("");
     setTenderIds([]);
+    setTenderStatuses({});
     if (!tenantUid || !customer.id) {
       setLoading(false);
       setError("Select a saved customer to manage tenders.");
@@ -33,9 +35,11 @@ export default function TenderBasket({ customer }) {
       if (!snapshot.exists()) {
         setError("This customer has been removed.");
         setTenderIds([]);
+        setTenderStatuses({});
         return;
       }
       setTenderIds(snapshot.data().tenderIds ?? []);
+      setTenderStatuses(snapshot.data().tenderStatuses ?? {});
       setError("");
     }, (err) => {
       setLoading(false);
@@ -50,6 +54,18 @@ export default function TenderBasket({ customer }) {
     return doc(db, ...tenantCustomerPath(tenantUid, customer.id));
   }
 
+  async function saveTenderChange(change) {
+    const ref = customerRef();
+    await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists()) throw new Error("This customer has been removed.");
+      transaction.update(ref, {
+        ...updateTenderBasket(snapshot.data(), change),
+        updatedAt: serverTimestamp(),
+      });
+    });
+  }
+
   async function changeTender(event, removedId) {
     event.preventDefault();
     if (pending.current) return;
@@ -59,11 +75,7 @@ export default function TenderBasket({ customer }) {
     setMessage("");
     try {
       const id = removedId ?? normalizeTenderId(tenderId);
-      if (!removedId && tenderIds.includes(id)) throw new Error("This tender is already in the basket.");
-      await updateDoc(customerRef(), {
-        tenderIds: removedId ? arrayRemove(id) : arrayUnion(id),
-        updatedAt: serverTimestamp(),
-      });
+      await saveTenderChange({ action: removedId ? "remove" : "add", tenderId: id });
       if (!removedId) setTenderId("");
       setMessage(`Tender ${id} ${removedId ? "removed" : "added"}.`);
     } catch (err) {
@@ -75,6 +87,7 @@ export default function TenderBasket({ customer }) {
   }
 
   async function runTenderAutomation(id) {
+    if (getTenderStatus(tenderStatuses, id) !== "pending") return;
     if (pending.current) return;
     pending.current = true;
     setOpening(true);
@@ -145,13 +158,17 @@ export default function TenderBasket({ customer }) {
           {tenderIds.map((id) => (
             <li key={id} className="flex items-center gap-2 rounded-lg bg-gray-50 px-2 py-1.5">
               <span className="min-w-0 flex-1 break-all text-sm text-gray-800">{id}</span>
-              <button type="button" disabled={busy}
+              <span aria-label={`Status for tender ${id}: ${getTenderStatus(tenderStatuses, id)}`}
+                className="rounded bg-gray-200 px-2 py-1 text-xs capitalize text-gray-800">
+                {getTenderStatus(tenderStatuses, id)}
+              </span>
+              {getTenderStatus(tenderStatuses, id) === "pending" && <button type="button" disabled={busy}
                 aria-label={`Search My Tenders for tender ${id}`} title="Search My Tenders"
                 className="secondary flex shrink-0 items-center justify-center p-2"
                 onClick={() => runTenderAutomation(id)}
               >
                 <Bot size={16} />
-              </button>
+              </button>}
               <button type="button" onClick={(event) => changeTender(event, id)} disabled={busy}
                 aria-label={`Remove tender ${id}`} title={`Remove tender ${id}`}
                 className="secondary flex shrink-0 items-center justify-center p-2"><Trash2 size={16} /></button>

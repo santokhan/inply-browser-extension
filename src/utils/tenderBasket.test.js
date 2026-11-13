@@ -1,12 +1,48 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { normalizeTenderId } from "./tenderBasket.js";
+import { getTenderStatus, normalizeTenderId, TENDER_STATUSES, updateTenderBasket } from "./tenderBasket.js";
 import { automateTender } from "../background/tenderBasket.js";
 import { SITE_ORIGIN } from "../config/site.js";
 import { openTenders, searchTender } from "../content/tender.js";
 
 afterEach(() => {
   for (const key of ["chrome", "window", "document"]) delete globalThis[key];
+});
+
+test("legacy tenders default to pending and receive stored statuses on basket updates", () => {
+  assert.equal(getTenderStatus(undefined, "1234"), "pending");
+  assert.equal(getTenderStatus({ 1234: "unknown" }, "1234"), "pending");
+  assert.deepEqual(updateTenderBasket({ tenderIds: ["1234"] }, { action: "add", tenderId: "005678" }), {
+    tenderIds: ["1234", "5678"],
+    tenderStatuses: { 1234: "pending", 5678: "pending" },
+  });
+});
+
+test("each tender status changes independently and survives adding another tender", () => {
+  let basket = { tenderIds: ["1234", "5678"], tenderStatuses: { 5678: "mapped" } };
+  for (const status of TENDER_STATUSES) {
+    basket = updateTenderBasket(basket, { action: "status", tenderId: "1234", status });
+    assert.equal(basket.tenderStatuses[1234], status);
+    assert.equal(basket.tenderStatuses[5678], "mapped");
+  }
+  basket = updateTenderBasket(basket, { action: "add", tenderId: "9999" });
+  assert.deepEqual(basket.tenderStatuses, { 1234: "submitted", 5678: "mapped", 9999: "pending" });
+});
+
+test("removing a tender clears its status and re-adding starts it at pending", () => {
+  const original = { tenderIds: ["1234", "5678"], tenderStatuses: { 1234: "submitted", 5678: "encrypted" } };
+  const removed = updateTenderBasket(original, { action: "remove", tenderId: "1234" });
+  assert.deepEqual(removed, { tenderIds: ["5678"], tenderStatuses: { 5678: "encrypted" } });
+  const added = updateTenderBasket(removed, { action: "add", tenderId: "1234" });
+  assert.equal(added.tenderStatuses[1234], "pending");
+  assert.equal(original.tenderStatuses[1234], "submitted");
+});
+
+test("invalid status edits and stale edits to a removed tender are rejected", () => {
+  const basket = { tenderIds: ["1234"], tenderStatuses: { 1234: "encrypted" } };
+  assert.throws(() => updateTenderBasket(basket, { action: "status", tenderId: "1234", status: "invalid" }), /valid tender status/);
+  assert.throws(() => updateTenderBasket(basket, { action: "status", tenderId: "9999", status: "submitted" }), /no longer/);
+  assert.throws(() => updateTenderBasket(basket, { action: "add", tenderId: "001234" }), /already/);
 });
 
 test("tender IDs normalize whitespace and leading zeroes and reject invalid input", () => {
