@@ -5,6 +5,7 @@ import LtmForm from "../ltm/LtmForm";
 import TestActions from "../test/TestActions";
 import { CollectBusinessDetails } from "./CollectBusinessData";
 import CustomerAccounts from "./CustomerAccounts";
+import TenderBasket from "./TenderBasket";
 import { CUSTOMER_DETAIL_FIELDS } from "../../../utils/customerProfile";
 
 function LoggedInCustomer({ customer }) {
@@ -42,6 +43,7 @@ export default function CustomersSection() {
         <>
           <div className="mx-3 mb-3">
             <CustomerSessionStatus />
+            <TenderBasket key={currentCustomer.id || currentCustomer.email} customer={currentCustomer} />
           </div>
           <LoggedInCustomer customer={currentCustomer} />
         </>
