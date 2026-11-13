@@ -1,5 +1,9 @@
 # Tenddoo
 
+Tenant wallets receive 50 free credits each week. See
+[tenant wallet setup](docs/tenant-wallet.md) for grant behavior and the required
+Firestore security rules.
+
 <img width="944" height="936" alt="image" src="https://github.com/user-attachments/assets/0a02fcc5-3149-47a7-994d-e823fc936f79" />
 
 **Challenges**

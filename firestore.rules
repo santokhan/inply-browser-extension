@@ -1,0 +1,62 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /customerProfiles/{userId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == userId;
+    }
+
+    match /customerOwners/{ownerId}/customers/{customerId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == ownerId;
+    }
+
+    match /ltmTenderForms/{uid} {
+      allow get, create, update: if request.auth != null
+        && request.auth.uid == uid;
+    }
+
+    match /tenantWallets/{uid} {
+      function ownsWallet() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+
+      function currentWeek() {
+        return int((request.time.toMillis() - 345600000) / 604800000);
+      }
+
+      function validWallet() {
+        let data = request.resource.data;
+
+        return data.keys().hasOnly([
+            'balance', 'lastGrantWeek', 'createdAt', 'updatedAt'
+          ])
+          && data.balance is int
+          && data.balance >= 0
+          && data.balance <= 9007199254740991
+          && data.lastGrantWeek is int
+          && data.lastGrantWeek == currentWeek()
+          && data.updatedAt == request.time;
+      }
+
+      allow get: if ownsWallet();
+
+      allow create: if ownsWallet()
+        && validWallet()
+        && request.resource.data.balance == 50
+        && request.resource.data.createdAt == request.time;
+
+      allow update: if ownsWallet()
+        && validWallet()
+        && request.resource.data.createdAt == resource.data.createdAt
+        && resource.data.lastGrantWeek < currentWeek()
+        && request.resource.data.balance == resource.data.balance
+          + (currentWeek() - resource.data.lastGrantWeek) * 50;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

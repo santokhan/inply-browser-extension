@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTenantAuth } from "../../../hooks/useTenantAuth";
+import TenantWallet from "../profile/TenantWallet";
 
 const Header = () => {
     const { tenant, signOutTenant } = useTenantAuth();
@@ -15,6 +16,7 @@ const Header = () => {
     };
 
     return (
+        <>
         <header className="bg-white px-3 py-1.5">
             <div className="flex items-center">
                 <img
@@ -59,6 +61,8 @@ const Header = () => {
                 </div>
             </div>
         </header>
+        {tenant?.uid && <TenantWallet key={tenant.uid} tenantUid={tenant.uid} />}
+        </>
     );
 };
 
