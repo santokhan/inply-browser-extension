@@ -38,3 +38,18 @@ Some of them have `display: none;`. You have to ignore both when applying value.
 ```
 
 **Note**: Never use unique `id` as a selector. Because it is unique.
+
+## Firefox Add-ons packaging
+
+Firefox rejected `tenddoo.zip` with `Invalid file name in archive: assets\background.js-FsPtwCBg.js` because the ZIP entries used Windows backslashes. Archive paths must use forward slashes, such as `assets/background.js-FsPtwCBg.js`.
+
+The original `Compress-Archive` command produced the backslashes in this environment. The updated `zip.ps1` explicitly converts entry paths to forward slashes and places `manifest.json` at the archive root.
+
+Build and package from the project directory in PowerShell.
+
+```powershell
+npm run build
+.\zip.ps1
+```
+
+Upload the generated `tenddoo.zip` to Firefox Add-ons. The corrected archive was checked locally for forward-slash paths, a root manifest, and matching file counts and sizes. Full Firefox validation is still pending.
