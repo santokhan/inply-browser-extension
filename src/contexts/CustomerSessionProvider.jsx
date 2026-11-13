@@ -16,6 +16,17 @@ export function CustomerSessionProvider({ children }) {
   const currentCustomer = selected?.tenantUid === tenantUid ? selected : null;
 
   useEffect(() => {
+    const onSessionChanged = (changes, area) => {
+      if (area !== "local" || !changes[ACTIVE_CUSTOMER_KEY]) return;
+      const customer = changes[ACTIVE_CUSTOMER_KEY].newValue;
+      if (!customer) sessionRevision.current += 1;
+      setSelected(customer?.tenantUid === tenantUid ? customer : null);
+    };
+    chrome.storage.onChanged.addListener(onSessionChanged);
+    return () => chrome.storage.onChanged.removeListener(onSessionChanged);
+  }, [tenantUid]);
+
+  useEffect(() => {
     let active = true;
     const revision = sessionRevision.current;
     setSelected((current) => current?.tenantUid === tenantUid ? current : null);
