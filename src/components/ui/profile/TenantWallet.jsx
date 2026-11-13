@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { LogOut } from "lucide-react";
-import { refreshTenantWallet } from "../../../firebase/tenantWallet";
+import { refreshTenantWallet, subscribeTenantWallet } from "../../../firebase/tenantWallet";
 import { nextWalletGrantAt, walletWeek, WEEKLY_FREE_CREDITS } from "../../../utils/tenantWallet.js";
 
 export default function TenantWallet({ tenantUid, tenantName, tenantInitial, tenantEmail, onSignOut, signingOut }) {
@@ -12,6 +12,13 @@ export default function TenantWallet({ tenantUid, tenantName, tenantInitial, ten
   const dropdownRef = useRef(null);
   const triggerRef = useRef(null);
   const dropdownId = useId();
+
+  useEffect(() => subscribeTenantWallet(tenantUid, setWallet, (cause) => {
+    console.error("Unable to read tenant wallet", cause);
+    setError(cause.code === "permission-denied"
+      ? "Wallet access was denied. The tenantWallets Firestore rules need to be published."
+      : "Could not load your wallet. Check your connection and retry.");
+  }), [tenantUid, attempt]);
 
   useEffect(() => {
     if (!open) return;
@@ -36,7 +43,9 @@ export default function TenantWallet({ tenantUid, tenantName, tenantInitial, ten
         if (active) setWallet(result);
       } catch (cause) {
         console.error("Unable to load tenant wallet", cause);
-        if (active) setError("Could not update your wallet. Check your connection and try again.");
+        if (active) setError(cause.code === "permission-denied"
+          ? "Wallet access was denied. The tenantWallets Firestore rules need to be published."
+          : "Could not update your wallet. Check your connection and try again.");
       } finally {
         pending = false;
         if (active) {
@@ -53,8 +62,11 @@ export default function TenantWallet({ tenantUid, tenantName, tenantInitial, ten
     };
   }, [tenantUid, attempt]);
 
-  const grantBalance = wallet?.lastGrantWeek === walletWeek() ? wallet.grantBalance : 0;
+  const grantBalance = wallet?.lastGrantWeek === walletWeek()
+    ? (wallet.grantBalance ?? Math.min(wallet.balance ?? 0, WEEKLY_FREE_CREDITS))
+    : 0;
   const balance = wallet?.purchasedBalance ?? 0;
+  const totalCredits = grantBalance + balance;
 
   return (
     <div
@@ -84,8 +96,8 @@ export default function TenantWallet({ tenantUid, tenantName, tenantInitial, ten
         <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold">
           {tenantInitial}
         </span>
-        <span role="status" aria-label="Credit balance" className="max-w-32 truncate whitespace-nowrap text-xs font-semibold">
-          {loading ? "Updating…" : wallet ? balance.toLocaleString() : "Unavailable"}
+        <span role="status" aria-label="Credit balance" aria-busy={loading} className="max-w-32 truncate whitespace-nowrap text-xs font-semibold">
+          {totalCredits.toLocaleString()}
         </span>
       </button>
       {open && (
@@ -95,7 +107,6 @@ export default function TenantWallet({ tenantUid, tenantName, tenantInitial, ten
             <p className="mt-0.5 break-words text-xs text-gray-500">{tenantEmail}</p>
           )}
           <div className="my-3 border-y border-gray-100 py-3">
-            {wallet && (
               <dl className="mt-2 space-y-1 text-xs text-gray-700">
                 <div className="flex justify-between gap-2">
                   <dt>Main credit balance</dt>
@@ -105,8 +116,11 @@ export default function TenantWallet({ tenantUid, tenantName, tenantInitial, ten
                   <dt>Weekly free credits</dt>
                   <dd>{grantBalance.toLocaleString()} / {WEEKLY_FREE_CREDITS}</dd>
                 </div>
+                <div className="flex justify-between gap-2 border-t border-gray-100 pt-2 font-semibold">
+                  <dt>Total credits</dt>
+                  <dd>{totalCredits.toLocaleString()}</dd>
+                </div>
               </dl>
-            )}
             <p className="mt-1 text-xs leading-relaxed text-gray-600">
               Free credits reset to {WEEKLY_FREE_CREDITS} every Monday at 00:00 UTC.
             </p>

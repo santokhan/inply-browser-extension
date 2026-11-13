@@ -1,6 +1,12 @@
-import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
+import { doc, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
 import { db, tenantAuth } from "./config";
 import { weeklyWalletUpdate } from "../utils/tenantWallet.js";
+
+export function subscribeTenantWallet(tenantUid, onWallet, onError) {
+  return onSnapshot(doc(db, "tenantWallets", tenantUid), (snapshot) => {
+    onWallet(snapshot.exists() ? snapshot.data() : null);
+  }, onError);
+}
 
 export async function refreshTenantWallet(tenantUid) {
   await tenantAuth.authStateReady();
