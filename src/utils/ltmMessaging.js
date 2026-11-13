@@ -17,6 +17,7 @@ function installLtmRouter(resetRouter) {
     },
   };
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (["openTenders", "searchTender"].includes(message?.action)) return false;
     // Leave the dedicated profile listener free to send its own reply.
     if (["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile", "openBankDetailsTab", "readCustomerBankDetails"].includes(message?.action)) return false;
     const handler = handlers.get(message.action);

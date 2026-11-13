@@ -600,6 +600,7 @@ window.InplyContentRouter = {
 };
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (["openTenders", "searchTender"].includes(message?.action)) return false;
   // These actions have dedicated listeners. Responding here would race their
   // asynchronous replies and incorrectly report a missing handler.
   if (["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile", "openBankDetailsTab", "readCustomerBankDetails"].includes(message?.action)) return false;

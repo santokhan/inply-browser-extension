@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { arrayRemove, arrayUnion, doc, getDoc, onSnapshot, serverTimestamp, updateDoc } from "firebase/firestore";
-import { Bot, LoaderCircle, Plus, ShoppingBasket, Trash2 } from "lucide-react";
-import { toast } from "react-toastify";
+import { arrayRemove, arrayUnion, doc, onSnapshot, serverTimestamp, updateDoc } from "firebase/firestore";
+import { Bot, Plus, ShoppingBasket, Trash2 } from "lucide-react";
 import { db, tenantAuth } from "../../../firebase/config";
 import { tenantCustomerPath } from "../../../data/tenantCustomerPaths";
-import useCustomerSession from "../../../hooks/useCustomerSession";
-import { AUTOMATE_TENDER_ACTION, normalizeTenderId } from "../../../utils/tenderBasket";
+import { normalizeTenderId } from "../../../utils/tenderBasket";
+import { SITE_ORIGIN, SITE_URL, isSiteUrl } from "../../../config/site";
+import { waitForLoginTab } from "../../../utils/customerLogin";
+import { openMyTenders, searchMyTender } from "../../../utils/tenderMessaging";
 
 export default function TenderBasket({ customer }) {
-  const { recordCustomerLogin } = useCustomerSession();
   const [tenderIds, setTenderIds] = useState([]);
   const [tenderId, setTenderId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [runningId, setRunningId] = useState(null);
+  const [opening, setOpening] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const pending = useRef(false);
@@ -74,39 +74,43 @@ export default function TenderBasket({ customer }) {
     }
   }
 
-  async function runTender(id) {
+  async function runTenderAutomation(id) {
     if (pending.current) return;
     pending.current = true;
-    setRunningId(id);
+    setOpening(true);
     setError("");
     setMessage("");
     try {
-      // Reload credentials because restored customer sessions omit passwords.
-      const snapshot = await getDoc(customerRef());
-      if (!snapshot.exists()) throw new Error("This customer has been removed.");
-      const saved = { ...snapshot.data(), id: customer.id };
-      if (!saved.tenderIds?.includes(id)) throw new Error("This tender has been removed from the basket.");
-      customerRef();
-      const result = await chrome.runtime.sendMessage({
-        action: AUTOMATE_TENDER_ACTION, tenderId: id,
-        email: saved.email, password: saved.password,
-      });
-      customerRef();
-      if (result?.loginResult) await recordCustomerLogin(saved, result.loginResult);
-      if (!result?.ok) throw new Error(result?.message || "Could not start tender automation.");
-      setMessage(result.message);
-      toast.info(result.message);
-    } catch (err) {
-      const message = err.message || "Could not start tender automation.";
-      setError(message);
-      toast.error(message);
+      let tab;
+      const tabId = customer.profileTabId;
+      if (Number.isInteger(tabId)) {
+        try { tab = await chrome.tabs.get(tabId); } catch { /* Find another eProcure tab if the login tab was closed. */ }
+      }
+      if (!tab) {
+        const tabs = await chrome.tabs.query({ url: `${SITE_ORIGIN}/*` });
+        tabs.sort((first, second) => Number(Boolean(second.active)) - Number(Boolean(first.active)));
+        tab = tabs[0] || await chrome.tabs.create({ url: SITE_URL, active: true });
+      }
+      if (!tab?.id || !isSiteUrl(tab.url || tab.pendingUrl)) {
+        throw new Error("Open the customer's eProcure tab before opening My Tenders.");
+      }
+      await chrome.tabs.update(tab.id, { active: true });
+      await waitForLoginTab(tab.id);
+      const result = await openMyTenders(tab.id);
+      if (!result?.ok) throw new Error(result?.message || "Could not open My Tenders.");
+      const search = await searchMyTender(tab.id, id);
+      if (!search?.ok) throw new Error(search?.message || "Could not search for this tender.");
+      setMessage(search.message);
+    } catch (error) {
+      setError(error.message || "Could not open My Tenders.");
     } finally {
       pending.current = false;
-      setRunningId(null);
+      setOpening(false);
     }
   }
 
-  const busy = saving || runningId !== null;
+  const busy = saving || opening;
+
   return (
     <section aria-label={`Tender basket for ${customer.businessName || customer.email}`} className="mt-3 space-y-2 border-t border-gray-200 pt-3">
       <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
@@ -141,10 +145,12 @@ export default function TenderBasket({ customer }) {
           {tenderIds.map((id) => (
             <li key={id} className="flex items-center gap-2 rounded-lg bg-gray-50 px-2 py-1.5">
               <span className="min-w-0 flex-1 break-all text-sm text-gray-800">{id}</span>
-              <button type="button" onClick={() => runTender(id)} disabled={busy}
-                aria-label={`Automate tender ${id}`} title={`Automate tender ${id}`}
-                className="secondary flex shrink-0 items-center justify-center p-2">
-                {runningId === id ? <LoaderCircle size={16} className="animate-spin motion-reduce:animate-none" /> : <Bot size={16} />}
+              <button type="button" disabled={busy}
+                aria-label={`Search My Tenders for tender ${id}`} title="Search My Tenders"
+                className="secondary flex shrink-0 items-center justify-center p-2"
+                onClick={() => runTenderAutomation(id)}
+              >
+                <Bot size={16} />
               </button>
               <button type="button" onClick={(event) => changeTender(event, id)} disabled={busy}
                 aria-label={`Remove tender ${id}`} title={`Remove tender ${id}`}
@@ -153,7 +159,6 @@ export default function TenderBasket({ customer }) {
           ))}
         </ul>
       )}
-      {runningId && <p role="status" className="text-xs text-gray-500">Logging in and searching for tender {runningId}...</p>}
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
       {message && <p role="status" className="text-xs text-green-700">{message}</p>}
     </section>
