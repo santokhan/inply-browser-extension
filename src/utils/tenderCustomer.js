@@ -1,10 +1,8 @@
-// Choosing a form's defaults does not change the logged-in customer.
-export function resolveTenderCustomer(customers, activeCustomer, selectedId) {
-  const selected = customers.find((customer) => customer.id === selectedId);
-  if (selected) return selected;
-  if (activeCustomer) {
-    return customers.find((customer) => customer.id === activeCustomer.id
-      || customer.email?.trim().toLowerCase() === activeCustomer.email?.trim().toLowerCase()) ?? activeCustomer;
-  }
-  return customers.length === 1 ? customers[0] : null;
+// Tenderer details always belong to the customer logged in through the extension.
+export function resolveTenderCustomer(customers, activeCustomer) {
+  if (!activeCustomer) return null;
+  return customers.find((customer) => activeCustomer.id
+    ? customer.id === activeCustomer.id
+    : Boolean(activeCustomer.email?.trim())
+      && customer.email?.trim().toLowerCase() === activeCustomer.email.trim().toLowerCase()) ?? activeCustomer;
 }

@@ -28,8 +28,7 @@ export default function LtmForm() {
   const [savedForms, setForms] = useState(ltmTenderForms.forms);
   const [customerDetails, setCustomerDetails] = useState({});
   const [customers, setCustomers] = useState([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState("");
-  const formCustomer = resolveTenderCustomer(customers, currentCustomer, selectedCustomerId);
+  const formCustomer = resolveTenderCustomer(customers, currentCustomer);
   const customerKey = formCustomer?.id || formCustomer?.email || "";
   const details = customerKey ? customerDetails[customerKey] : null;
   const forms = {
@@ -39,8 +38,8 @@ export default function LtmForm() {
       values: {
         ...savedForms.tenderer_information.values,
         tenderer_details: {
-          tenderers_legal_title: details?.tenderers_legal_title ?? formCustomer?.businessName ?? savedForms.tenderer_information.values.tenderer_details.tenderers_legal_title,
-          tenderers_registered_address: details?.tenderers_registered_address ?? formCustomer?.registeredAddress ?? savedForms.tenderer_information.values.tenderer_details.tenderers_registered_address,
+          tenderers_legal_title: details?.tenderers_legal_title ?? formCustomer?.businessName ?? "",
+          tenderers_registered_address: details?.tenderers_registered_address ?? formCustomer?.registeredAddress ?? "",
         },
       },
     },
@@ -88,7 +87,6 @@ export default function LtmForm() {
       setForms(ltmTenderForms.forms);
       setCustomerDetails({});
       setCustomers([]);
-      setSelectedCustomerId("");
       try {
         if (!tenant) throw new Error("Sign in to your tenant account to load and save LTM forms.");
         const [snapshot, customerSnapshot] = await Promise.all([
@@ -118,6 +116,7 @@ export default function LtmForm() {
   }, [reload]);
 
   function updateValue(key, section, field, value) {
+    if (key === "tenderer_information" && section === "tenderer_details" && !customerKey) return;
     setMessage("");
     setError("");
     if (key === "tenderer_information" && section === "tenderer_details" && customerKey) {
@@ -157,6 +156,7 @@ export default function LtmForm() {
     setMessage("");
     try {
       if (!tenantUid || tenantAuth.currentUser?.uid !== tenantUid) throw new Error("Sign in again to save LTM forms.");
+      if (key === "tenderer_information" && !customerKey) throw new Error("Log in with a customer to save tenderer details.");
       await setDoc(doc(db, "ltmTenderForms", tenantUid), {
         forms: { [key]: { values: savedForms[key].values } },
         ...(key === "tenderer_information" && customerKey ? {
@@ -193,7 +193,7 @@ export default function LtmForm() {
                       return sendLtmMessage(tabId, { action: "fillLtmForm", formKey: key, form });
                     }}
                     className="sm whitespace-nowrap"
-                    disabled={saving !== null || (runningForm !== null && runningForm !== key)}
+                    disabled={saving !== null || (runningForm !== null && runningForm !== key) || (key === "tenderer_information" && !customerKey)}
                     onRunningChange={(running) => setRunningForm(running ? key : null)}
                   />
                 </div>
@@ -205,20 +205,12 @@ export default function LtmForm() {
                       <h2 className="text-xs font-semibold text-gray-500 mb-1">
                         {fieldLabel(section)}
                       </h2>
-                      {key === "tenderer_information" && section === "tenderer_details" && customers.length > 0 && (
-                        <label className="mb-2 block text-xs text-gray-600">
-                          Customer for this form
-                          <select
-                            value={formCustomer?.id || ""}
-                            onChange={(event) => { setSelectedCustomerId(event.target.value); setMessage(""); }}
-                            className="default mt-1 bg-white"
-                          >
-                            <option value="">Select a customer</option>
-                            {customers.map((customer) => (
-                              <option key={customer.id} value={customer.id}>{customer.businessName || customer.email}</option>
-                            ))}
-                          </select>
-                        </label>
+                      {key === "tenderer_information" && section === "tenderer_details" && (
+                        <p className="mb-2 text-xs text-gray-600">
+                          {formCustomer
+                            ? `Logged-in customer: ${formCustomer.businessName || formCustomer.email}`
+                            : "Log in with a customer to load tenderer details."}
+                        </p>
                       )}
                       <div className="space-y-1">
                         {Object.entries(fields).map(([field, value]) => (
@@ -230,7 +222,7 @@ export default function LtmForm() {
                             <input
                               type="text"
                               value={value}
-                              disabled={!(key === "tenderer_information" && section === "tenderer_details") && (saving !== null || runningForm !== null)}
+                              disabled={saving !== null || runningForm !== null || (key === "tenderer_information" && section === "tenderer_details" && !customerKey)}
                               onFocus={() => highlightField(key, form, section, field, true)}
                               onBlur={() => highlightField(key, form, section, field, false)}
                               onChange={(event) => updateValue(key, section, field, event.target.value)}
@@ -243,7 +235,7 @@ export default function LtmForm() {
                   )) : (
                     <p className="text-xs text-gray-500">No preset values for this form.</p>
                   )}
-                  {form.values && <button type="submit" disabled={saving !== null || runningForm !== null} className="default w-full">{saving === key ? "Saving..." : "Save values"}</button>}
+                  {form.values && <button type="submit" disabled={saving !== null || runningForm !== null || (key === "tenderer_information" && !customerKey)} className="default w-full">{saving === key ? "Saving..." : "Save values"}</button>}
                 </fieldset>
               </form>
             </details>
