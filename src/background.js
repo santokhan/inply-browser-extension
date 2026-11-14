@@ -2,6 +2,7 @@ import { CUSTOMER_LOGIN_ACTION, CUSTOMER_LOGOUT_ACTION, collectSignedInCustomerP
 import { COLLECT_CUSTOMER_PROFILE_ACTION } from "./utils/customerProfile";
 import { AUTOMATE_TENDER_ACTION } from "./utils/tenderBasket.js";
 import { automateTender } from "./background/tenderBasket.js";
+import { confirmCustomerLoggedOut } from "./background/customerSession.js";
 
 let customerActionPending = false;
 
@@ -9,6 +10,12 @@ let customerActionPending = false;
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.action === "confirmCustomerLoggedOut") {
+    confirmCustomerLoggedOut(sender, () => customerActionPending)
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
   if (![CUSTOMER_LOGIN_ACTION, CUSTOMER_LOGOUT_ACTION, COLLECT_CUSTOMER_PROFILE_ACTION, AUTOMATE_TENDER_ACTION].includes(message?.action)) return false;
   // Only the extension UI may start a login with customer credentials.
   if (sender.id !== chrome.runtime.id || sender.tab || !sender.url?.startsWith(chrome.runtime.getURL(""))) {
