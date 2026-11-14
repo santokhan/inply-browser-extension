@@ -355,8 +355,8 @@ export default function CustomerAccounts() {
                       })}
                     </div>
                     <div className="flex shrink-0 flex-col items-stretch gap-1">
-                      <button type="button" aria-label="Edit customer" title="Edit" onClick={() => startEdit(item)} className="flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white p-1 text-gray-900 transition-colors hover:bg-gray-100"><Pencil size={16} /></button>
-                      <button type="button" aria-label="Delete customer" title="Delete" onClick={() => removeCustomer(item)} className="flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white p-1 text-gray-900 transition-colors hover:bg-gray-100"><Trash2 size={16} /></button>
+                      <button type="button" aria-label="Edit customer" title="Edit" onClick={() => startEdit(item)} className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 p-1 text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"><Pencil size={16} /></button>
+                      <button type="button" aria-label="Delete customer" title="Delete" onClick={() => removeCustomer(item)} className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-rose-200 bg-rose-50 p-1 text-rose-700 transition-colors hover:border-rose-300 hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2"><Trash2 size={16} /></button>
                     </div>
                   </div>
                   <button
@@ -364,7 +364,7 @@ export default function CustomerAccounts() {
                     onClick={() => loginCustomer(item)}
                     disabled={loggingInId !== null || !item.email || !item.password}
                     aria-label={`Log in to eProcure as ${item.email}`}
-                    className="secondary mt-2 flex w-full items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mt-2 flex w-full cursor-pointer items-center justify-center gap-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-indigo-600"
                   >
                     <LogIn size={14} /> {loggingInId === item.id ? "Opening eProcure…" : "Login"}
                   </button>
