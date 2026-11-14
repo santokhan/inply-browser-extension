@@ -148,7 +148,6 @@ function Accordion({ children, applyRules = async (id) => { }, group }) {
             <summary className="font-semibold text-gray-800 text-sm py-2 hover:bg-gray-100 px-3 space-2">
                 <span className="truncate mr-2">{group?.name}</span>
                 <div className="flex gap-1 mt-1">
-                    {/* <button type="button" className="sm" onClick={applyRules}>Apply</button> */}
                     {/* <button type="button" className="sm whitespace-nowrap" onClick={signWithPassword}>Sign</button> */}
                     <button
                         type="button"
@@ -165,6 +164,9 @@ function Accordion({ children, applyRules = async (id) => { }, group }) {
                         }}
                         title="This will fill the form, sign and verify, encrypt, and save the page."
                     >Fill Sign Encrypt Save</button>
+                    {import.meta.env.DEV && (
+                        <button type="button" className="sm whitespace-nowrap" onClick={applyRules}>Apply</button>
+                    )}
                     {/* <button type="button" className="sm whitespace-nowrap" onClick={onlyEncrypt}>Encrypt</button> */}
                     {/* <button type="button" className="sm whitespace-nowrap" onClick={onlySave}>Save</button> */}
                 </div>
@@ -321,7 +323,12 @@ export default function SavedRules() {
         };
 
         if (element) {
-            setNativeValue(element, rule?.value);
+            const isTextField = element.tagName === "TEXTAREA"
+                || (element.tagName === "INPUT" && (!element.type || element.type === "text"));
+            const value = isTextField && typeof rule?.value === "string"
+                ? rule.value.replace(/\u200D/g, "").replace(/\s+/g, " ").trim()
+                : rule?.value;
+            setNativeValue(element, value);
             element.dispatchEvent(new Event("input", { bubbles: true }));
             element.dispatchEvent(new Event("change", { bubbles: true }));
             return { ok: true };

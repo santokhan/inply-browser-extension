@@ -87,7 +87,12 @@ function applyRule(rule) {
     return { ok: false, message: "No matching input was found on this page." };
   }
 
-  setNativeValue(element, rule.value);
+  const isTextField = element.tagName === "TEXTAREA"
+    || (element.tagName === "INPUT" && (!element.type || element.type === "text"));
+  const value = isTextField && typeof rule.value === "string"
+    ? rule.value.replace(/\u200D/g, "").replace(/\s+/g, " ").trim()
+    : rule.value;
+  setNativeValue(element, value);
   element.dispatchEvent(new Event("input", { bubbles: true }));
   element.dispatchEvent(new Event("change", { bubbles: true }));
   return { ok: true };

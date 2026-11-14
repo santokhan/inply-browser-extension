@@ -95,6 +95,20 @@ test("editing an LTM value updates only its indexed webpage field and fires inpu
   assert.equal(fields[10].value, "");
 });
 
+test("LTM fill and live edits remove joiners, normalize whitespace, trim, and preserve punctuation", () => {
+  const { fields, edit, fill } = page("e-PW2B-2", 13);
+  const form = structuredClone(ltmTenderForms.forms.tenderer_information);
+  form.values.tenderer_details.tenderers_legal_title = " /M/S. Ex\u200Dample., \t";
+  assert.equal(fill("tenderer_information", form).ok, true);
+  assert.equal(fields[11].value, "/M/S. Example.,");
+  assert.equal(form.values.tenderer_details.tenderers_legal_title, " /M/S. Ex\u200Dample., \t");
+  assert.equal(edit("tenderer_information", "tenderer_details", "tenderers_registered_address", " ,12/3,\t\n St.\u00A0 Ro\u200Dad/ \t").ok, true);
+  assert.equal(fields[12].value, ",12/3, St. Road/");
+  fields[10].type = "number";
+  assert.equal(edit("tenderer_information", "financial_resources", "amount_available", "123.45").ok, true);
+  assert.equal(fields[10].value, "123.45");
+});
+
 test("live edits reject wrong pages, counts, and unknown field keys without changing values", () => {
   for (const [title, count, field] of [["Activity Form", 13, "name"], ["e-PW2B-2", 12, "name"], ["e-PW2B-2", 13, "unknown"]]) {
     const { fields, edit } = page(title, count);

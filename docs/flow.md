@@ -131,6 +131,17 @@ flowchart TD
 
 ## LTM form filling
 
+When filling text inputs and textareas, the extension removes zero-width joiners
+(`U+200D`), collapses whitespace (including
+tabs, line breaks, and non-breaking spaces) into single spaces, then trims leading
+and trailing whitespace. For example, `  M/S.  Example, Ltd.  ` becomes
+`M/S. Example, Ltd.`. Full stops, slashes, and commas are preserved. This applies to LTM filling,
+live LTM edits, and saved-rule
+application, including the development-only **Apply** button. Cleanup affects
+the value written to the webpage; saved presets and rules keep their original
+values. Select options and non-text input types, including numeric decimals,
+are preserved.
+
 ### Prepare values
 
 ```mermaid

@@ -60,7 +60,7 @@ export function FillSignEncryptSave({ pageReady = true, beforeRun, className = "
   const [status, setStatus] = useState("");
   const hoverCooldown = useRef(false);
 
-  async function handleRunAll() {
+  async function handleRunAll({ applyOnly = false } = {}) {
     if (hoverCooldown.current || disabled) return;
 
     hoverCooldown.current = true;
@@ -72,8 +72,8 @@ export function FillSignEncryptSave({ pageReady = true, beforeRun, className = "
         toast.info("Open the tender preparation page before using Sign, Encrypt & Save.");
         return;
       }
-      const saved = await chrome.storage.local.get(ENCRYPT_PASSWORD_KEY);
-      if (!saved?.[ENCRYPT_PASSWORD_KEY]) {
+      const saved = applyOnly ? {} : await chrome.storage.local.get(ENCRYPT_PASSWORD_KEY);
+      if (!applyOnly && !saved?.[ENCRYPT_PASSWORD_KEY]) {
         toast.info("Enter and save a password before using Sign, Encrypt & Save.");
         return;
       }
@@ -85,6 +85,7 @@ export function FillSignEncryptSave({ pageReady = true, beforeRun, className = "
           return;
         }
       }
+      if (applyOnly) return;
       for (let index = 0; index < ACTIONS.length; index += 1) {
         const action = ACTIONS[index];
         setStatus(`${ACTION_LABELS[action]}…`);
@@ -113,9 +114,16 @@ export function FillSignEncryptSave({ pageReady = true, beforeRun, className = "
   }
 
   return (
-    <PageActionButton pageReady={pageReady} className={className} onClick={handleRunAll} disabled={running || disabled} title={beforeRun ? "This will fill the form, sign and verify, encrypt, and save the page." : undefined}>
-      {/* Total 3 actions */}
-      {running ? status || "Running..." : pageReady ? "Fill Sign Encrypt Save" : "Waiting for page..."}
-    </PageActionButton>
+    <>
+      <PageActionButton pageReady={pageReady} className={className} onClick={handleRunAll} disabled={running || disabled} title={beforeRun ? "This will fill the form, sign and verify, encrypt, and save the page." : undefined}>
+        {/* Total 3 actions */}
+        {running ? status || "Running..." : pageReady ? "Fill Sign Encrypt Save" : "Waiting for page..."}
+      </PageActionButton>
+      {import.meta.env.DEV && beforeRun && (
+        <PageActionButton pageReady={pageReady} className={className} onClick={() => handleRunAll({ applyOnly: true })} disabled={running || disabled} title="Apply values to the form.">
+          Apply
+        </PageActionButton>
+      )}
+    </>
   );
 }

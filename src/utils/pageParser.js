@@ -1,5 +1,13 @@
 // Keep this initializer self-contained: Chrome serializes it for script injection.
 export function installPageParser() {
+  function sanitizeFieldValue(field, value) {
+    const isTextField = field instanceof HTMLTextAreaElement
+      || (field instanceof HTMLInputElement && (!field.type || field.type === "text"));
+    return isTextField && typeof value === "string"
+      ? value.replace(/\u200D/g, "").replace(/\s+/g, " ").trim()
+      : value;
+  }
+
   const FIELD_SELECTOR = [
     "input:not([type])",
     'input[type="text"]',
@@ -206,7 +214,7 @@ export function installPageParser() {
     }
 
     setParsedFieldHighlight(element, true);
-    const value = rule.value ?? "";
+    const value = sanitizeFieldValue(element, rule.value ?? "");
     const prototype = element instanceof HTMLTextAreaElement
       ? HTMLTextAreaElement.prototype
       : element instanceof HTMLSelectElement
@@ -279,7 +287,7 @@ export function installPageParser() {
     if (typeof message.value !== "string") return { ok: false, message: "Invalid LTM field value." };
     const normalize = (value) => String(value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
     const assignments = result.targets.map((field) => {
-      if (!(field instanceof HTMLSelectElement)) return { field, value: message.value };
+      if (!(field instanceof HTMLSelectElement)) return { field, value: sanitizeFieldValue(field, message.value) };
       const options = [...field.options].filter((option) => !option.disabled && !option.parentElement?.disabled);
       const option = options.find((option) => option.value === message.value)
         || options.find((option) => normalize(option.label || option.textContent) === normalize(message.value));
@@ -380,7 +388,7 @@ export function installPageParser() {
     const assignments = targets.map((field, index) => {
       const value = values[index];
       if (typeof value !== "string") return null;
-      if (!(field instanceof HTMLSelectElement)) return { field, value };
+      if (!(field instanceof HTMLSelectElement)) return { field, value: sanitizeFieldValue(field, value) };
       const option = [...field.options].find((item) => !item.disabled && !item.parentElement?.disabled && item.value === value)
         || [...field.options].find((item) => !item.disabled && !item.parentElement?.disabled && normalize(item.label || item.textContent) === normalize(value));
       return option ? { field, value: option.value } : null;

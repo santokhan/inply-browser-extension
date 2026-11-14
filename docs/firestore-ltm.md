@@ -20,6 +20,17 @@ the existing contents and proceeds to signing. Save values separately to persist
 edits to Firestore. Reload the extension and the tender page after updating the
 extension so the new content-script handler is available.
 
+Before writing to text inputs or textareas, filling and live edits remove
+zero-width joiners (`U+200D`), collapse
+whitespace (including tabs, line breaks, and non-breaking spaces) into single
+spaces, and trim leading and trailing whitespace. For example,
+`  M/S.  Example, Ltd.  ` becomes
+`M/S. Example, Ltd.`. Full stops, slashes, and commas are preserved. Stored values retain their
+original text; select values and
+non-text input types (such as numbers) are preserved. In development mode,
+**Apply** beside **Fill Sign Encrypt Save** uses the same cleanup and fills only,
+without signing, encrypting, or saving.
+
 In Firebase Console, open Firestore Database > Rules. Add this match block
 **inside the existing `match /databases/{database}/documents` block**, alongside
 the existing collection rules, then publish:
