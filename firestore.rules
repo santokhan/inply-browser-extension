@@ -62,6 +62,15 @@ service cloud.firestore {
           && request.resource.data.purchasedBalance == resource.data.purchasedBalance;
       }
 
+      function chargesProfileCollection() {
+        let previous = resource.data;
+        let next = request.resource.data;
+        let fromGrant = previous.grantBalance < 5 ? previous.grantBalance : 5;
+        return previous.lastGrantWeek == currentWeek()
+          && next.grantBalance == previous.grantBalance - fromGrant
+          && next.purchasedBalance == previous.purchasedBalance - (5 - fromGrant);
+      }
+
       allow get: if ownsWallet();
 
       allow create: if ownsWallet()
@@ -74,7 +83,8 @@ service cloud.firestore {
         && validWallet()
         && request.resource.data.createdAt == resource.data.createdAt
         && (('balance' in resource.data && migratesLegacyWallet())
-          || (!('balance' in resource.data) && refreshesWeeklyGrant()));
+          || (!('balance' in resource.data)
+            && (refreshesWeeklyGrant() || chargesProfileCollection())));
     }
 
     match /{document=**} {

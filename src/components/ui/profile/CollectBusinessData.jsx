@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 import { ArrowRight, Building2, Check, CircleAlert, Landmark, LoaderCircle, MapPin } from "lucide-react";
 import useCustomerSession from "../../../hooks/useCustomerSession";
+import { PROFILE_COLLECTION_CREDITS } from "../../../utils/tenantWallet";
 
 const DETAILS = [
   { field: "businessName", label: "Business name", source: "Company Details", Icon: Building2 },
@@ -83,6 +84,7 @@ function CollectBusinessDetails({ customer }) {
 
       <div className="space-y-3 border-t border-gray-100 bg-gray-50/70 p-4">
         <p className="text-xs leading-5 text-gray-500">Your eProcure tab will open to View Profile. Keep it open while we collect and save your missing details.</p>
+        <p className="text-xs leading-5 text-gray-600">Costs {PROFILE_COLLECTION_CREDITS} credits when new details are saved. Free credits are used first. No charge if nothing new is saved.</p>
         {message && <p role="status" className="rounded-lg border border-primary-200 bg-primary-100 p-2.5 text-xs leading-5 text-primary-800">{message}</p>}
         {error && <div role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs leading-5 text-red-700"><CircleAlert size={15} aria-hidden="true" className="mt-0.5 shrink-0" /><p>{error}</p></div>}
         <button type="button" onClick={collectBusinessData} disabled={busy} className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl brand-gradient bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70">

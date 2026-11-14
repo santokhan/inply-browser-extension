@@ -6,7 +6,10 @@ import { doc, getDoc, runTransaction, serverTimestamp } from "firebase/firestore
 import { db, tenantAuth } from "../firebase/config";
 import { tenantCustomerPath } from "../data/tenantCustomerPaths";
 import { CUSTOMER_LOGOUT_ACTION } from "../utils/customerLogin";
-import { COLLECT_CUSTOMER_PROFILE_ACTION, CUSTOMER_DETAIL_FIELDS, missingCustomerDetails } from "../utils/customerProfile";
+import { COLLECT_CUSTOMER_PROFILE_ACTION, CUSTOMER_DETAIL_FIELDS } from "../utils/customerProfile";
+import { refreshTenantWallet } from "../firebase/tenantWallet";
+import { profileCollectionDebit } from "../utils/tenantWallet";
+import { saveCollectedProfile } from "../utils/profileCollectionBilling";
 
 export function CustomerSessionProvider({ children }) {
   const { tenant } = useTenantAuth();
@@ -69,6 +72,9 @@ export function CustomerSessionProvider({ children }) {
     };
     assertCurrentSession();
     const fields = CUSTOMER_DETAIL_FIELDS.filter((field) => !currentCustomer[field]?.trim());
+    if (!fields.length) return { remaining: [] };
+    profileCollectionDebit(await refreshTenantWallet(tenantUid));
+    assertCurrentSession();
     const result = await chrome.runtime.sendMessage({
       action: COLLECT_CUSTOMER_PROFILE_ACTION,
       tabId: currentCustomer.profileTabId,
@@ -77,19 +83,11 @@ export function CustomerSessionProvider({ children }) {
     if (!result?.ok) throw new Error(result?.message || "Could not collect business details. Try again.");
     assertCurrentSession();
     const customerRef = doc(db, ...tenantCustomerPath(tenantUid, currentCustomer.id));
-    const details = await runTransaction(db, async (transaction) => {
-      assertCurrentSession();
-      const snapshot = await transaction.get(customerRef);
-      if (!snapshot.exists()) throw new Error("The customer was removed before business details could be saved.");
-      const saved = snapshot.data();
-      if (saved.email?.trim().toLowerCase() !== currentCustomer.email.trim().toLowerCase()) {
-        throw new Error("The customer email changed. Log in with the updated customer to collect details.");
-      }
-      const missing = missingCustomerDetails(saved, result.profile);
-      assertCurrentSession();
-      if (Object.keys(missing).length) transaction.update(customerRef, { ...missing, updatedAt: serverTimestamp() });
-      return Object.fromEntries(CUSTOMER_DETAIL_FIELDS.map((field) => [field, missing[field] || saved[field] || ""]));
-    });
+    const walletRef = doc(db, "tenantWallets", tenantUid);
+    const details = await runTransaction(db, (transaction) => saveCollectedProfile(transaction, {
+      customerRef, walletRef, customer: currentCustomer, profile: result.profile,
+      assertCurrentSession, timestamp: serverTimestamp,
+    }));
     assertCurrentSession();
     const updated = { ...currentCustomer, ...details, profileTabId: result.tabId };
     await chrome.storage.local.set({ [ACTIVE_CUSTOMER_KEY]: updated });

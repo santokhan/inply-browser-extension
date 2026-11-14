@@ -7,8 +7,8 @@ their devices and customers. It stores two balances.
   UTC, unused grants expire and this balance resets to 50. Missed weeks do not
   accumulate.
 - `purchasedBalance` contains purchased credits. These have no expiry date and
-  survive weekly grant resets. Only a trusted server or administrator can change
-  this balance.
+  survive weekly grant resets. Only a trusted server or administrator can add
+  purchased credits; profile collection can spend them.
 
 `lastGrantWeek` identifies the grant week. The badge shows purchased credits plus
 current weekly free credits. The profile dropdown always shows both balances
@@ -53,16 +53,40 @@ click Retry in the wallet dropdown.
 
 The wallet rules validate the current week using Firebase's server clock. They
 allow creation with 50 grant credits and zero purchased credits, legacy wallet
-migration, and weekly grant resets that preserve purchased credits. Same-week
-resets and client changes to purchased credits are rejected. Existing customer
+migration, weekly grant resets that preserve purchased credits, and exact
+5-credit debits using grants first. Same-week resets and client increases to
+purchased credits are rejected. Existing customer
 and LTM collection rules are included in the file.
 
 Verify these rules in the Firebase Rules Playground or emulator before
 production. Check initial creation, legacy migration, weekly resets with
 purchased credits preserved, and denial of same-week resets, purchased-balance
-changes, other tenants, unauthenticated requests, listing and deletion. The Node
+increases, valid 5-credit debits, incorrect debits, spending purchased credits
+before grants, insufficient funds, other tenants, unauthenticated requests,
+listing and deletion. The Node
 tests cover wallet calculations and migration. Security rules have not been
 executed locally.
 
 The weekly amount is defined in `src/utils/tenantWallet.js` and `firestore.rules`.
 Update both when changing the allowance.
+
+## Profile collection
+
+Collecting business profile data costs **5 credits per collection that saves
+new details**, including partial results. Free credits are spent first, then
+purchased credits. Failed collection and results that add no missing details
+cost nothing. A later collection that saves more missing details costs another
+5 credits. The collection panel displays this price before the user starts.
+
+The extension refreshes and checks the wallet before opening the profile flow.
+It then reads the latest customer and wallet in a single Firestore transaction,
+and saves new details together with the debit. Insufficient credits prevent
+both writes. Transaction retries recheck saved fields and balances so concurrent
+requests cannot overdraw the wallet or charge twice for the same saved fields.
+If a collection crosses the weekly refill boundary, retry it to refresh the wallet.
+
+The collection price is defined by `PROFILE_COLLECTION_CREDITS` in
+`src/utils/tenantWallet.js` and the debit calculation in `firestore.rules`.
+Update and deploy both together when changing the price. The rules constrain
+wallet debit amounts; collection and saving are coordinated by the extension.
+Publish the updated rules before using credit charging.

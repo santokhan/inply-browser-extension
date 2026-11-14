@@ -1,4 +1,5 @@
 export const WEEKLY_FREE_CREDITS = 50;
+export const PROFILE_COLLECTION_CREDITS = 5;
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 // Monday, 5 January 1970, 00:00 UTC.
 export const WEEK_EPOCH_MS = 4 * 24 * 60 * 60 * 1000;
@@ -9,6 +10,22 @@ export function walletWeek(now = Date.now()) {
 
 export function nextWalletGrantAt(now = Date.now()) {
   return WEEK_EPOCH_MS + (walletWeek(now) + 1) * WEEK_MS;
+}
+
+export function profileCollectionDebit(wallet, now = Date.now()) {
+  // Refresh separately before collecting so migration/refills retain their rules.
+  if (!wallet || weeklyWalletUpdate(wallet, now) || wallet.lastGrantWeek !== walletWeek(now)) {
+    throw new Error("Refresh your wallet and try collecting again.");
+  }
+  const fromGrant = Math.min(wallet.grantBalance, PROFILE_COLLECTION_CREDITS);
+  const fromPurchased = PROFILE_COLLECTION_CREDITS - fromGrant;
+  if (wallet.purchasedBalance < fromPurchased) {
+    throw new Error(`You need ${PROFILE_COLLECTION_CREDITS} credits to collect profile data.`);
+  }
+  return {
+    grantBalance: wallet.grantBalance - fromGrant,
+    purchasedBalance: wallet.purchasedBalance - fromPurchased,
+  };
 }
 
 export function weeklyWalletUpdate(wallet, now = Date.now()) {
