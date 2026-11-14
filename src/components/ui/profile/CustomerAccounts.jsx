@@ -342,7 +342,7 @@ export default function CustomerAccounts() {
                             title={copiedField === copiedKey ? "Copied" : "Click to copy"}
                             aria-label={`Copy ${field === "businessName" ? "name" : field === "registeredAddress" ? "address" : field === "bankName" ? "bank name" : field === "branchName" ? "branch name" : field} for ${item.email}`}
                             onClick={() => copyField(item, field, value)}
-                            className={twMerge("relative block w-full cursor-pointer rounded px-1 text-left transition-colors hover:bg-purple-50 hover:text-purple-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400", style)}
+                            className={twMerge("relative block w-full cursor-pointer rounded px-1 text-left transition-colors hover:bg-primary-50 hover:text-primary-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400", style)}
                           >
                             {displayedValue}
                             {copiedField === copiedKey && (
@@ -355,8 +355,8 @@ export default function CustomerAccounts() {
                       })}
                     </div>
                     <div className="flex shrink-0 flex-col items-stretch gap-1">
-                      <button type="button" aria-label="Edit customer" title="Edit" onClick={() => startEdit(item)} className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 p-1 text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"><Pencil size={16} /></button>
-                      <button type="button" aria-label="Delete customer" title="Delete" onClick={() => removeCustomer(item)} className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-rose-200 bg-rose-50 p-1 text-rose-700 transition-colors hover:border-rose-300 hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2"><Trash2 size={16} /></button>
+                      <button type="button" aria-label="Edit customer" title="Edit" onClick={() => startEdit(item)} className="secondary flex h-9 w-9 items-center justify-center p-1!"><Pencil size={16} className="shrink-0" /></button>
+                      <button type="button" aria-label="Delete customer" title="Delete" onClick={() => removeCustomer(item)} className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-red-700 danger-gradient bg-red-600 p-1 text-white shadow-sm transition-colors hover:border-red-800 hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"><Trash2 size={16} /></button>
                     </div>
                   </div>
                   <button
@@ -364,7 +364,7 @@ export default function CustomerAccounts() {
                     onClick={() => loginCustomer(item)}
                     disabled={loggingInId !== null || !item.email || !item.password}
                     aria-label={`Log in to eProcure as ${item.email}`}
-                    className="mt-2 flex w-full cursor-pointer items-center justify-center gap-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-indigo-600"
+                    className="mt-2 flex w-full cursor-pointer items-center justify-center gap-1 rounded-lg brand-gradient bg-primary-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary-600"
                   >
                     <LogIn size={14} /> {loggingInId === item.id ? "Opening eProcure…" : "Login"}
                   </button>

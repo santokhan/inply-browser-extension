@@ -44,7 +44,7 @@ export function TabsTrigger({ value, children, className = "" }) {
       className={twMerge(
         "w-full px-3 py-1.5 text-sm transition-colors border-b-2 border-transparent font-medium whitespace-nowrap",
         "text-gray-600 rounded-t-xl",
-        isActive ? "bg-indigo-600 text-white" : "hover:text-black hover:bg-gray-200",
+        isActive ? "brand-gradient bg-primary-600 text-white" : "hover:text-black hover:bg-gray-200",
         className
       )}
     >

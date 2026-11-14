@@ -41,7 +41,7 @@ function CollectBusinessDetails({ customer }) {
 
   return (
     <section aria-labelledby="business-details-heading" aria-busy={busy} className="mx-3 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-      <div className="border-b border-primary-200/60 bg-gradient-to-br from-primary-100 via-white to-indigo-50 p-4">
+      <div className="border-b border-primary-200/60 bg-gradient-to-br from-primary-100 via-white to-primary-50 p-4">
         <div className="mb-3 flex size-11 items-center justify-center rounded-xl border border-primary-200 bg-white text-primary-600 shadow-sm">
           <Building2 size={22} aria-hidden="true" />
         </div>
@@ -85,7 +85,7 @@ function CollectBusinessDetails({ customer }) {
         <p className="text-xs leading-5 text-gray-500">Your eProcure tab will open to View Profile. Keep it open while we collect and save your missing details.</p>
         {message && <p role="status" className="rounded-lg border border-primary-200 bg-primary-100 p-2.5 text-xs leading-5 text-primary-800">{message}</p>}
         {error && <div role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs leading-5 text-red-700"><CircleAlert size={15} aria-hidden="true" className="mt-0.5 shrink-0" /><p>{error}</p></div>}
-        <button type="button" onClick={collectBusinessData} disabled={busy} className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70">
+        <button type="button" onClick={collectBusinessData} disabled={busy} className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl brand-gradient bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70">
           {busy ? <LoaderCircle size={16} aria-hidden="true" className="motion-safe:animate-spin" /> : <ArrowRight size={16} aria-hidden="true" />}
           {busy ? "Collecting business details…" : error ? "Try collecting again" : "Collect business data"}
         </button>

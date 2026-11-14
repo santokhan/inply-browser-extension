@@ -109,7 +109,7 @@ export default function FormParser() {
     return (
         <div className="px-3 py-4">
             {inputFields ? (
-                <form onSubmit={handleSubmit} className="space-y-3 border-indigo-100 p-4 rounded-2xl border mt-4 bg-white">
+                <form onSubmit={handleSubmit} className="space-y-3 border-primary-100 p-4 rounded-2xl border mt-4 bg-white">
                     <select
                         value={groupId}
                         onChange={(event) => setGroupId(event.target.value)}

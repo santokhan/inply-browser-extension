@@ -33,7 +33,7 @@ export default function RuleEditForm({ ruleValue, onSubmit = (value) => { }, onC
       <button
         type="button"
         onClick={onCancel}
-        className="text-xs px-2 py-1 bg-gray-100 rounded"
+        className="text-xs px-2 py-1 secondary-gradient bg-neutral-900 text-white rounded"
       >Cancel</button>
     </form>
   );

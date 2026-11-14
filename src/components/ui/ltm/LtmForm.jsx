@@ -224,7 +224,7 @@ export default function LtmForm() {
                         {Object.entries(fields).map(([field, value]) => (
                           <label
                             key={field}
-                            className="block text-xs rounded-md bg-indigo-50 px-2 py-2"
+                            className="block text-xs rounded-md bg-primary-50 px-2 py-2"
                           >
                             <span className="text-gray-600">{fieldLabel(field)}</span>
                             <input

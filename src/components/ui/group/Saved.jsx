@@ -28,7 +28,7 @@ function EditGroupForm({ initialValue, onCancel, onSave }) {
             <button
                 type="button"
                 onClick={onCancel}
-                className="text-xs px-2 py-1 bg-gray-100 rounded"
+                className="text-xs px-2 py-1 secondary-gradient bg-neutral-900 text-white rounded"
             >Cancel</button>
         </form>
     );
@@ -78,7 +78,7 @@ export default function SavedGroups() {
 
                             <button
                                 onClick={() => setEditingId(group.id)}
-                                className="text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
+                                className="text-xs px-2 py-1 secondary-gradient bg-neutral-900 text-white rounded hover:bg-gray-200"
                             >Edit</button>
                         </>
                     )}
@@ -91,7 +91,7 @@ export default function SavedGroups() {
                             }
                             deleteGroup(group.id);
                         }}
-                        className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100"
+                        className="text-xs px-2 py-1 danger-gradient bg-red-600 text-white rounded hover:bg-red-700"
                     >Delete</button>
                 </div>
             ))}

@@ -45,7 +45,7 @@ export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { 
 
     return (
         <div
-            className="relative p-px rounded-xl linear-to-r from-indigo-200 via-purple-200 to-indigo-100"
+            className="relative p-px rounded-xl linear-to-r from-primary-200 via-primary-200 to-primary-100"
         >
             <div className="bg-white rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-200">
 
@@ -69,7 +69,7 @@ export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { 
 
                         :
                         <div className="flex items-center gap-2">
-                            <span className="flex-1 text-sm text-indigo-600 font-medium truncate bg-indigo-50 px-2 py-1 rounded-md">
+                            <span className="flex-1 text-sm text-primary-600 font-medium truncate bg-primary-50 px-2 py-1 rounded-md">
                                 {rule?.value}
                             </span>
                         </div>
@@ -86,7 +86,7 @@ export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { 
                             await onApply(rule);
                             setApplying(false);
                         }}
-                        className="text-xs px-2 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                        className="text-xs px-2 py-1 rounded-md brand-gradient bg-primary-600 text-white hover:bg-primary-700"
                         onMouseEnter={onMouseEnter}
                         onMouseLeave={onMouseLeave}
                     >
@@ -94,13 +94,13 @@ export function Rule({ rule, onApply = () => { }, onEdit = (ruleId, value) => { 
                     </button>
                     <button
                         onClick={() => setEditing(true)}
-                        className="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        className="text-xs px-2 py-1 rounded-md secondary-gradient bg-neutral-900 text-white hover:bg-gray-200"
                     >
                         Edit
                     </button>
                     <button
                         onClick={() => onDelete(rule?.id)}
-                        className="text-xs px-2 py-1 rounded-md bg-red-50 text-red-600 hover:bg-red-100"
+                        className="text-xs px-2 py-1 rounded-md danger-gradient bg-red-600 text-white hover:bg-red-700"
                     >
                         Delete
                     </button>
