@@ -1,6 +1,6 @@
 import { SITE_ORIGIN } from "../config/site.js";
 import { normalizeTenderId } from "./tenderBasket.js";
-import { openTenderDashboard, openTenderPreparation, tenderPageAction } from "../content/tender.js";
+import { openFirstFillLink, openTenderDashboard, openTenderPreparation, tenderPageAction } from "../content/tender.js";
 
 async function sendTenderMessage(tabId, message) {
   const send = () => chrome.tabs.sendMessage(tabId, message, { frameId: 0 });
@@ -48,7 +48,7 @@ export async function searchMyTender(tabId, tenderId) {
         const result = await sendTenderMessage(tabId, message);
         if (!result?.retryable) {
           if (!result?.ok) return result;
-          for (const nextStep of [openTenderDashboard, openTenderPreparation]) {
+          for (const nextStep of [openTenderDashboard, openTenderPreparation, openFirstFillLink]) {
             // Allow the preceding click to start navigation before checking load state.
             await new Promise((resolve) => setTimeout(resolve, 200));
             while ((await chrome.tabs.get(tabId)).status === "loading" && Date.now() < deadline) {

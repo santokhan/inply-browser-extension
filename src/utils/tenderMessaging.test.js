@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { openMyTenders, searchMyTender } from "./tenderMessaging.js";
-import { openTenderDashboard, openTenderPreparation, tenderPageAction } from "../content/tender.js";
+import { openFirstFillLink, openTenderDashboard, openTenderPreparation, tenderPageAction } from "../content/tender.js";
 
 afterEach(() => {
   for (const key of ["chrome", "window", "document"]) delete globalThis[key];
@@ -67,14 +67,14 @@ test("search waits for navigation and controls, then sends the selected tender I
     } },
   };
   assert.equal((await searchMyTender(12, "001234")).ok, true);
-  assert.equal(loads, 5);
+  assert.equal(loads, 6);
   assert.equal(messages.length, 2);
   assert.equal(messages[1].action, "searchTender");
   assert.equal(messages[1].tenderId, "1234");
-  assert.deepEqual(steps, [openTenderDashboard, openTenderPreparation]);
+  assert.deepEqual(steps, [openTenderDashboard, openTenderPreparation, openFirstFillLink]);
 });
 
-test("search opens dashboard then tender preparation after navigation", async () => {
+test("search opens dashboard, preparation and Fill in order after navigation", async () => {
   const clicked = [];
   globalThis.document = {
     querySelector: (selector) => {
@@ -90,12 +90,12 @@ test("search opens dashboard then tender preparation after navigation", async ()
       },
     },
     scripting: { executeScript: async ({ func, target }) => {
-      assert.equal(func, clicked.length === 0 ? openTenderDashboard : openTenderPreparation);
+      assert.equal(func, [openTenderDashboard, openTenderPreparation, openFirstFillLink][clicked.length]);
       assert.deepEqual(target, { tabId: 12, frameIds: [0] });
       const execute = (0, eval)(`(${func.toString()})`);
       return [{ result: execute() }];
     } },
   };
   assert.equal((await searchMyTender(12, "1234")).ok, true);
-  assert.deepEqual(clicked, ['table tbody tr td a[title="Dashboard"]', '#hrfTendPrep']);
+  assert.deepEqual(clicked, ['table tbody tr td a[title="Dashboard"]', '#hrfTendPrep', 'table tbody tr td a[href^="BidFormLTM.jsp"]']);
 });

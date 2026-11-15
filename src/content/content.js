@@ -1,15 +1,3 @@
-function openFirstFillLink() {
-  const firstFillLink = document.querySelector(
-    'table tbody tr td a[href^="BidFormLTM.jsp"]'
-  );
-
-  if (firstFillLink) {
-    firstFillLink.click();
-  } else {
-    console.log("No Fill links found.");
-  }
-}
-
 function setNativeValue(el, value) {
   const tag = el.tagName;
 

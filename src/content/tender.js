@@ -119,3 +119,17 @@ export function openTenderPreparation() {
     return { ok: false, message: "Tender Preparation link not found." };
   }
 }
+
+export function openFirstFillLink() {
+  const firstFillLink = document.querySelector(
+    'table tbody tr td a[href^="BidFormLTM.jsp"]'
+  );
+
+  if (firstFillLink) {
+    firstFillLink.click();
+    return { ok: true };
+  } else {
+    console.log("No Fill links found.");
+    return { ok: false, message: "No Fill links found." };
+  }
+}
