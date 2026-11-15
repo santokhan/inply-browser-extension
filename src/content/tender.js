@@ -121,9 +121,9 @@ export function openTenderPreparation() {
 }
 
 export function openFirstFillLink() {
-  const firstFillLink = document.querySelector(
+  const firstFillLink = [...document.querySelectorAll(
     'table tbody tr td a[href^="BidFormLTM.jsp"]'
-  );
+  )].find((link) => link.innerText.trim().toLowerCase() === "fill");
 
   if (firstFillLink) {
     firstFillLink.click();

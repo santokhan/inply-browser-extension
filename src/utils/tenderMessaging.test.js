@@ -80,6 +80,10 @@ test("search opens dashboard, preparation and Fill in order after navigation", a
     querySelector: (selector) => {
       return { click: () => { clicked.push(selector); } };
     },
+    querySelectorAll: (selector) => [
+      { innerText: "View", click: () => assert.fail("Only Fill links should be clicked") },
+      { innerText: " Fill ", click: () => { clicked.push(selector); } },
+    ],
   };
   globalThis.chrome = {
     tabs: {
