@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { openMyTenders, searchMyTender } from "./tenderMessaging.js";
 import { openFirstFillLink, openTenderDashboard, openTenderPreparation, tenderPageAction } from "../content/tender.js";
+import { detectFormType } from "../content/detectFormType.js";
 
 afterEach(() => {
   for (const key of ["chrome", "window", "document"]) delete globalThis[key];
@@ -63,21 +64,28 @@ test("search waits for navigation and controls, then sends the selected tender I
     },
     scripting: { executeScript: async ({ func }) => {
       steps.push(func);
-      return [{ result: { ok: true } }];
+      return [{ result: func === detectFormType ? "activity_form" : { ok: true } }];
     } },
   };
   assert.equal((await searchMyTender(12, "001234")).ok, true);
-  assert.equal(loads, 6);
+  assert.equal(loads, 7);
   assert.equal(messages.length, 2);
   assert.equal(messages[1].action, "searchTender");
   assert.equal(messages[1].tenderId, "1234");
-  assert.deepEqual(steps, [openTenderDashboard, openTenderPreparation, openFirstFillLink]);
+  assert.deepEqual(steps, [openTenderDashboard, openTenderPreparation, openFirstFillLink, detectFormType]);
 });
 
 test("search opens dashboard, preparation and Fill in order after navigation", async () => {
   const clicked = [];
   globalThis.document = {
     querySelector: (selector) => {
+      if (selector === "#divFormName") {
+        assert.equal(clicked.length, 3);
+        return { cloneNode: () => ({
+          textContent: "Priced Bill of Quantities (BOQ)",
+          querySelectorAll: () => [],
+        }) };
+      }
       return { click: () => { clicked.push(selector); } };
     },
     querySelectorAll: (selector) => [
@@ -93,13 +101,17 @@ test("search opens dashboard, preparation and Fill in order after navigation", a
         return { ok: true };
       },
     },
-    scripting: { executeScript: async ({ func, target }) => {
-      assert.equal(func, [openTenderDashboard, openTenderPreparation, openFirstFillLink][clicked.length]);
+    scripting: { executeScript: async ({ func, target, args }) => {
+      assert.equal(func, [openTenderDashboard, openTenderPreparation, openFirstFillLink, detectFormType][clicked.length]);
       assert.deepEqual(target, { tabId: 12, frameIds: [0] });
       const execute = (0, eval)(`(${func.toString()})`);
-      return [{ result: execute() }];
+      return [{ result: execute(...args) }];
     } },
   };
-  assert.equal((await searchMyTender(12, "1234")).ok, true);
+  assert.deepEqual(await searchMyTender(12, "1234"), {
+    ok: true,
+    formType: "priced_boq",
+    message: "Current form key: priced_boq",
+  });
   assert.deepEqual(clicked, ['table tbody tr td a[title="Dashboard"]', '#hrfTendPrep', 'table tbody tr td a[href^="BidFormLTM.jsp"]']);
 });

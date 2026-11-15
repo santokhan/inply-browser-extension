@@ -1,6 +1,8 @@
 import { SITE_ORIGIN } from "../config/site.js";
 import { normalizeTenderId } from "./tenderBasket.js";
 import { openFirstFillLink, openTenderDashboard, openTenderPreparation, tenderPageAction } from "../content/tender.js";
+import { detectFormType } from "../content/detectFormType.js";
+import { ltmTenderForms } from "../data/ltmTenderForms.js";
 
 async function sendTenderMessage(tabId, message) {
   const send = () => chrome.tabs.sendMessage(tabId, message, { frameId: 0 });
@@ -48,7 +50,9 @@ export async function searchMyTender(tabId, tenderId) {
         const result = await sendTenderMessage(tabId, message);
         if (!result?.retryable) {
           if (!result?.ok) return result;
-          for (const nextStep of [openTenderDashboard, openTenderPreparation, openFirstFillLink]) {
+          const { priced_bill_of_quantities, ...forms } = ltmTenderForms.forms;
+          const detectionForms = { ...forms, priced_boq: priced_bill_of_quantities };
+          for (const nextStep of [openTenderDashboard, openTenderPreparation, openFirstFillLink, detectFormType]) {
             // Allow the preceding click to start navigation before checking load state.
             await new Promise((resolve) => setTimeout(resolve, 200));
             while ((await chrome.tabs.get(tabId)).status === "loading" && Date.now() < deadline) {
@@ -58,7 +62,12 @@ export async function searchMyTender(tabId, tenderId) {
             const [execution] = await chrome.scripting.executeScript({
               target: { tabId, frameIds: [0] },
               func: nextStep,
+              args: nextStep === detectFormType ? [detectionForms] : [],
             });
+            if (nextStep === detectFormType) {
+              const formType = execution.result ?? null;
+              return { ok: true, formType, message: `Current form key: ${formType}` };
+            }
             if (!execution.result?.ok) return execution.result;
           }
           return { ok: true };
