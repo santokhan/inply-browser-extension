@@ -87,7 +87,7 @@ test("recovery executes serialized functions without manifest files or module sc
     assert.equal(listener({ action }, {}, () => assert.fail("Dedicated listeners must own these replies")), false);
   }
   const result = await sendLtmMessage(20, {
-    action: "setLtmFieldValue", formKey: "activity_form", form: { name: "Activity Form" }, value: "5",
+    action: "setLtmFieldValue", formKey: "activities_form", form: { name: "Activity Form" }, value: "5",
   });
   assert.equal(result.ok, false);
   assert.match(result.message, /Open Activity Form/);

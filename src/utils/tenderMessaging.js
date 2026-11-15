@@ -3,6 +3,8 @@ import { normalizeTenderId } from "./tenderBasket.js";
 import { openFirstFillLink, openTenderDashboard, openTenderPreparation, tenderPageAction } from "../content/tender.js";
 import { detectFormType } from "../content/detectFormType.js";
 import { ltmTenderForms } from "../data/ltmTenderForms.js";
+import { sendLtmMessage } from "./ltmMessaging.js";
+import { runFillSignEncryptSave } from "./fillSignEncryptSave.js";
 
 async function sendTenderMessage(tabId, message) {
   const send = () => chrome.tabs.sendMessage(tabId, message, { frameId: 0 });
@@ -37,7 +39,7 @@ export function openMyTenders(tabId) {
   return sendTenderMessage(tabId, { action: "openTenders", expectedOrigin: SITE_ORIGIN });
 }
 
-export async function searchMyTender(tabId, tenderId) {
+export async function searchMyTender(tabId, tenderId, ltmForms = ltmTenderForms.forms) {
   const message = { action: "searchTender", tenderId: normalizeTenderId(tenderId), expectedOrigin: SITE_ORIGIN };
   const deadline = Date.now() + 30000;
   do {
@@ -50,7 +52,7 @@ export async function searchMyTender(tabId, tenderId) {
         const result = await sendTenderMessage(tabId, message);
         if (!result?.retryable) {
           if (!result?.ok) return result;
-          const { priced_bill_of_quantities, ...forms } = ltmTenderForms.forms;
+          const { priced_bill_of_quantities, ...forms } = ltmForms;
           const detectionForms = { ...forms, priced_boq: priced_bill_of_quantities };
           for (const nextStep of [openTenderDashboard, openTenderPreparation, openFirstFillLink, detectFormType]) {
             // Allow the preceding click to start navigation before checking load state.
@@ -66,7 +68,16 @@ export async function searchMyTender(tabId, tenderId) {
             });
             if (nextStep === detectFormType) {
               const formType = execution.result ?? null;
-              return { ok: true, formType, message: `Current form key: ${formType}` };
+              const formKey = formType === "priced_boq" ? "priced_bill_of_quantities" : formType;
+              const form = ltmForms[formKey];
+              if (!form) return { ok: false, formType, message: "Could not identify a supported form to fill." };
+              const filled = await runFillSignEncryptSave(tabId, {
+                beforeRun: () => sendLtmMessage(tabId, { action: "fillLtmForm", formKey, form }),
+              });
+              if (!filled?.ok) {
+                return { ...filled, ok: false, formType, message: filled?.message || `Could not fill ${form.name}.` };
+              }
+              return { ...filled, formType, message: `${form.name} filled, signed, encrypted, and saved.` };
             }
             if (!execution.result?.ok) return execution.result;
           }

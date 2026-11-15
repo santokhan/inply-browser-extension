@@ -258,11 +258,11 @@ test("rejects mismatched form identity and counts without changing any fields", 
 test("Activity Form accepts singular and plural page titles for filling, editing, and highlighting", () => {
   for (const title of ["Activity Form", "Activities Form", "  ACTIVITIES\n FORM  "]) {
     const { fields, fill, edit, highlight } = page(title, 2);
-    assert.equal(fill("activity_form").ok, true);
+    assert.equal(fill("activities_form").ok, true);
     assert.deepEqual(fields.map((field) => field.value), ["5", "50"]);
-    assert.equal(edit("activity_form", "activity", "activity_duration_days", "60").ok, true);
+    assert.equal(edit("activities_form", "activity", "activity_duration_days", "60").ok, true);
     assert.equal(fields[1].value, "60");
-    assert.equal(highlight("activity_form", "activity", "duration_of_activity_start_days").ok, true);
+    assert.equal(highlight("activities_form", "activity", "duration_of_activity_start_days").ok, true);
     assert.equal(fields[0].style.outline, "2px solid #6366f1");
   }
 });
@@ -270,9 +270,9 @@ test("Activity Form accepts singular and plural page titles for filling, editing
 test("Activity Form still rejects unrelated pages and incorrect field counts", () => {
   for (const [title, count] of [["Tenderer Information Form (Form e-PW2B-2)", 2], ["Activities Form", 3]]) {
     const { fields, fill, edit, highlight } = page(title, count);
-    assert.equal(fill("activity_form").ok, false);
-    assert.equal(edit("activity_form", "activity", "activity_duration_days", "60").ok, false);
-    assert.equal(highlight("activity_form", "activity", "duration_of_activity_start_days").ok, false);
+    assert.equal(fill("activities_form").ok, false);
+    assert.equal(edit("activities_form", "activity", "activity_duration_days", "60").ok, false);
+    assert.equal(highlight("activities_form", "activity", "duration_of_activity_start_days").ok, false);
     assert.ok(fields.every((field) => field.value === "original" && field.events.length === 0));
   }
 });
@@ -309,13 +309,13 @@ test("restoring personnel values preserves a customized candidate type and other
     personnel_information: { values: { candidate_details: {
       proposed_position_type: "Alternative Candidate", name: "Saved name",
     } } },
-    activity_form: { values: { activity: { activity_duration_days: "60" } } },
+    activities_form: { values: { activity: { activity_duration_days: "60" } } },
   };
   const forms = restoreLtmForms(stored);
   assert.equal(forms.personnel_information.values.candidate_details.proposed_position_type, "Alternative Candidate");
   assert.equal(forms.personnel_information.values.candidate_details.name, "Saved name");
-  assert.equal(forms.activity_form.values.activity.activity_duration_days, "60");
-  assert.equal(forms.activity_form.values.activity.duration_of_activity_start_days, "5");
+  assert.equal(forms.activities_form.values.activity.activity_duration_days, "60");
+  assert.equal(forms.activities_form.values.activity.duration_of_activity_start_days, "5");
   assert.equal(stored.personnel_information.values.candidate_details.name, "Saved name");
 });
 

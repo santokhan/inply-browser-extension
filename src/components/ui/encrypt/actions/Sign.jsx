@@ -3,71 +3,10 @@ import { getActiveTabSafe } from "../../../../utils/chrome";
 import { toast } from "react-toastify";
 import PageActionButton from "./PageActionButton";
 
+import { sendSignAndVerifyMessage } from "../../../../utils/pageActionMessaging.js";
+export { sendSignAndVerifyMessage } from "../../../../utils/pageActionMessaging.js";
+
 const ENCRYPT_PASSWORD_KEY = "encryptPassword";
-
-async function signAndVerifyInPage(password) {
-  const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
-  const isVisible = (element) => {
-    const style = window.getComputedStyle(element);
-    return style.display !== "none" && style.visibility !== "hidden";
-  };
-  const signButton = [...document.querySelectorAll(`#sign, input[name="sign"], button, input[type="button"], input[type="submit"], [role="button"]`)].find((element) => {
-    const label = (element.innerText || element.value || element.getAttribute("aria-label") || "").trim().toLowerCase();
-    return (element.id === "sign" || element.name === "sign" || label === "sign") && !element.disabled && isVisible(element);
-  });
-
-  if (!signButton) {
-    return { ok: false, verified: false, message: "No Sign button was found on this page." };
-  }
-
-  signButton.scrollIntoView({ block: "center", behavior: "smooth" });
-  signButton.click();
-
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    const input = document.querySelector(
-      '#myPanelDiv input#password, #myPanelDiv input[name="password"], #dialog-form input#password, #dialog-form input[name="password"]',
-    );
-    if (input && isVisible(input)) {
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
-      if (setter) setter.call(input, password);
-      else input.value = password;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-
-      const dialog = input.closest(".ui-dialog") || input.closest("#myPanelDiv, #dialog-form");
-      const verifyButton = [...(dialog?.querySelectorAll("button, input[type=\"button\"], input[type=\"submit\"]") || [])].find((element) => {
-        const label = (element.innerText || element.value || "").trim().toLowerCase();
-        return label === "verify password" && !element.disabled && isVisible(element);
-      });
-      if (verifyButton) {
-        verifyButton.click();
-        return { ok: true, verified: true, count: 1 };
-      }
-    }
-    await wait(250);
-  }
-
-  return { ok: true, verified: false, count: 1, message: "Sign clicked, but the password dialog was not ready." };
-}
-
-export async function sendSignAndVerifyMessage(tabId, password) {
-  try {
-    const response = await chrome.tabs.sendMessage(tabId, { action: "signAndVerify" });
-    if (!response?.message?.includes('No content-script handler is registered for action "signAndVerify"')) {
-      return response;
-    }
-  } catch (error) {
-    if (!String(error?.message || error).includes("Receiving end does not exist")) throw error;
-  }
-
-  const resolvedPassword = password || (await chrome.storage.local.get(ENCRYPT_PASSWORD_KEY))?.[ENCRYPT_PASSWORD_KEY];
-  const [result] = await chrome.scripting.executeScript({
-    target: { tabId },
-    func: signAndVerifyInPage,
-    args: [resolvedPassword],
-  });
-  return result?.result;
-}
 
 export default function SignAndVerifyAction({ pageReady = false }) {
   const [signing, setSigning] = useState(false);

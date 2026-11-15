@@ -33,8 +33,8 @@ export const ltmTenderForms = {
         },
       },
     },
-    activity_form: {
-      name: "Activity Form",
+    activities_form: {
+      name: "Activities Form",
       encrypted: false,
       expectedFieldCount: 2,
       values: {
@@ -111,7 +111,8 @@ export function restoreLtmForms(stored = {}) {
       values: Object.fromEntries(Object.entries(form.values).map(([section, fields]) => [
         section,
         Object.fromEntries(Object.entries(fields).map(([field, fallback]) => {
-          const value = stored[key]?.values?.[section]?.[field];
+          const savedForm = stored[key] ?? (key === "activities_form" ? stored.activity_form : undefined);
+          const value = savedForm?.values?.[section]?.[field];
           // Replace the old text placeholder in the candidate-type dropdown.
           const legacyCandidateType = key === "personnel_information"
             && section === "candidate_details" && field === "proposed_position_type"
@@ -121,4 +122,16 @@ export function restoreLtmForms(stored = {}) {
       ])),
     } : form,
   ]));
+}
+
+export function getCustomerLtmForms(stored = {}, customer) {
+  const forms = restoreLtmForms(stored.forms);
+  const key = customer?.id || customer?.email;
+  const details = stored.customerDetails?.[key] ?? {};
+  const nonempty = (value, fallback) => typeof value === "string" && value.trim() ? value : fallback;
+  forms.tenderer_information.values.tenderer_details = {
+    tenderers_legal_title: nonempty(details.tenderers_legal_title, customer?.businessName ?? ""),
+    tenderers_registered_address: nonempty(details.tenderers_registered_address, customer?.registeredAddress ?? ""),
+  };
+  return forms;
 }

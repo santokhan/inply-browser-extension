@@ -23,8 +23,9 @@ export function detectFormType(forms) {
             "tenderer information form",
             "tenderer information"
         ],
-        activity_form: [
-            "activity form"
+        activities_form: [
+            "activity form",
+            "activities form"
         ],
         personnel_information: [
             "personnel information"

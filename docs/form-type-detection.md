@@ -27,8 +27,9 @@ function detectFormType(forms) {
             "tenderer information form",
             "tenderer information"
         ],
-        activity_form: [
-            "activity form"
+        activities_form: [
+            "activity form",
+            "activities form"
         ],
         personnel_information: [
             "personnel information"
@@ -101,7 +102,7 @@ console.log("Detected form:", formType);
 | --- | --- |
 | e-Tender Submission Letter (Form e-PW2B-1) | `e_tender_submission_letter` |
 | Tenderer Information Form (Form e-PW2B-2) | `tenderer_information` |
-| Activity Form | `activity_form` |
+| Activity Form | `activities_form` |
 | Personnel Information (Form e-PW2B-3) | `personnel_information` |
 | Priced Bill of Quantities (BOQ) | `priced_boq` |
 | Tenderer's Quoted Price | `tenderers_quoted_price` |
@@ -119,7 +120,7 @@ switch (detectFormType(data.forms)) {
         // Handle tenderer information
         break;
 
-    case "activity_form":
+    case "activities_form":
         // Handle activity form
         break;
 

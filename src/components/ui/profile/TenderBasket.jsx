@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { doc, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
 import { Bot, Plus, ShoppingBasket, Trash2 } from "lucide-react";
 import { db, tenantAuth } from "../../../firebase/config";
 import { tenantCustomerPath } from "../../../data/tenantCustomerPaths";
@@ -7,6 +7,7 @@ import { getTenderStatus, normalizeTenderId, updateTenderBasket } from "../../..
 import { SITE_ORIGIN, SITE_URL, isSiteUrl } from "../../../config/site";
 import { waitForLoginTab } from "../../../utils/customerLogin";
 import { openMyTenders, searchMyTender } from "../../../utils/tenderMessaging";
+import { getCustomerLtmForms } from "../../../data/ltmTenderForms";
 
 export default function TenderBasket({ customer }) {
   const [tenderIds, setTenderIds] = useState([]);
@@ -94,6 +95,13 @@ export default function TenderBasket({ customer }) {
     setError("");
     setMessage("");
     try {
+      const ref = customerRef();
+      const [ltmSnapshot, customerSnapshot] = await Promise.all([
+        getDoc(doc(db, "ltmTenderForms", tenantUid)),
+        getDoc(ref),
+      ]);
+      if (!customerSnapshot.exists()) throw new Error("This customer has been removed.");
+      const forms = getCustomerLtmForms(ltmSnapshot.data(), { ...customer, ...customerSnapshot.data() });
       let tab;
       const tabId = customer.profileTabId;
       if (Number.isInteger(tabId)) {
@@ -111,7 +119,7 @@ export default function TenderBasket({ customer }) {
       await waitForLoginTab(tab.id);
       const result = await openMyTenders(tab.id);
       if (!result?.ok) throw new Error(result?.message || "Could not open My Tenders.");
-      const search = await searchMyTender(tab.id, id);
+      const search = await searchMyTender(tab.id, id, forms);
       if (!search?.ok) throw new Error(search?.message || "Could not search for this tender.");
       setMessage(search.message);
     } catch (error) {
