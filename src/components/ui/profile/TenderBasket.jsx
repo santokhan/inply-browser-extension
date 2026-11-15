@@ -117,7 +117,7 @@ export default function TenderBasket({ customer }) {
       }
       await chrome.tabs.update(tab.id, { active: true });
       await waitForLoginTab(tab.id);
-      const result = await openMyTenders(tab.id);
+      const result = await openMyTenders(tab.id, id);
       if (!result?.ok) throw new Error(result?.message || "Could not open My Tenders.");
       const search = await searchMyTender(tab.id, id, forms);
       if (!search?.ok) throw new Error(search?.message || "Could not search for this tender.");

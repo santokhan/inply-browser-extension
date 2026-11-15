@@ -130,6 +130,6 @@ export function openFirstFillLink() {
     return { ok: true };
   } else {
     console.log("No Fill links found.");
-    return { ok: false, message: "No Fill links found." };
+    return { ok: false, noFillLinks: true, message: "No Fill links found." };
   }
 }

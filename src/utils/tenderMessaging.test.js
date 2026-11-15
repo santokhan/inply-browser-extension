@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { openMyTenders, searchMyTender } from "./tenderMessaging.js";
+import { isTenderPreparationPage, openMyTenders, searchMyTender } from "./tenderMessaging.js";
 import { openFirstFillLink, openTenderDashboard, openTenderPreparation, tenderPageAction } from "../content/tender.js";
 import { detectFormType } from "../content/detectFormType.js";
 import { ltmTenderForms } from "../data/ltmTenderForms.js";
@@ -9,13 +9,70 @@ afterEach(() => {
   for (const key of ["chrome", "window", "document"]) delete globalThis[key];
 });
 
-function connectAutomation() {
+test("preparation checker requires the matching origin, pathname, tender ID, and tab 4", () => {
+  const base = "https://www.eprocure.gov.bd/tenderer/LotTendPrep.jsp";
+  assert.equal(isTenderPreparationPage(`${base}?tab=4&tenderId=1362999&msg=add`, "1362999"), true);
+  assert.equal(isTenderPreparationPage(`${base}?tenderId=1362999&tab=4`, 1362999), true);
+  assert.equal(isTenderPreparationPage(`${base}?tab=4&tenderId=1362999`, "001362999"), true);
+  for (const url of [
+    `${base}?tab=3&tenderId=1362999`,
+    `${base}?tenderId=1362999`,
+    `${base}?tab=4&tenderId=999`,
+    `${base}?tab=4`,
+    `${base.replace("LotTendPrep.jsp", "MyTenders.jsp")}?tab=4&tenderId=1362999`,
+    `${base.replace("www.eprocure.gov.bd", "example.com")}?tab=4&tenderId=1362999`,
+    "invalid", undefined,
+  ]) assert.equal(isTenderPreparationPage(url, "1362999"), false, url);
+});
+
+test("matching preparation page skips My Tenders, search, dashboard, and preparation navigation", async () => {
+  const steps = [];
+  globalThis.chrome = {
+    tabs: {
+      get: async () => ({ status: "complete", url: "https://www.eprocure.gov.bd/tenderer/LotTendPrep.jsp?tab=4&tenderId=1362999&msg=add" }),
+      sendMessage: async (tabId, message) => {
+        assert.equal(message.action, "fillLtmForm");
+        return { ok: true };
+      },
+    },
+    scripting: { executeScript: async ({ func }) => {
+      steps.push(func);
+      return [{ result: func === detectFormType ? "activities_form" : { ok: true } }];
+    } },
+  };
+  const actions = connectAutomation("1362999");
+  assert.deepEqual(await openMyTenders(12, "1362999"), { ok: true });
+  assert.equal((await searchMyTender(12, "1362999")).ok, true);
+  assert.deepEqual(steps, [openFirstFillLink, detectFormType]);
+  assert.deepEqual(actions, ["fill", "signAndVerify", "encrypt", "save"]);
+});
+
+test("another tender or another preparation tab still opens My Tenders", async () => {
+  for (const query of ["tab=4&tenderId=999", "tab=3&tenderId=1362999"]) {
+    const actions = [];
+    globalThis.chrome = { tabs: {
+      get: async () => ({ url: `https://www.eprocure.gov.bd/tenderer/LotTendPrep.jsp?${query}` }),
+      sendMessage: async (tabId, message) => { actions.push(message.action); return { ok: true }; },
+    } };
+    await openMyTenders(12, "1362999");
+    assert.deepEqual(actions, ["openTenders"]);
+  }
+});
+
+function connectAutomation(tenderId = "1234") {
   const actions = [];
+  let saved = false;
+  const get = chrome.tabs.get;
+  chrome.tabs.get = async (tabId) => {
+    const tab = await get(tabId);
+    return saved ? { ...tab, status: "complete", url: `https://www.eprocure.gov.bd/tenderer/LotTendPrep.jsp?tab=4&tenderId=${tenderId}` } : tab;
+  };
   chrome.storage = { local: { get: async () => ({ encryptPassword: "test-password" }) } };
   const send = chrome.tabs.sendMessage;
   chrome.tabs.sendMessage = async (tabId, message) => {
     if (["signAndVerify", "save"].includes(message.action)) {
       actions.push(message.action);
+      if (message.action === "save") saved = true;
       return { ok: true, verified: true };
     }
     if (message.action === "fillLtmForm") actions.push("fill");
@@ -23,6 +80,7 @@ function connectAutomation() {
   };
   const execute = chrome.scripting.executeScript;
   chrome.scripting.executeScript = async (options) => {
+    if (saved && options.func === openFirstFillLink) return [{ result: { ok: false, noFillLinks: true } }];
     if (options.world === "MAIN") {
       actions.push("encrypt");
       return [{ result: { ok: true } }];
@@ -30,6 +88,58 @@ function connectAutomation() {
     return execute(options);
   };
   return actions;
+}
+
+for (const failSecondFill of [false, true]) {
+  test(`save redirect continues to the next form without restarting navigation (second fill fails: ${failSecondFill})`, async () => {
+    const prepUrl = "https://www.eprocure.gov.bd/tenderer/LotTendPrep.jsp?tab=4&tenderId=1362999";
+    const navigation = [];
+    const actions = [];
+    let url = "https://www.eprocure.gov.bd/tenderer/MyTenders.jsp";
+    let opened = 0;
+    let loading = false;
+    globalThis.chrome = {
+      storage: { local: { get: async () => ({ encryptPassword: "test" }) } },
+      tabs: {
+        get: async () => {
+          if (loading) { loading = false; return { status: "loading", url }; }
+          return { status: "complete", url };
+        },
+        sendMessage: async (tabId, message) => {
+          actions.push(message.action);
+          if (message.action === "fillLtmForm" && opened === 2 && failSecondFill) {
+            return { ok: false, message: "Second form fields do not match." };
+          }
+          if (message.action === "save") { url = prepUrl; loading = true; }
+          return { ok: true, verified: true };
+        },
+      },
+      scripting: { executeScript: async ({ func, world }) => {
+        if (world === "MAIN") { actions.push("encrypt"); return [{ result: { ok: true } }]; }
+        navigation.push(func);
+        if (func === openTenderPreparation) url = prepUrl;
+        if (func === openFirstFillLink) {
+          if (opened === 2) return [{ result: { ok: false, noFillLinks: true } }];
+          opened++;
+          url = `https://www.eprocure.gov.bd/tenderer/BidFormLTM.jsp?form=${opened}&tenderId=1362999`;
+          loading = true;
+        }
+        return [{ result: func === detectFormType ? "activities_form" : { ok: true } }];
+      } },
+    };
+    const result = await searchMyTender(12, "1362999");
+    assert.equal(result.ok, !failSecondFill);
+    assert.equal(opened, 2);
+    assert.deepEqual(navigation, [
+      openTenderDashboard, openTenderPreparation, openFirstFillLink, detectFormType,
+      openFirstFillLink, detectFormType, ...(!failSecondFill ? [openFirstFillLink] : []),
+    ]);
+    assert.deepEqual(actions, [
+      "searchTender", "fillLtmForm", "signAndVerify", "encrypt", "save",
+      "fillLtmForm", ...(!failSecondFill ? ["signAndVerify", "encrypt", "save"] : []),
+    ]);
+    if (failSecondFill) assert.equal(result.message, "Second form fields do not match.");
+  });
 }
 
 for (const formType of [...Object.keys(ltmTenderForms.forms), null, "unsupported_form"]) {
@@ -137,7 +247,7 @@ test("search waits for navigation and controls, then sends the selected tender I
   };
   connectAutomation();
   assert.equal((await searchMyTender(12, "001234")).ok, true);
-  assert.equal(loads, 7);
+  assert.equal(loads, 8);
   assert.equal(messages.length, 3);
   assert.equal(messages[1].action, "searchTender");
   assert.equal(messages[1].tenderId, "1234");
