@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { openMyTenders, searchMyTender } from "./tenderMessaging.js";
-import { tenderPageAction } from "../content/tender.js";
+import { openTenderDashboard, openTenderPreparation, tenderPageAction } from "../content/tender.js";
 
 afterEach(() => {
   for (const key of ["chrome", "window", "document"]) delete globalThis[key];
@@ -50,6 +50,7 @@ test("a reply reporting a missing link is returned without installing or clickin
 test("search waits for navigation and controls, then sends the selected tender ID", async () => {
   let loads = 0;
   const messages = [];
+  const steps = [];
   globalThis.chrome = {
     tabs: {
       get: async () => ({ status: ++loads === 1 ? "loading" : "complete" }),
@@ -60,10 +61,41 @@ test("search waits for navigation and controls, then sends the selected tender I
         return { ok: true, message: "Search started." };
       },
     },
+    scripting: { executeScript: async ({ func }) => {
+      steps.push(func);
+      return [{ result: { ok: true } }];
+    } },
   };
   assert.equal((await searchMyTender(12, "001234")).ok, true);
-  assert.equal(loads, 3);
+  assert.equal(loads, 5);
   assert.equal(messages.length, 2);
   assert.equal(messages[1].action, "searchTender");
   assert.equal(messages[1].tenderId, "1234");
+  assert.deepEqual(steps, [openTenderDashboard, openTenderPreparation]);
+});
+
+test("search opens dashboard then tender preparation after navigation", async () => {
+  const clicked = [];
+  globalThis.document = {
+    querySelector: (selector) => {
+      return { click: () => { clicked.push(selector); } };
+    },
+  };
+  globalThis.chrome = {
+    tabs: {
+      get: async () => ({ status: "complete" }),
+      sendMessage: async (tabId, message) => {
+        assert.equal(message.action, "searchTender");
+        return { ok: true };
+      },
+    },
+    scripting: { executeScript: async ({ func, target }) => {
+      assert.equal(func, clicked.length === 0 ? openTenderDashboard : openTenderPreparation);
+      assert.deepEqual(target, { tabId: 12, frameIds: [0] });
+      const execute = (0, eval)(`(${func.toString()})`);
+      return [{ result: execute() }];
+    } },
+  };
+  assert.equal((await searchMyTender(12, "1234")).ok, true);
+  assert.deepEqual(clicked, ['table tbody tr td a[title="Dashboard"]', '#hrfTendPrep']);
 });

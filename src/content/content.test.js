@@ -29,7 +29,7 @@ test("main router lets the dedicated profile listener send its asynchronous repl
   assert.equal(responses.length, 1);
   assert.equal(responses[0].ok, true);
   assert.equal(responses[0].profile.businessName, "Customer company");
-  for (const action of ["openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile", "openBankDetailsTab", "readCustomerBankDetails"]) {
+  for (const action of ["openTenders", "searchTender", "openViewProfilePage", "openCompanyDetailsTaba", "readCustomerProfile", "openBankDetailsTab", "readCustomerBankDetails"]) {
     assert.equal(listeners[0]({ action }, sender, () => assert.fail("Requests belong to their dedicated listener")), false);
   }
   for (const sender of [

@@ -1,6 +1,6 @@
 import { SITE_ORIGIN } from "../config/site.js";
 import { normalizeTenderId } from "./tenderBasket.js";
-import { tenderPageAction } from "../content/tender.js";
+import { openTenderDashboard, openTenderPreparation, tenderPageAction } from "../content/tender.js";
 
 async function sendTenderMessage(tabId, message) {
   const send = () => chrome.tabs.sendMessage(tabId, message, { frameId: 0 });
@@ -46,7 +46,23 @@ export async function searchMyTender(tabId, tenderId) {
     if (tab.status === "complete") {
       try {
         const result = await sendTenderMessage(tabId, message);
-        if (!result?.retryable) return result;
+        if (!result?.retryable) {
+          if (!result?.ok) return result;
+          for (const nextStep of [openTenderDashboard, openTenderPreparation]) {
+            // Allow the preceding click to start navigation before checking load state.
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            while ((await chrome.tabs.get(tabId)).status === "loading" && Date.now() < deadline) {
+              await new Promise((resolve) => setTimeout(resolve, 200));
+            }
+            if (Date.now() >= deadline) throw new Error("Tender page took too long to load.");
+            const [execution] = await chrome.scripting.executeScript({
+              target: { tabId, frameIds: [0] },
+              func: nextStep,
+            });
+            if (!execution.result?.ok) return execution.result;
+          }
+          return { ok: true };
+        }
       } catch (error) {
         // My Tenders navigation may replace the document during a message.
         if (!/frame.*removed|document.*unloaded|message port closed|message channel closed/i.test(error.message)) throw error;

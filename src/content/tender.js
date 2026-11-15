@@ -94,3 +94,28 @@ export function openTenders(expectedOrigin) {
 export function searchTender(tenderId, expectedOrigin) {
   return tenderPageAction("searchTender", tenderId, expectedOrigin);
 }
+
+// Passed directly to executeScript after the search page finishes loading.
+export function openTenderDashboard() {
+  const dashboardLink = document.querySelector(
+    'table tbody tr td a[title="Dashboard"]'
+  );
+  if (dashboardLink) {
+    dashboardLink.click();
+    return { ok: true };
+  }
+  console.log("Dashboard button not found.");
+  return { ok: false, message: "Dashboard button not found." };
+}
+
+export function openTenderPreparation() {
+  const link = document.querySelector('#hrfTendPrep');
+
+  if (link) {
+    link.click();
+    return { ok: true };
+  } else {
+    console.log("Tender Preparation link not found.");
+    return { ok: false, message: "Tender Preparation link not found." };
+  }
+}
