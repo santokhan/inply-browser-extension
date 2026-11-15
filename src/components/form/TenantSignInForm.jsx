@@ -12,7 +12,7 @@ export default function TenantSignInForm({ switchTo = () => { } }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { setTenantToken, setTenant } = useTenantAuth();
+  const { tenantAuthError } = useTenantAuth();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -21,15 +21,7 @@ export default function TenantSignInForm({ switchTo = () => { } }) {
       setLoading(true);
       setError("");
 
-      const credential = await signInTenantWithEmail(email, password);
-      const idToken = await credential.user.getIdToken();
-      await chrome.storage.local.set({
-        auth_token: idToken,
-        auth_user: credential.user.toJSON(),
-      });
-
-      setTenantToken(idToken);
-      setTenant(credential.user.toJSON());
+      await signInTenantWithEmail(email, password);
 
       setEmail("");
       setPassword("");
@@ -46,7 +38,7 @@ export default function TenantSignInForm({ switchTo = () => { } }) {
         <EmailField value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} />
         <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} />
         <div className="auth-forgot"><button type="button" className="auth-link" onClick={() => switchTo("forgot")} disabled={loading}>Forgot password?</button></div>
-        {error && <p className="auth-message auth-error" role="alert">{error}</p>}
+        {(error || tenantAuthError) && <p className="auth-message auth-error" role="alert">{error || tenantAuthError}</p>}
         <button type="submit" disabled={loading} className="auth-submit">
           {loading ? <LoaderCircle size={16} className="animate-spin" aria-hidden="true" /> : null}
           {loading ? "Signing in..." : "Sign in"}

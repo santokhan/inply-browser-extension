@@ -2,24 +2,36 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function enabledOwner(uid) {
+      return request.auth != null && request.auth.uid == uid
+        && (!exists(/databases/$(database)/documents/tenants/$(uid))
+          || get(/databases/$(database)/documents/tenants/$(uid)).data.get('disabled', false) != true);
+    }
+
+    match /tenants/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['disabled'])
+        && request.resource.data.disabled == false;
+      // Account access is managed through the Firebase Console or Admin SDK.
+      allow update, delete: if false;
+    }
+
     match /customerProfiles/{userId} {
-      allow read, write: if request.auth != null
-        && request.auth.uid == userId;
+      allow read, write: if enabledOwner(userId);
     }
 
     match /customerOwners/{ownerId}/customers/{customerId} {
-      allow read, write: if request.auth != null
-        && request.auth.uid == ownerId;
+      allow read, write: if enabledOwner(ownerId);
     }
 
     match /ltmTenderForms/{uid} {
-      allow get, create, update: if request.auth != null
-        && request.auth.uid == uid;
+      allow get, create, update: if enabledOwner(uid);
     }
 
     match /tenantWallets/{uid} {
       function ownsWallet() {
-        return request.auth != null && request.auth.uid == uid;
+        return enabledOwner(uid);
       }
 
       function currentWeek() {

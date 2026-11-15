@@ -11,7 +11,7 @@ export default function TenantSignUpForm({ switchTo = () => { } }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const { setTenantToken, setTenant } = useTenantAuth();
+  const { tenantAuthError } = useTenantAuth();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -21,17 +21,7 @@ export default function TenantSignUpForm({ switchTo = () => { } }) {
       setError("");
       setSuccess("");
 
-      const credential = await signUpTenantWithEmail(email, password);
-
-      localStorage.setItem("refreshToken", credential.user.refreshToken);
-
-      const accessToken = await credential.user.getIdToken();
-      await chrome.storage.local.set({
-        auth_token: accessToken,
-        auth_user: credential.user.toJSON(),
-      });
-      setTenantToken(accessToken);
-      setTenant(credential.user.toJSON());
+      await signUpTenantWithEmail(email, password);
 
       setSuccess("Tenant account created successfully");
       setEmail("");
@@ -48,7 +38,7 @@ export default function TenantSignUpForm({ switchTo = () => { } }) {
       <form onSubmit={handleSubmit} className="auth-form" aria-busy={loading}>
         <EmailField value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} />
         <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} creating />
-        {error && <p className="auth-message auth-error" role="alert">{error}</p>}
+        {(error || tenantAuthError) && <p className="auth-message auth-error" role="alert">{error || tenantAuthError}</p>}
         {success && <p className="auth-message auth-success" role="status">{success}</p>}
         <button type="submit" disabled={loading} className="auth-submit">
           {loading ? <LoaderCircle size={16} className="animate-spin" aria-hidden="true" /> : null}

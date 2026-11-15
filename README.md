@@ -4,6 +4,9 @@ Tenant wallets receive 50 free credits each week. See
 [tenant wallet setup](docs/tenant-wallet.md) for grant behavior and the required
 Firestore security rules.
 
+Tenant sign-in can be disabled with `tenants/{uid}.disabled` in Firestore. See
+[tenant access setup](docs/tenant-access.md) for manual controls and rule publishing.
+
 <img width="944" height="936" alt="image" src="https://github.com/user-attachments/assets/0a02fcc5-3149-47a7-994d-e823fc936f79" />
 
 **Challenges**
