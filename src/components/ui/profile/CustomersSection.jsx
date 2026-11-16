@@ -2,6 +2,7 @@ import useCustomerSession from "../../../hooks/useCustomerSession";
 import CustomerSessionStatus from "../../shared/CustomerSessionStatus";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../shared/Tab";
 import LtmForm from "../ltm/LtmForm";
+import OpenFillLink from "../encrypt/actions/OpenFillLink";
 import TestActions from "../test/TestActions";
 import { CollectBusinessDetails } from "./CollectBusinessData";
 import CustomerAccounts from "./CustomerAccounts";
@@ -12,10 +13,15 @@ function LoggedInCustomer({ customer }) {
   if (CUSTOMER_DETAIL_FIELDS.every((field) => customer?.[field]?.trim())) {
     return (
       <Tabs key={customer.id || customer.email} defaultValue="ltm">
-        <TabsList className="px-3">
-          <TabsTrigger value="ltm">LTM Form</TabsTrigger>
-          {import.meta.env.DEV && <TabsTrigger value="test">Test</TabsTrigger>}
-        </TabsList>
+        <div className="flex items-center gap-3 px-3">
+          <TabsList className="min-w-0 flex-1">
+            <TabsTrigger value="ltm">LTM Form</TabsTrigger>
+            {import.meta.env.DEV && <TabsTrigger value="test">Test</TabsTrigger>}
+          </TabsList>
+          <div className="shrink-0">
+            <OpenFillLink />
+          </div>
+        </div>
 
         <TabsContent value="ltm">
           <LtmForm />

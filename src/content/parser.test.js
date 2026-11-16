@@ -267,8 +267,24 @@ test("Activity Form accepts singular and plural page titles for filling, editing
   }
 });
 
-test("Activity Form still rejects unrelated pages and incorrect field counts", () => {
-  for (const [title, count] of [["Tenderer Information Form (Form e-PW2B-2)", 2], ["Activities Form", 3]]) {
+test("Activity Form repeats saved values across variable numbers of activity fields", () => {
+  for (const count of [1, 3, 6, 8]) {
+    const { fields, fill, edit, highlight } = page("Activities Form", count);
+    assert.equal(fill("activities_form").ok, true);
+    assert.deepEqual(fields.map((field) => field.value), Array.from({ length: count }, (_, index) => index % 2 === 0 ? "5" : "50"));
+    assert.equal(edit("activities_form", "activity", "duration_of_activity_start_days", "10").ok, true);
+    assert.deepEqual(fields.map((field) => field.value), Array.from({ length: count }, (_, index) => index % 2 === 0 ? "10" : "50"));
+    assert.equal(highlight("activities_form", "activity", "duration_of_activity_start_days").ok, true);
+    assert.ok(fields.every((field, index) => index % 2 !== 0 || field.style.outline === "2px solid #6366f1"));
+    if (count >= 2) {
+      assert.equal(edit("activities_form", "activity", "activity_duration_days", "60").ok, true);
+      assert.deepEqual(fields.map((field) => field.value), Array.from({ length: count }, (_, index) => index % 2 === 0 ? "10" : "60"));
+    }
+  }
+});
+
+test("Activity Form still rejects unrelated pages and empty forms", () => {
+  for (const [title, count] of [["Tenderer Information Form (Form e-PW2B-2)", 2], ["Activities Form", 0]]) {
     const { fields, fill, edit, highlight } = page(title, count);
     assert.equal(fill("activities_form").ok, false);
     assert.equal(edit("activities_form", "activity", "activity_duration_days", "60").ok, false);

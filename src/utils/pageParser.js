@@ -262,10 +262,15 @@ export function installPageParser() {
     if (index < 0) return { ok: false, message: "This LTM field is not in the preset field order." };
     const targets = getLtmTargets(formKey);
     const boq = formKey === "priced_bill_of_quantities";
-    if (!targets.length || (!boq && (targets.length !== form.expectedFieldCount || keys.length !== targets.length))) {
+    const activities = formKey === "activities_form";
+    if (!targets.length || (!boq && !activities && (targets.length !== form.expectedFieldCount || keys.length !== targets.length))) {
       return { ok: false, message: "The webpage fields do not match this LTM form. No value was applied." };
     }
-    return { ok: true, targets: boq ? targets : [targets[index]] };
+    const matchedTargets = boq ? targets : activities
+      ? targets.filter((_, targetIndex) => targetIndex % keys.length === index)
+      : [targets[index]];
+    if (!matchedTargets.length) return { ok: false, message: "This LTM field was not found on the webpage. No value was applied." };
+    return { ok: true, targets: matchedTargets };
   }
 
   function highlightLtmField(message) {
@@ -376,11 +381,13 @@ export function installPageParser() {
     // This form has no preset fields; leave its existing contents in place.
     if (formKey === "e_tender_submission_letter") return { ok: true, count: 0 };
     const boq = formKey === "priced_bill_of_quantities";
+    const activities = formKey === "activities_form";
     const targets = getLtmTargets(formKey);
+    const presetValues = Object.values(form.values ?? {}).flatMap((section) => Object.values(section));
     const values = boq
       ? targets.map(() => form.values?.select_fields?.all)
-      : Object.values(form.values ?? {}).flatMap((section) => Object.values(section));
-    if (!targets.length || (!boq && (targets.length !== form.expectedFieldCount || values.length !== targets.length))) {
+      : activities ? targets.map((_, index) => presetValues[index % presetValues.length]) : presetValues;
+    if (!targets.length || (!boq && !activities && (targets.length !== form.expectedFieldCount || values.length !== targets.length))) {
       return { ok: false, message: `Expected ${form.expectedFieldCount ?? "select"} fields for ${form.name}; found ${targets.length}. Nothing was filled or signed.` };
     }
     // Resolve every select before changing any field, so an invalid option cannot
