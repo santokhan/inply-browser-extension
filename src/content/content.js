@@ -560,13 +560,8 @@ async function resumePendingEncryptFlow() {
     pendingCreatedAt: pending?.createdAt || null,
   });
 
-  // The destination can identify the flow by its URL even if storage startup races.
-  if (pending || action === "Encrypt") {
-    if (!pending && action === "Encrypt") {
-      await chrome.storage.local.set({
-        [PENDING_DECRYPT_KEY]: { createdAt: Date.now() },
-      });
-    }
+  // Only resume an explicitly queued flow so the two manual tests stay separate.
+  if (pending) {
     await autoClickPendingDecrypt();
   }
 
