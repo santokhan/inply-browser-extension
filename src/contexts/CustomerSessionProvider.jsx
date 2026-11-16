@@ -97,8 +97,40 @@ export function CustomerSessionProvider({ children }) {
     return { remaining, message: result.message };
   }, [currentCustomer, tenantUid]);
 
+  const saveBusinessDetails = useCallback(async (values) => {
+    if (!currentCustomer?.id || !tenantUid) throw new Error("Log in with a saved customer before saving business details.");
+    const revision = sessionRevision.current;
+    const assertCurrentSession = () => {
+      if (sessionRevision.current !== revision || tenantAuth.currentUser?.uid !== tenantUid) {
+        throw new Error("The active customer changed. Save details again for the selected customer.");
+      }
+    };
+    const details = Object.fromEntries(CUSTOMER_DETAIL_FIELDS
+      .filter((field) => typeof values[field] === "string")
+      .map((field) => [field, values[field].trim()]));
+    assertCurrentSession();
+    const customerRef = doc(db, ...tenantCustomerPath(tenantUid, currentCustomer.id));
+    const savedDetails = await runTransaction(db, async (transaction) => {
+      assertCurrentSession();
+      const snapshot = await transaction.get(customerRef);
+      if (!snapshot.exists()) throw new Error("The customer was removed before business details could be saved.");
+      const saved = snapshot.data();
+      if (saved.email?.trim().toLowerCase() !== currentCustomer.email.trim().toLowerCase()) {
+        throw new Error("The customer email changed. Log in with the updated customer to save details.");
+      }
+      assertCurrentSession();
+      transaction.update(customerRef, { ...details, updatedAt: serverTimestamp() });
+      return Object.fromEntries(CUSTOMER_DETAIL_FIELDS.map((field) => [field, details[field] ?? saved[field] ?? ""]));
+    });
+    assertCurrentSession();
+    const updated = { ...currentCustomer, ...savedDetails };
+    await chrome.storage.local.set({ [ACTIVE_CUSTOMER_KEY]: updated });
+    assertCurrentSession();
+    setSelected(updated);
+  }, [currentCustomer, tenantUid]);
+
   return (
-    <CustomerSessionContext.Provider value={{ currentCustomer, recordCustomerLogin, signOutCustomer, collectBusinessDetails }}>
+    <CustomerSessionContext.Provider value={{ currentCustomer, recordCustomerLogin, signOutCustomer, collectBusinessDetails, saveBusinessDetails }}>
       {children}
     </CustomerSessionContext.Provider>
   );
