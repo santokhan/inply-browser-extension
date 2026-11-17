@@ -200,11 +200,6 @@ export default function LtmForm() {
                     onRunningChange={(running) => setRunningForm(running ? key : null)}
                   />
                 </div>
-                {key === "e_tender_submission_letter" && (
-                  <p className="mt-1 text-xs text-gray-600">
-                    {SUBMISSION_LETTER_CREDITS} credit per use, charged before signing. Weekly free credits are used first.
-                  </p>
-                )}
               </summary>
               <form onSubmit={(event) => saveForm(event, key)} className="mt-3 space-y-3">
                 <fieldset className="space-y-3">
