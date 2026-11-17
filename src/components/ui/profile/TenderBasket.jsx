@@ -121,6 +121,7 @@ export default function TenderBasket({ customer }) {
       if (!result?.ok) throw new Error(result?.message || "Could not open My Tenders.");
       const search = await searchMyTender(tab.id, id, forms);
       if (!search?.ok) throw new Error(search?.message || "Could not search for this tender.");
+      await saveTenderChange({ action: "status", tenderId: id, status: "completed" });
       setMessage(search.message);
     } catch (error) {
       setError(error.message || "Could not open My Tenders.");
@@ -166,10 +167,10 @@ export default function TenderBasket({ customer }) {
           {tenderIds.map((id) => (
             <li key={id} className="flex items-center gap-2 rounded-lg bg-gray-50 px-2 py-1.5">
               <span className="min-w-0 flex-1 break-all text-sm text-gray-800">{id}</span>
-              <span aria-label={`Status for tender ${id}: ${getTenderStatus(tenderStatuses, id)}`}
+              {getTenderStatus(tenderStatuses, id) !== "pending" && <span aria-label={`Status for tender ${id}: ${getTenderStatus(tenderStatuses, id)}`}
                 className="rounded bg-gray-200 px-2 py-1 text-xs capitalize text-gray-800">
                 {getTenderStatus(tenderStatuses, id)}
-              </span>
+              </span>}
               {getTenderStatus(tenderStatuses, id) === "pending" && <button type="button" disabled={busy}
                 aria-label={`Search My Tenders for tender ${id}`} title="Search My Tenders"
                 className="secondary flex shrink-0 items-center justify-center p-2"

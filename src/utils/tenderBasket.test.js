@@ -26,7 +26,7 @@ test("each tender status changes independently and survives adding another tende
     assert.equal(basket.tenderStatuses[5678], "mapped");
   }
   basket = updateTenderBasket(basket, { action: "add", tenderId: "9999" });
-  assert.deepEqual(basket.tenderStatuses, { 1234: "submitted", 5678: "mapped", 9999: "pending" });
+  assert.deepEqual(basket.tenderStatuses, { 1234: "completed", 5678: "mapped", 9999: "pending" });
 });
 
 test("removing a tender clears its status and re-adding starts it at pending", () => {

@@ -1,7 +1,7 @@
 export const AUTOMATE_TENDER_ACTION = "automateTender";
 
 export const TENDER_STATUSES = Object.freeze([
-  "pending", "encrypted", "mapped", "submitted",
+  "pending", "encrypted", "mapped", "submitted", "completed",
 ]);
 
 export function getTenderStatus(tenderStatuses, tenderId) {
