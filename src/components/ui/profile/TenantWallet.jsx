@@ -102,27 +102,30 @@ export default function TenantWallet({ tenantUid, tenantName, tenantInitial, ten
       </button>
       {open && (
         <div id={dropdownId} className="absolute right-0 top-full z-50 mt-2 w-64 max-w-[calc(100vw-1.5rem)] rounded-xl border border-gray-200 bg-white p-3 text-sm shadow-lg">
-          <p className="break-words font-semibold text-gray-900">{tenantName}</p>
+          <p className="wrap-break-word font-semibold text-gray-900">{tenantName}</p>
           {tenantEmail && tenantEmail !== tenantName && (
-            <p className="mt-0.5 break-words text-xs text-gray-500">{tenantEmail}</p>
+            <p className="mt-0.5 wrap-break-word text-xs text-gray-500">{tenantEmail}</p>
           )}
           <div className="my-3 border-y border-gray-100 py-3">
-              <dl className="mt-2 space-y-1 text-xs text-gray-700">
-                <div className="flex justify-between gap-2">
-                  <dt>Main credit balance</dt>
-                  <dd>{balance.toLocaleString()}</dd>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <dt>Weekly free credits</dt>
-                  <dd>{grantBalance.toLocaleString()} / {WEEKLY_FREE_CREDITS}</dd>
-                </div>
-                <div className="flex justify-between gap-2 border-t border-gray-100 pt-2 font-semibold">
-                  <dt>Total credits</dt>
-                  <dd>{totalCredits.toLocaleString()}</dd>
-                </div>
-              </dl>
+            <dl className="mt-2 space-y-1 text-xs text-gray-700">
+              <div className="flex justify-between gap-2">
+                <dt>Main credit balance</dt>
+                <dd>{balance.toLocaleString()}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt>Weekly free credits</dt>
+                <dd>{grantBalance.toLocaleString()} / {WEEKLY_FREE_CREDITS}</dd>
+              </div>
+              <div className="flex justify-between gap-2 border-t border-gray-100 pt-2 font-semibold">
+                <dt>Total credits</dt>
+                <dd>{totalCredits.toLocaleString()}</dd>
+              </div>
+            </dl>
             <p className="mt-1 text-xs leading-relaxed text-gray-600">
               Free credits reset to {WEEKLY_FREE_CREDITS} every Monday at 00:00 UTC.
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-gray-600">
+              To buy credits, contact us on <a href="https://wa.me/8801718787756" target="_blank" rel="noopener noreferrer" className="font-semibold text-green-700 underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600">WhatsApp</a>{" "}.
             </p>
             {error && (
               <p role="alert" className="mt-2 text-xs text-red-700">
