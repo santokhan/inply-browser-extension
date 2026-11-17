@@ -74,13 +74,15 @@ service cloud.firestore {
           && request.resource.data.purchasedBalance == resource.data.purchasedBalance;
       }
 
-      function chargesProfileCollection() {
+      function deductsCredits() {
         let previous = resource.data;
         let next = request.resource.data;
-        let fromGrant = previous.grantBalance < 5 ? previous.grantBalance : 5;
         return previous.lastGrantWeek == currentWeek()
-          && next.grantBalance == previous.grantBalance - fromGrant
-          && next.purchasedBalance == previous.purchasedBalance - (5 - fromGrant);
+          && next.grantBalance <= previous.grantBalance
+          && next.purchasedBalance <= previous.purchasedBalance
+          && (next.grantBalance < previous.grantBalance
+            || next.purchasedBalance < previous.purchasedBalance)
+          && (next.purchasedBalance == previous.purchasedBalance || next.grantBalance == 0);
       }
 
       allow get: if ownsWallet();
@@ -96,7 +98,7 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt
         && (('balance' in resource.data && migratesLegacyWallet())
           || (!('balance' in resource.data)
-            && (refreshesWeeklyGrant() || chargesProfileCollection())));
+            && (refreshesWeeklyGrant() || deductsCredits())));
     }
 
     match /{document=**} {

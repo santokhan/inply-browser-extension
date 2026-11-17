@@ -49,7 +49,7 @@ async function sendActionWithRetry(tabId, action, password) {
   return lastResult;
 }
 
-export async function runFillSignEncryptSave(tabId, { beforeRun, applyOnly = false, setStatus = () => {} } = {}) {
+export async function runFillSignEncryptSave(tabId, { beforeRun, beforeActions, applyOnly = false, setStatus = () => {} } = {}) {
   const saved = applyOnly ? {} : await chrome.storage.local.get(ENCRYPT_PASSWORD_KEY);
   if (!applyOnly && !saved?.[ENCRYPT_PASSWORD_KEY]) {
     return { ok: false, message: "Enter and save a password before using Sign, Encrypt & Save." };
@@ -60,6 +60,14 @@ export async function runFillSignEncryptSave(tabId, { beforeRun, applyOnly = fal
     if (!result?.ok) return { ...result, ok: false, message: result?.message || "Could not fill this form." };
   }
   if (applyOnly) return { ok: true };
+  if (beforeActions) {
+    setStatus("Checking credits...");
+    try {
+      await beforeActions();
+    } catch (error) {
+      return { ok: false, stage: "billing", message: error.message || "Could not charge credits. Try again." };
+    }
+  }
   for (let index = 0; index < ACTIONS.length; index += 1) {
     const action = ACTIONS[index];
     setStatus(`${ACTION_LABELS[action]}...`);

@@ -1,5 +1,6 @@
 export const WEEKLY_FREE_CREDITS = 50;
 export const PROFILE_COLLECTION_CREDITS = 5;
+export const SUBMISSION_LETTER_CREDITS = 1;
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 // Monday, 5 January 1970, 00:00 UTC.
 export const WEEK_EPOCH_MS = 4 * 24 * 60 * 60 * 1000;
@@ -13,14 +14,22 @@ export function nextWalletGrantAt(now = Date.now()) {
 }
 
 export function profileCollectionDebit(wallet, now = Date.now()) {
-  // Refresh separately before collecting so migration/refills retain their rules.
+  return walletDebit(wallet, PROFILE_COLLECTION_CREDITS, "collect profile data", now);
+}
+
+export function submissionLetterDebit(wallet, now = Date.now()) {
+  return walletDebit(wallet, SUBMISSION_LETTER_CREDITS, "use Fill Sign Encrypt Save for the submission letter", now);
+}
+
+function walletDebit(wallet, credits, action, now) {
+  // Refresh separately before charging so migration/refills retain their rules.
   if (!wallet || weeklyWalletUpdate(wallet, now) || wallet.lastGrantWeek !== walletWeek(now)) {
-    throw new Error("Refresh your wallet and try collecting again.");
+    throw new Error("Refresh your wallet and try again.");
   }
-  const fromGrant = Math.min(wallet.grantBalance, PROFILE_COLLECTION_CREDITS);
-  const fromPurchased = PROFILE_COLLECTION_CREDITS - fromGrant;
+  const fromGrant = Math.min(wallet.grantBalance, credits);
+  const fromPurchased = credits - fromGrant;
   if (wallet.purchasedBalance < fromPurchased) {
-    throw new Error(`You need ${PROFILE_COLLECTION_CREDITS} credits to collect profile data.`);
+    throw new Error(`You need ${credits} ${credits === 1 ? "credit" : "credits"} to ${action}.`);
   }
   return {
     grantBalance: wallet.grantBalance - fromGrant,

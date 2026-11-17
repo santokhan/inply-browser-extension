@@ -9,6 +9,8 @@ import { sendLtmMessage } from "../../../utils/ltmMessaging";
 import useCustomerSession from "../../../hooks/useCustomerSession";
 import { tenantCustomersPath } from "../../../data/tenantCustomerPaths";
 import { resolveTenderCustomer } from "../../../utils/tenderCustomer";
+import { chargeSubmissionLetter } from "../../../firebase/tenantWallet";
+import { SUBMISSION_LETTER_CREDITS } from "../../../utils/tenantWallet";
 
 const DEFAULT_FORM_ORDER = Object.keys(ltmTenderForms.forms);
 
@@ -189,6 +191,7 @@ export default function LtmForm() {
                 {form.name}
                 <div className="flex gap-1 mt-1">
                   <FillSignEncryptSave
+                    beforeActions={key === "e_tender_submission_letter" ? () => chargeSubmissionLetter(tenantUid) : undefined}
                     beforeRun={(tabId) => {
                       return sendLtmMessage(tabId, { action: "fillLtmForm", formKey: key, form });
                     }}
@@ -197,6 +200,11 @@ export default function LtmForm() {
                     onRunningChange={(running) => setRunningForm(running ? key : null)}
                   />
                 </div>
+                {key === "e_tender_submission_letter" && (
+                  <p className="mt-1 text-xs text-gray-600">
+                    {SUBMISSION_LETTER_CREDITS} credit per use, charged before signing. Weekly free credits are used first.
+                  </p>
+                )}
               </summary>
               <form onSubmit={(event) => saveForm(event, key)} className="mt-3 space-y-3">
                 <fieldset className="space-y-3">

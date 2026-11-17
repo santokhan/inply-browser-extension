@@ -4,7 +4,7 @@ import { getActiveTabSafe } from "../../../../utils/chrome";
 import { toast } from "react-toastify";
 import PageActionButton from "./PageActionButton";
 
-export function FillSignEncryptSave({ pageReady = true, beforeRun, className = "default w-full", disabled = false, onRunningChange }) {
+export function FillSignEncryptSave({ pageReady = true, beforeRun, beforeActions, className = "default w-full", disabled = false, onRunningChange }) {
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState("");
   const hoverCooldown = useRef(false);
@@ -21,7 +21,7 @@ export function FillSignEncryptSave({ pageReady = true, beforeRun, className = "
         toast.info("Open the tender preparation page before using Sign, Encrypt & Save.");
         return;
       }
-      const result = await runFillSignEncryptSave(tab.id, { beforeRun, applyOnly, setStatus });
+      const result = await runFillSignEncryptSave(tab.id, { beforeRun, beforeActions, applyOnly, setStatus });
       if (!result.ok) toast.info(result.message);
     } catch (error) {
       console.error(error);
