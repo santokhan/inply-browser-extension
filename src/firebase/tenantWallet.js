@@ -1,18 +1,30 @@
 import { doc, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
 import { db, tenantAuth } from "./config";
-import { submissionLetterDebit, weeklyWalletUpdate } from "../utils/tenantWallet.js";
+import { weeklyWalletUpdate } from "../utils/tenantWallet.js";
+import { tenantCustomerPath } from "../data/tenantCustomerPaths.js";
+import { saveCompletedTenderAutomation } from "../utils/robotAutomationBilling.js";
 
-export async function chargeSubmissionLetter(tenantUid) {
-  await refreshTenantWallet(tenantUid);
-  const reference = doc(db, "tenantWallets", tenantUid);
-  await runTransaction(db, async (transaction) => {
-    const snapshot = await transaction.get(reference);
-    if (tenantAuth.currentUser?.uid !== tenantUid) {
-      throw new Error("Sign in again to use Fill Sign Encrypt Save.");
+export async function completeTenderAutomation(tenantUid, customerId, tenderId) {
+  await tenantAuth.authStateReady();
+  const assertCurrentSession = () => {
+    if (!tenantUid || tenantAuth.currentUser?.uid !== tenantUid) {
+      throw new Error("Sign in again to complete Robot automation.");
     }
-    const debit = submissionLetterDebit(snapshot.exists() ? snapshot.data() : null);
-    transaction.update(reference, { ...debit, updatedAt: serverTimestamp() });
-  });
+  };
+  assertCurrentSession();
+  const options = {
+    customerRef: doc(db, ...tenantCustomerPath(tenantUid, customerId)),
+    walletRef: doc(db, "tenantWallets", tenantUid),
+    tenderId, assertCurrentSession, timestamp: serverTimestamp,
+  };
+  const complete = () => runTransaction(db, (transaction) => saveCompletedTenderAutomation(transaction, options));
+  let result = await complete();
+  if (result.needsWalletRefresh) {
+    await refreshTenantWallet(tenantUid);
+    result = await complete();
+    if (result.needsWalletRefresh) throw new Error("Refresh your wallet and try again.");
+  }
+  return result;
 }
 
 export function subscribeTenantWallet(tenantUid, onWallet, onError) {

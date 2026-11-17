@@ -59,6 +59,21 @@ test("another tender or another preparation tab still opens My Tenders", async (
   }
 });
 
+test("a retry on a finished tender completes without filling or saving again", async () => {
+  const steps = [];
+  globalThis.chrome = {
+    tabs: { get: async () => ({ status: "complete", url: "https://www.eprocure.gov.bd/tenderer/LotTendPrep.jsp?tab=4&tenderId=1234" }) },
+    scripting: { executeScript: async ({ func }) => {
+      steps.push(func);
+      return [{ result: { ok: false, noFillLinks: true } }];
+    } },
+  };
+  assert.deepEqual(await searchMyTender(12, "1234"), {
+    ok: true, message: "Tender 1234 automation completed.",
+  });
+  assert.deepEqual(steps, [openFirstFillLink]);
+});
+
 function connectAutomation(tenderId = "1234") {
   const actions = [];
   let saved = false;

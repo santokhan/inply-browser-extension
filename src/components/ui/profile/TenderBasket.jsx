@@ -8,6 +8,7 @@ import { SITE_ORIGIN, SITE_URL, isSiteUrl } from "../../../config/site";
 import { waitForLoginTab } from "../../../utils/customerLogin";
 import { openMyTenders, searchMyTender } from "../../../utils/tenderMessaging";
 import { getCustomerLtmForms } from "../../../data/ltmTenderForms";
+import { completeTenderAutomation } from "../../../firebase/tenantWallet";
 
 export default function TenderBasket({ customer }) {
   const [tenderIds, setTenderIds] = useState([]);
@@ -121,8 +122,12 @@ export default function TenderBasket({ customer }) {
       if (!result?.ok) throw new Error(result?.message || "Could not open My Tenders.");
       const search = await searchMyTender(tab.id, id, forms);
       if (!search?.ok) throw new Error(search?.message || "Could not search for this tender.");
-      await saveTenderChange({ action: "status", tenderId: id, status: "completed" });
-      setMessage(search.message);
+      try {
+        await completeTenderAutomation(tenantUid, customer.id, id);
+      } catch (cause) {
+        throw new Error(`Tender ${id} automation finished, but its completion charge could not be saved. ${cause.message || "Check your wallet and retry."}`);
+      }
+      setMessage(`Tender ${id} automation completed.`);
     } catch (error) {
       setError(error.message || "Could not open My Tenders.");
     } finally {

@@ -1,6 +1,6 @@
 export const WEEKLY_FREE_CREDITS = 50;
 export const PROFILE_COLLECTION_CREDITS = 5;
-export const SUBMISSION_LETTER_CREDITS = 1;
+export const ROBOT_AUTOMATION_CREDITS = 6;
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 // Monday, 5 January 1970, 00:00 UTC.
 export const WEEK_EPOCH_MS = 4 * 24 * 60 * 60 * 1000;
@@ -17,8 +17,8 @@ export function profileCollectionDebit(wallet, now = Date.now()) {
   return walletDebit(wallet, PROFILE_COLLECTION_CREDITS, "collect profile data", now);
 }
 
-export function submissionLetterDebit(wallet, now = Date.now()) {
-  return walletDebit(wallet, SUBMISSION_LETTER_CREDITS, "use Fill Sign Encrypt Save for the submission letter", now);
+export function robotAutomationDebit(wallet, now = Date.now()) {
+  return walletDebit(wallet, ROBOT_AUTOMATION_CREDITS, "complete Robot automation for a tender", now);
 }
 
 function walletDebit(wallet, credits, action, now) {

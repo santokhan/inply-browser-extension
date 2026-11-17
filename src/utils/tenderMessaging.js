@@ -141,6 +141,10 @@ export async function searchMyTender(tabId, tenderId, ltmForms = ltmTenderForms.
               // the search/navigation catch below after an earlier form saved.
               return continueAfterTenderSave(tabId, message.tenderId, ltmForms, detectionForms, filled);
             }
+            if (nextStep === openFirstFillLink && execution.result?.noFillLinks
+              && isTenderPreparationPage((await chrome.tabs.get(tabId)).url, message.tenderId)) {
+              return { ok: true, message: `Tender ${message.tenderId} automation completed.` };
+            }
             if (!execution.result?.ok) return execution.result;
           }
           return { ok: true };

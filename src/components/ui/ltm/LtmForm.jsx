@@ -9,8 +9,6 @@ import { sendLtmMessage } from "../../../utils/ltmMessaging";
 import useCustomerSession from "../../../hooks/useCustomerSession";
 import { tenantCustomersPath } from "../../../data/tenantCustomerPaths";
 import { resolveTenderCustomer } from "../../../utils/tenderCustomer";
-import { chargeSubmissionLetter } from "../../../firebase/tenantWallet";
-import { SUBMISSION_LETTER_CREDITS } from "../../../utils/tenantWallet";
 
 const DEFAULT_FORM_ORDER = Object.keys(ltmTenderForms.forms);
 
@@ -191,7 +189,6 @@ export default function LtmForm() {
                 {form.name}
                 <div className="flex gap-1 mt-1">
                   <FillSignEncryptSave
-                    beforeActions={key === "e_tender_submission_letter" ? () => chargeSubmissionLetter(tenantUid) : undefined}
                     beforeRun={(tabId) => {
                       return sendLtmMessage(tabId, { action: "fillLtmForm", formKey: key, form });
                     }}
