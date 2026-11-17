@@ -135,14 +135,14 @@ export default function CustomerAccounts() {
 
   async function saveCustomer(event) {
     event.preventDefault();
-    if (!customer.email.trim() || !customer.password.trim()) {
+    if ((!editingId && !customer.email.trim()) || !customer.password.trim()) {
       setError("Customer email and password are required.");
       setMessage("");
       return;
     }
 
     const normalizedEmail = customer.email.trim().toLowerCase();
-    const duplicate = customers.some((item) =>
+    const duplicate = !editingId && customers.some((item) =>
       item.id !== editingId && item.email?.trim().toLowerCase() === normalizedEmail
     );
     if (duplicate) {
@@ -158,7 +158,6 @@ export default function CustomerAccounts() {
       const tenant = tenantAuth.currentUser;
       if (!tenant) throw new Error("Sign in again to save your customer.");
       const values = {
-        email: customer.email.trim(),
         password: customer.password,
         businessName: customer.businessName.trim(),
         registeredAddress: customer.registeredAddress.trim(),
@@ -171,7 +170,11 @@ export default function CustomerAccounts() {
         await updateDoc(doc(db, ...tenantCustomerPath(tenant.uid, editingId)), values);
         setMessage("Customer updated.");
       } else {
-        await addDoc(customersCollection(tenant.uid), { ...values, createdAt: serverTimestamp() });
+        await addDoc(customersCollection(tenant.uid), {
+          ...values,
+          email: customer.email.trim(),
+          createdAt: serverTimestamp(),
+        });
         setMessage("Customer added.");
       }
       resetForm();
@@ -388,14 +391,15 @@ export default function CustomerAccounts() {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-gray-800">{editingId ? "Edit customer" : "Add a customer"}</h3>
-            <p>Add e-GP Customer Details</p>
+            <p>{editingId ? "Update e-GP customer details" : "Add e-GP customer login details"}</p>
           </div>
           <button type="button" disabled={saving} aria-label={editingId ? "Cancel edit" : "Cancel adding customer"} onClick={() => { resetForm(); setError(""); setMessage(""); }} className="secondary flex items-center gap-1"><X size={16} /> Cancel</button>
         </div>
 
         <label className="block space-y-1 text-xs font-medium text-gray-700">
           Customer email
-          <input type="email" autoComplete="off" autoFocus value={customer.email} onChange={(e) => update("email", e.target.value)} className="default" required />
+          <input type="email" autoComplete="off" autoFocus={!editingId} value={customer.email} readOnly={!!editingId} aria-describedby={editingId ? "customer-email-help" : undefined} onChange={(e) => update("email", e.target.value)} className={twMerge("default", editingId && "bg-gray-100 text-gray-500")} required={!editingId} />
+          {editingId && <p id="customer-email-help" className="text-xs font-normal text-gray-500">Email cannot be changed after a customer is added.</p>}
         </label>
 
         <label className="block space-y-1 text-xs font-medium text-gray-700">
@@ -408,6 +412,7 @@ export default function CustomerAccounts() {
           </div>
         </label>
 
+        {editingId && <>
         <label className="block space-y-1 text-xs font-medium text-gray-700">
           Business name (optional)
           <input type="text" autoComplete="organization" value={customer.businessName} onChange={(e) => update("businessName", e.target.value)} className="default" />
@@ -427,6 +432,7 @@ export default function CustomerAccounts() {
           Branch name (optional)
           <input type="text" value={customer.branchName} onChange={(e) => update("branchName", e.target.value)} className="default" />
         </label>
+        </>}
 
         <button type="submit" disabled={saving} className="default w-full">
           {saving ? "Saving…" : editingId ? "Save changes" : "Add customer"}

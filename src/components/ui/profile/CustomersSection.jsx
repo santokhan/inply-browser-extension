@@ -49,7 +49,9 @@ export default function CustomersSection() {
         <>
           <div className="mx-3 mb-3">
             <CustomerSessionStatus />
-            <TenderBasket key={currentCustomer.id || currentCustomer.email} customer={currentCustomer} />
+            {CUSTOMER_DETAIL_FIELDS.every((field) => currentCustomer[field]?.trim()) && (
+              <TenderBasket key={currentCustomer.id || currentCustomer.email} customer={currentCustomer} />
+            )}
           </div>
           <LoggedInCustomer customer={currentCustomer} />
         </>

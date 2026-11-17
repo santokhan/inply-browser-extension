@@ -133,7 +133,7 @@ export default function TenderBasket({ customer }) {
   const busy = saving || opening;
 
   return (
-    <section aria-label={`Tender basket for ${customer.businessName || customer.email}`} className="mt-3 space-y-2 border-t border-gray-200 pt-3">
+    <section aria-label={`Tender basket for ${customer.businessName || customer.email}`} className="space-y-2 pt-3">
       <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
         <ShoppingBasket size={16} aria-hidden="true" /> Tender basket
         <span className="text-xs font-normal text-gray-500">({tenderIds.length})</span>
