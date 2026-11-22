@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { doc, getDoc, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
 import { Bot, Plus, ShoppingBasket, Trash2 } from "lucide-react";
 import { db, tenantAuth } from "../../../firebase/config";
-import { tenantCustomerPath } from "../../../data/tenantCustomerPaths";
+import { tenantCustomerPath, tenantCustomersPath, tenantTenderBasketPath } from "../../../data/tenantCustomerPaths";
 import { getTenderStatus, normalizeTenderId, updateTenderBasket } from "../../../utils/tenderBasket";
 import { SITE_ORIGIN, SITE_URL, isSiteUrl } from "../../../config/site";
 import { waitForLoginTab } from "../../../utils/customerLogin";
@@ -27,44 +27,69 @@ export default function TenderBasket({ customer }) {
     setError("");
     setTenderIds([]);
     setTenderStatuses({});
-    if (!tenantUid || !customer.id) {
+    if (!tenantUid) {
       setLoading(false);
       setError("Select a saved customer to manage tenders.");
       return;
     }
-    return onSnapshot(doc(db, ...tenantCustomerPath(tenantUid, customer.id)), (snapshot) => {
-      setLoading(false);
-      if (!snapshot.exists()) {
-        setError("This customer has been removed.");
-        setTenderIds([]);
-        setTenderStatuses({});
-        return;
+    let unsubscribe;
+    let active = true;
+    async function subscribeToBasket() {
+      try {
+        const basketRef = doc(db, ...tenantTenderBasketPath(tenantUid));
+        const existing = await getDoc(basketRef);
+        if (!active) return;
+        if (!existing.exists()) {
+          const legacyCustomers = await getDocs(collection(db, ...tenantCustomersPath(tenantUid)));
+          const legacyBasket = legacyCustomers.docs.reduce((basket, customerSnapshot) => {
+            const customerBasket = customerSnapshot.data();
+            for (const id of customerBasket.tenderIds ?? []) {
+              if (!basket.tenderIds.includes(id)) basket.tenderIds.push(id);
+              const status = customerBasket.tenderStatuses?.[id] ?? "pending";
+              if (status === "completed" || basket.tenderStatuses[id] == null) basket.tenderStatuses[id] = status;
+            }
+            return basket;
+          }, { tenderIds: [], tenderStatuses: {} });
+          await runTransaction(db, async (transaction) => {
+            const snapshot = await transaction.get(basketRef);
+            if (!snapshot.exists()) transaction.set(basketRef, legacyBasket);
+          });
+        }
+        if (!active) return;
+        unsubscribe = onSnapshot(basketRef, (snapshot) => {
+          setLoading(false);
+          setTenderIds(snapshot.data()?.tenderIds ?? []);
+          setTenderStatuses(snapshot.data()?.tenderStatuses ?? {});
+          setError("");
+        }, (err) => {
+          setLoading(false);
+          setError(err.message || "Could not load the tender basket.");
+        });
+      } catch (err) {
+        if (!active) return;
+        setLoading(false);
+        setError(err.message || "Could not load the tender basket.");
       }
-      setTenderIds(snapshot.data().tenderIds ?? []);
-      setTenderStatuses(snapshot.data().tenderStatuses ?? {});
-      setError("");
-    }, (err) => {
-      setLoading(false);
-      setError(err.message || "Could not load the tender basket.");
-    });
-  }, [tenantUid, customer.id]);
+    }
+    subscribeToBasket();
+    return () => { active = false; unsubscribe?.(); };
+  }, [tenantUid]);
 
-  function customerRef() {
+  function tenderBasketRef() {
     if (!tenantUid || tenantAuth.currentUser?.uid !== tenantUid) {
       throw new Error("Sign in again to manage this tender basket.");
     }
-    return doc(db, ...tenantCustomerPath(tenantUid, customer.id));
+    return doc(db, ...tenantTenderBasketPath(tenantUid));
   }
 
   async function saveTenderChange(change) {
-    const ref = customerRef();
+    const ref = tenderBasketRef();
     await runTransaction(db, async (transaction) => {
       const snapshot = await transaction.get(ref);
-      if (!snapshot.exists()) throw new Error("This customer has been removed.");
-      transaction.update(ref, {
-        ...updateTenderBasket(snapshot.data(), change),
+      transaction.set(ref, {
+        ...updateTenderBasket(snapshot.data() ?? {}, change),
         updatedAt: serverTimestamp(),
-      });
+      }, { merge: true });
     });
   }
 
@@ -96,7 +121,7 @@ export default function TenderBasket({ customer }) {
     setError("");
     setMessage("");
     try {
-      const ref = customerRef();
+      const ref = doc(db, ...tenantCustomerPath(tenantUid, customer.id));
       const [ltmSnapshot, customerSnapshot] = await Promise.all([
         getDoc(doc(db, "ltmTenderForms", tenantUid)),
         getDoc(ref),
@@ -123,7 +148,7 @@ export default function TenderBasket({ customer }) {
       const search = await searchMyTender(tab.id, id, forms);
       if (!search?.ok) throw new Error(search?.message || "Could not search for this tender.");
       try {
-        await completeTenderAutomation(tenantUid, customer.id, id);
+        await completeTenderAutomation(tenantUid, id);
       } catch (cause) {
         throw new Error(`Tender ${id} automation finished, but its completion charge could not be saved. ${cause.message || "Check your wallet and retry."}`);
       }

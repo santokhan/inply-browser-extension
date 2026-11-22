@@ -2,13 +2,13 @@ import { getTenderStatus, normalizeTenderId, updateTenderBasket } from "./tender
 import { robotAutomationDebit, weeklyWalletUpdate } from "./tenantWallet.js";
 
 export async function saveCompletedTenderAutomation(transaction, {
-  customerRef, walletRef, tenderId, assertCurrentSession, timestamp,
+  tenderBasketRef, walletRef, tenderId, assertCurrentSession, timestamp,
 }) {
   assertCurrentSession();
   const id = normalizeTenderId(tenderId);
-  const customer = await transaction.get(customerRef);
-  if (!customer.exists()) throw new Error("This customer has been removed.");
-  const saved = customer.data();
+  const basket = await transaction.get(tenderBasketRef);
+  if (!basket.exists()) throw new Error("This tender is no longer in the basket.");
+  const saved = basket.data();
   const completed = updateTenderBasket(saved, { action: "status", tenderId: id, status: "completed" });
   if (getTenderStatus(saved.tenderStatuses, id) === "completed") return { charged: false };
 
@@ -18,6 +18,6 @@ export async function saveCompletedTenderAutomation(transaction, {
   const debit = robotAutomationDebit(wallet);
   assertCurrentSession();
   transaction.update(walletRef, { ...debit, updatedAt: timestamp() });
-  transaction.update(customerRef, { ...completed, updatedAt: timestamp() });
+  transaction.update(tenderBasketRef, { ...completed, updatedAt: timestamp() });
   return { charged: true };
 }

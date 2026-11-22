@@ -9,7 +9,7 @@ const wallet = (grantBalance, purchasedBalance = 0) => ({
 
 function completion(balance = wallet(50)) {
   const records = {
-    customer: { tenderIds: ["123", "456"], tenderStatuses: { 123: "pending", 456: "encrypted" } },
+    basket: { tenderIds: ["123", "456"], tenderStatuses: { 123: "pending", 456: "encrypted" } },
     wallet: balance,
   };
   const writes = [];
@@ -20,7 +20,7 @@ function completion(balance = wallet(50)) {
       update: (ref, values) => writes.push({ ref, values }),
     },
     options: {
-      customerRef: "customer", walletRef: "wallet", tenderId: "00123",
+      tenderBasketRef: "basket", walletRef: "wallet", tenderId: "00123",
       assertCurrentSession: () => {}, timestamp: () => "server timestamp",
     },
   };
@@ -38,7 +38,7 @@ test("completion writes one charge and the tender status in the same transaction
   assert.deepEqual(await saveCompletedTenderAutomation(transaction, options), { charged: true });
   assert.deepEqual(writes, [
     { ref: "wallet", values: { grantBalance: 0, purchasedBalance: 6, updatedAt: "server timestamp" } },
-    { ref: "customer", values: {
+    { ref: "basket", values: {
       tenderIds: ["123", "456"], tenderStatuses: { 123: "completed", 456: "encrypted" }, updatedAt: "server timestamp",
     } },
   ]);
@@ -54,11 +54,11 @@ test("retrying an already completed tender does not charge again", async () => {
   assert.equal(records.wallet.grantBalance, 44);
 });
 
-test("insufficient credits and removed tenders or customers prevent all completion writes", async () => {
+test("insufficient credits and removed tenders prevent all completion writes", async () => {
   for (const change of [
     (setup) => { setup.records.wallet = wallet(5); },
-    (setup) => { setup.records.customer.tenderIds = []; },
-    (setup) => { setup.records.customer = null; },
+    (setup) => { setup.records.basket.tenderIds = []; },
+    (setup) => { setup.records.basket = null; },
     (setup) => { setup.options.assertCurrentSession = () => { throw new Error("Session changed"); }; },
   ]) {
     const setup = completion();

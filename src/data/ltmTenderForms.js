@@ -133,5 +133,6 @@ export function getCustomerLtmForms(stored = {}, customer) {
     tenderers_legal_title: nonempty(details.tenderers_legal_title, customer?.businessName ?? ""),
     tenderers_registered_address: nonempty(details.tenderers_registered_address, customer?.registeredAddress ?? ""),
   };
+  forms.tenderer_information.values.financial_resources.source_of_financing = customer?.bankName ?? "";
   return forms;
 }

@@ -37,6 +37,10 @@ export default function LtmForm() {
       ...savedForms.tenderer_information,
       values: {
         ...savedForms.tenderer_information.values,
+        financial_resources: {
+          ...savedForms.tenderer_information.values.financial_resources,
+          source_of_financing: formCustomer?.bankName ?? "",
+        },
         tenderer_details: {
           tenderers_legal_title: details?.tenderers_legal_title ?? formCustomer?.businessName ?? "",
           tenderers_registered_address: details?.tenderers_registered_address ?? formCustomer?.registeredAddress ?? "",
@@ -96,7 +100,7 @@ export default function LtmForm() {
         if (!active || currentRequest !== request) return;
         setCustomers(customerSnapshot.docs.map((item) => {
           const data = item.data();
-          return { id: item.id, email: data.email, businessName: data.businessName, registeredAddress: data.registeredAddress };
+          return { id: item.id, email: data.email, businessName: data.businessName, registeredAddress: data.registeredAddress, bankName: data.bankName };
         }));
         const stored = snapshot.data()?.forms ?? {};
         const loaded = restoreLtmForms(stored);

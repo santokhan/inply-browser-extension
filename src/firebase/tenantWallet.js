@@ -1,10 +1,10 @@
 import { doc, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
 import { db, tenantAuth } from "./config";
 import { weeklyWalletUpdate } from "../utils/tenantWallet.js";
-import { tenantCustomerPath } from "../data/tenantCustomerPaths.js";
+import { tenantTenderBasketPath } from "../data/tenantCustomerPaths.js";
 import { saveCompletedTenderAutomation } from "../utils/robotAutomationBilling.js";
 
-export async function completeTenderAutomation(tenantUid, customerId, tenderId) {
+export async function completeTenderAutomation(tenantUid, tenderId) {
   await tenantAuth.authStateReady();
   const assertCurrentSession = () => {
     if (!tenantUid || tenantAuth.currentUser?.uid !== tenantUid) {
@@ -13,7 +13,7 @@ export async function completeTenderAutomation(tenantUid, customerId, tenderId) 
   };
   assertCurrentSession();
   const options = {
-    customerRef: doc(db, ...tenantCustomerPath(tenantUid, customerId)),
+    tenderBasketRef: doc(db, ...tenantTenderBasketPath(tenantUid)),
     walletRef: doc(db, "tenantWallets", tenantUid),
     tenderId, assertCurrentSession, timestamp: serverTimestamp,
   };
