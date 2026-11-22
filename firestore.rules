@@ -25,6 +25,10 @@ service cloud.firestore {
       allow read, write: if enabledOwner(ownerId);
     }
 
+    match /tenantTenderBaskets/{uid} {
+      allow read, write: if enabledOwner(uid);
+    }
+
     match /ltmTenderForms/{uid} {
       allow get, create, update: if enabledOwner(uid);
     }
