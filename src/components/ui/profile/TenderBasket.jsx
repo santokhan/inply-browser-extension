@@ -114,7 +114,6 @@ export default function TenderBasket({ customer }) {
   }
 
   async function runTenderAutomation(id) {
-    if (getTenderStatus(tenderStatuses, id) !== "pending") return;
     if (pending.current) return;
     pending.current = true;
     setOpening(true);
@@ -201,13 +200,13 @@ export default function TenderBasket({ customer }) {
                 className="rounded bg-gray-200 px-2 py-1 text-xs capitalize text-gray-800">
                 {getTenderStatus(tenderStatuses, id)}
               </span>}
-              {getTenderStatus(tenderStatuses, id) === "pending" && <button type="button" disabled={busy}
+              <button type="button" disabled={busy}
                 aria-label={`Search My Tenders for tender ${id}`} title="Search My Tenders"
                 className="secondary flex shrink-0 items-center justify-center p-2"
                 onClick={() => runTenderAutomation(id)}
               >
                 <Bot size={16} />
-              </button>}
+              </button>
               <button type="button" onClick={(event) => changeTender(event, id)} disabled={busy}
                 aria-label={`Remove tender ${id}`} title={`Remove tender ${id}`}
                 className="secondary flex shrink-0 items-center justify-center p-2"><Trash2 size={16} /></button>
