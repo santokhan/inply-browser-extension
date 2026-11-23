@@ -8,6 +8,7 @@ import { CollectBusinessDetails } from "./CollectBusinessData";
 import CustomerAccounts from "./CustomerAccounts";
 import TenderBasket from "./TenderBasket";
 import { CUSTOMER_DETAIL_FIELDS } from "../../../utils/customerProfile";
+import NoticePreparationSection from "./NoticePreparationSection";
 
 function LoggedInCustomer({ customer }) {
   if (CUSTOMER_DETAIL_FIELDS.every((field) => customer?.[field]?.trim())) {
@@ -44,20 +45,23 @@ export default function CustomersSection() {
   const { currentCustomer } = useCustomerSession();
 
   return (
-    <section aria-labelledby="customers-heading" className="mt-4 border-t border-gray-200 space-y-3 py-2">
-      {currentCustomer ?
-        <>
-          <div className="mx-3 mb-3">
-            <CustomerSessionStatus />
-            {CUSTOMER_DETAIL_FIELDS.every((field) => currentCustomer[field]?.trim()) && (
-              <TenderBasket key={currentCustomer.id || currentCustomer.email} customer={currentCustomer} />
-            )}
-          </div>
-          <LoggedInCustomer customer={currentCustomer} />
-        </>
-        :
-        <CustomerAccounts />
-      }
-    </section>
+    <>
+      <section aria-labelledby="customers-heading" className="mt-4 border-t border-gray-200 space-y-3 py-2">
+        {currentCustomer ?
+          <>
+            <div className="mx-3 mb-3">
+              <CustomerSessionStatus />
+              {CUSTOMER_DETAIL_FIELDS.every((field) => currentCustomer[field]?.trim()) && (
+                <TenderBasket key={currentCustomer.id || currentCustomer.email} customer={currentCustomer} />
+              )}
+            </div>
+            <LoggedInCustomer customer={currentCustomer} />
+          </>
+          :
+          <CustomerAccounts />
+        }
+      </section>
+      <NoticePreparationSection />
+    </>
   );
 }

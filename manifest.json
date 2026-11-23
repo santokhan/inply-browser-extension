@@ -27,6 +27,7 @@
             "js": [
                 "src/content/content.js",
                 "src/content/tenderEntry.js",
+                "src/content/prepareNoticeEntry.js",
                 "src/content/signEncryptSave.js",
                 "src/content/parser.js",
                 "src/content/modalCloserEntry.js",
