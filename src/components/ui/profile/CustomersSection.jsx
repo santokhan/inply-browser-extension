@@ -6,7 +6,7 @@ import OpenFillLink from "../encrypt/actions/OpenFillLink";
 import TestActions from "../test/TestActions";
 import { CollectBusinessDetails } from "./CollectBusinessData";
 import CustomerAccounts from "./CustomerAccounts";
-import TenderBasket from "./TenderBasket";
+import TenderBasket from "./tender-basket/Index";
 import { CUSTOMER_DETAIL_FIELDS } from "../../../utils/customerProfile";
 import NoticePreparationSection from "./NoticePreparationSection";
 

@@ -1,18 +1,38 @@
 import { useEffect, useRef, useState } from "react";
 import { collection, doc, getDoc, getDocs, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
-import { Bot, Plus, ShoppingBasket, Trash2 } from "lucide-react";
-import { db, tenantAuth } from "../../../firebase/config";
-import { tenantCustomerPath, tenantCustomersPath, tenantTenderBasketPath } from "../../../data/tenantCustomerPaths";
-import { getTenderStatus, normalizeTenderId, updateTenderBasket } from "../../../utils/tenderBasket";
-import { SITE_ORIGIN, SITE_URL, isSiteUrl } from "../../../config/site";
-import { waitForLoginTab } from "../../../utils/customerLogin";
-import { openMyTenders, searchMyTender } from "../../../utils/tenderMessaging";
-import { getCustomerLtmForms } from "../../../data/ltmTenderForms";
-import { completeTenderAutomation } from "../../../firebase/tenantWallet";
+import { Bot, ShoppingBasket, Trash2 } from "lucide-react";
+import { db, tenantAuth } from "../../../../firebase/config";
+import { tenantCustomerPath, tenantCustomersPath, tenantTenderBasketPath } from "../../../../data/tenantCustomerPaths";
+import { normalizeTenderId, updateTenderBasket } from "../../../../utils/tenderBasket";
+import { SITE_ORIGIN, SITE_URL, isSiteUrl } from "../../../../config/site";
+import { waitForLoginTab } from "../../../../utils/customerLogin";
+import { openMyTenders, searchMyTender } from "../../../../utils/tenderMessaging";
+import { getCustomerLtmForms } from "../../../../data/ltmTenderForms";
+import { completeTenderAutomation } from "../../../../firebase/tenantWallet";
+import TenderIDForm from "./Form";
+
+function TenderIdRow({ id, busy, onSearch, onRemove }) {
+  const [status, setStatus] = useState("pending");
+  return (
+    <li className="flex items-center gap-2 rounded-lg bg-gray-50 px-2 py-1.5">
+      <span className="min-w-0 flex-1 break-all text-sm text-gray-800">{id}</span>
+      
+      <button type="button" disabled={busy}
+        aria-label={`Search My Tenders for tender ${id}`} title="Search My Tenders"
+        className="secondary flex shrink-0 items-center justify-center p-2"
+        onClick={() => onSearch(() => setStatus("completed"))}
+      >
+        <Bot size={16} />
+      </button>
+      <button type="button" onClick={onRemove} disabled={busy}
+        aria-label={`Remove tender ${id}`} title={`Remove tender ${id}`}
+        className="secondary flex shrink-0 items-center justify-center p-2"><Trash2 size={16} /></button>
+    </li>
+  );
+}
 
 export default function TenderBasket({ customer }) {
   const [tenderIds, setTenderIds] = useState([]);
-  const [tenderStatuses, setTenderStatuses] = useState({});
   const [tenderId, setTenderId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -26,7 +46,6 @@ export default function TenderBasket({ customer }) {
     setLoading(true);
     setError("");
     setTenderIds([]);
-    setTenderStatuses({});
     if (!tenantUid) {
       setLoading(false);
       setError("Select a saved customer to manage tenders.");
@@ -45,11 +64,9 @@ export default function TenderBasket({ customer }) {
             const customerBasket = customerSnapshot.data();
             for (const id of customerBasket.tenderIds ?? []) {
               if (!basket.tenderIds.includes(id)) basket.tenderIds.push(id);
-              const status = customerBasket.tenderStatuses?.[id] ?? "pending";
-              if (status === "completed" || basket.tenderStatuses[id] == null) basket.tenderStatuses[id] = status;
             }
             return basket;
-          }, { tenderIds: [], tenderStatuses: {} });
+          }, { tenderIds: [] });
           await runTransaction(db, async (transaction) => {
             const snapshot = await transaction.get(basketRef);
             if (!snapshot.exists()) transaction.set(basketRef, legacyBasket);
@@ -59,7 +76,6 @@ export default function TenderBasket({ customer }) {
         unsubscribe = onSnapshot(basketRef, (snapshot) => {
           setLoading(false);
           setTenderIds(snapshot.data()?.tenderIds ?? []);
-          setTenderStatuses(snapshot.data()?.tenderStatuses ?? {});
           setError("");
         }, (err) => {
           setLoading(false);
@@ -113,7 +129,7 @@ export default function TenderBasket({ customer }) {
     }
   }
 
-  async function runTenderAutomation(id) {
+  async function runTenderAutomation(id, onCompleted) {
     if (pending.current) return;
     pending.current = true;
     setOpening(true);
@@ -151,6 +167,7 @@ export default function TenderBasket({ customer }) {
       } catch (cause) {
         throw new Error(`Tender ${id} automation finished, but its completion charge could not be saved. ${cause.message || "Check your wallet and retry."}`);
       }
+      onCompleted?.();
       setMessage(`Tender ${id} automation completed.`);
     } catch (error) {
       setError(error.message || "Could not open My Tenders.");
@@ -168,49 +185,21 @@ export default function TenderBasket({ customer }) {
         <ShoppingBasket size={16} aria-hidden="true" /> Tender basket
         <span className="text-xs font-normal text-gray-500">({tenderIds.length})</span>
       </h3>
-      <form onSubmit={changeTender} className="flex gap-2">
-        <label className="min-w-0 flex-1">
-          <span className="sr-only">Tender ID</span>
-          <input type="number" inputMode="numeric" min="0" step="1" value={tenderId}
-            onChange={(event) => setTenderId(event.target.value.replace(/\D/g, ""))}
-            onKeyDown={(event) => {
-              if (!event.ctrlKey && !event.metaKey && !event.altKey && ["e", "E", "+", "-", "."].includes(event.key)) {
-                event.preventDefault();
-              }
-            }}
-            onPaste={(event) => {
-              event.preventDefault();
-              setTenderId(event.clipboardData.getData("text").replace(/\D/g, ""));
-            }}
-            placeholder="Tender ID"
-            required disabled={busy || loading} className="default" />
-        </label>
-        <button type="submit" disabled={busy || loading || !tenderId.trim()} className="secondary flex items-center gap-1">
-          <Plus size={14} aria-hidden="true" /> Add
-        </button>
-      </form>
+
+      <TenderIDForm tenderId={tenderId} onTenderIdChange={setTenderId} onSubmit={changeTender} disabled={busy || loading} />
+
       {loading ? <p role="status" className="text-xs text-gray-500">Loading tenders...</p> : tenderIds.length === 0 ? (
         <p className="text-xs text-gray-500">Add a tender ID to automate it for this customer.</p>
       ) : (
         <ul className="space-y-1">
           {tenderIds.map((id) => (
-            <li key={id} className="flex items-center gap-2 rounded-lg bg-gray-50 px-2 py-1.5">
-              <span className="min-w-0 flex-1 break-all text-sm text-gray-800">{id}</span>
-              {getTenderStatus(tenderStatuses, id) !== "pending" && <span aria-label={`Status for tender ${id}: ${getTenderStatus(tenderStatuses, id)}`}
-                className="rounded bg-gray-200 px-2 py-1 text-xs capitalize text-gray-800">
-                {getTenderStatus(tenderStatuses, id)}
-              </span>}
-              <button type="button" disabled={busy}
-                aria-label={`Search My Tenders for tender ${id}`} title="Search My Tenders"
-                className="secondary flex shrink-0 items-center justify-center p-2"
-                onClick={() => runTenderAutomation(id)}
-              >
-                <Bot size={16} />
-              </button>
-              <button type="button" onClick={(event) => changeTender(event, id)} disabled={busy}
-                aria-label={`Remove tender ${id}`} title={`Remove tender ${id}`}
-                className="secondary flex shrink-0 items-center justify-center p-2"><Trash2 size={16} /></button>
-            </li>
+            <TenderIdRow
+              key={id}
+              id={id}
+              busy={busy}
+              onSearch={(onCompleted) => runTenderAutomation(id, onCompleted)}
+              onRemove={(event) => changeTender(event, id)}
+            />
           ))}
         </ul>
       )}
