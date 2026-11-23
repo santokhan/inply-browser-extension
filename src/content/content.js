@@ -598,6 +598,10 @@ function getLogoutButton() {
 }
 
 const messageHandlers = new Map();
+messageHandlers.set("checkLogoutButton", () => {
+  const { element, ...result } = getLogoutButton();
+  return result;
+});
 window.InplyContentRouter = {
   register(actions, handler) {
     for (const action of Array.isArray(actions) ? actions : [actions]) {
