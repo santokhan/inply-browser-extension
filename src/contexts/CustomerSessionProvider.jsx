@@ -16,10 +16,10 @@ import { toast } from "react-toastify";
 export function CustomerSessionProvider({ children }) {
   const { tenant } = useTenantAuth();
   const [selected, setSelected] = useState(null);
-  const [hasLogout, setHasLogout] = useState(false)
+  const [hasLogout, setHasLogout] = useState(false);
   const sessionRevision = useRef(0);
   const tenantUid = tenant?.uid;
-  const currentCustomer = selected?.tenantUid === tenantUid ? selected : null;
+  const currentCustomer = hasLogout && selected?.tenantUid === tenantUid ? selected : null;
 
   useEffect(() => {
     const onSessionChanged = (changes, area) => {
@@ -72,7 +72,10 @@ export function CustomerSessionProvider({ children }) {
     sessionRevision.current += 1;
     const active = await activateExtensionCustomer({ tenantUid, customer, loginResult },
       (values) => chrome.storage.local.set(values));
-    if (active) setSelected(active);
+    if (active) {
+      setSelected(active);
+      setHasLogout(true);
+    }
   }, [tenantUid]);
 
   const signOutCustomer = useCallback(async () => {
@@ -81,6 +84,7 @@ export function CustomerSessionProvider({ children }) {
     if (!result?.ok) throw new Error(result?.message || "Could not log out of eProcure.");
     await chrome.storage.local.remove(ACTIVE_CUSTOMER_KEY);
     setSelected(null);
+    setHasLogout(false);
   }, []);
 
   const collectBusinessDetails = useCallback(async () => {
