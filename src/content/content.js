@@ -590,6 +590,13 @@ function getEncryptButton() {
     .find((element) => !element.disabled && isVisible(element));
 }
 
+function getLogoutButton() {
+  const link = document.querySelector('a[href="/Logout.jsp"]');
+  if (!link) return { ok: false, message: "Logout button not found on this page." };
+
+  return { ok: true, element: link };
+}
+
 const messageHandlers = new Map();
 window.InplyContentRouter = {
   register(actions, handler) {
