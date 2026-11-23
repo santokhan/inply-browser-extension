@@ -8,6 +8,14 @@ import App from "./App"
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <App />
-    <ToastContainer position="top-right" autoClose={3500} newestOnTop closeOnClick pauseOnHover theme="colored" />
+    <ToastContainer
+      className="extension-toast-container"
+      position="top-right"
+      autoClose={3500}
+      newestOnTop
+      closeOnClick
+      pauseOnHover
+      theme="colored"
+    />
   </React.StrictMode>
 )

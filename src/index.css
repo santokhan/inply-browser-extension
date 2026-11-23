@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Keep notifications compact inside the narrow browser-extension sidebar. */
+.Toastify__toast-container.extension-toast-container {
+    width: min(320px, calc(100vw - 24px));
+}
+
 @theme {
     /* Leaf-green brand palette inspired by the reference. */
     --color-primary-50: #f5f9ef;
