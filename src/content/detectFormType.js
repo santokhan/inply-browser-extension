@@ -44,6 +44,8 @@ export function detectFormType(forms) {
     // Normalize title by removing form number
     const normalize = title => title
         .replace(/\s*\(form\s+[^)]*\)/gi, "")
+        // BOQ headings are numbered per lot/item (for example, "BOQ :01").
+        .replace(/\s*:\s*\d+\s*$/i, "")
         .replace(/\s+/g, " ")
         .trim();
 

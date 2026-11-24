@@ -22,3 +22,15 @@ test("unrelated headings remain unsupported", () => {
   }) };
   assert.equal(detectFormType(ltmTenderForms.forms), null);
 });
+
+for (const suffix of ["01", "02", "03", "04"]) {
+  test(`detects numbered BOQ heading :${suffix}`, () => {
+    globalThis.document = { querySelector: () => ({
+      cloneNode: () => ({
+        textContent: `Priced Bill of Quantities (BOQ) :${suffix}`,
+        querySelectorAll: () => [],
+      }),
+    }) };
+    assert.equal(detectFormType(ltmTenderForms.forms), "priced_bill_of_quantities");
+  });
+}
