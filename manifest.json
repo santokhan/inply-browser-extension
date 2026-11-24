@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Tenddoo",
-    "version": "1.1.7",
+    "version": "1.1.8",
     "description": "Auto fill fields by name, id, or class",
     "permissions": [
         "storage",
@@ -27,7 +27,6 @@
             "js": [
                 "src/content/content.js",
                 "src/content/tenderEntry.js",
-                "src/content/prepareNoticeEntry.js",
                 "src/content/signEncryptSave.js",
                 "src/content/parser.js",
                 "src/content/modalCloserEntry.js",
