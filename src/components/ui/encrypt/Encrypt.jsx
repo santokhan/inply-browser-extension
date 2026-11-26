@@ -119,9 +119,9 @@ export default function Encrypt() {
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-800">Encrypt Actions</h3>
           <div className="flex gap-2">
-          <SignAndVerifyAction pageReady={pageReady} />
-          <EncryptSignedLetter buttonLabel="Encrypt" pageReady={pageReady} />
-          <SaveAction pageReady={pageReady} />
+          {/* <SignAndVerifyAction pageReady={pageReady} /> */}
+          {/* <EncryptSignedLetter buttonLabel="Encrypt" pageReady={pageReady} /> */}
+          {/* <SaveAction pageReady={pageReady} /> */}
           </div>
           <SignEncryptSave pageReady={pageReady} />
           {isEncryptAction ? (
