@@ -264,7 +264,7 @@ export default function CustomerAccounts() {
   return (
     <div className="m-3 space-y-3">
       {!formOpen &&
-        <div className="bg-white">
+        <div>
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
               <h2 className="text-base font-semibold text-gray-800">Customers</h2>
