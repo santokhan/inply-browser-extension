@@ -687,3 +687,44 @@ window.InplyContentRouter?.register("decryptAndEncryptSave", async () => {
     ? { ok: true, count: 1 }
     : { ok: false, message: "The password dialog was not ready." };
 });
+
+if (window.location.pathname.endsWith("/AllTenders.jsp")) {
+  const storedFilters = sessionStorage.getItem("inply:notice:filters");
+  if (storedFilters) {
+    try {
+      const { procurementType, procurementMethod, procurementNature, tenderId } = JSON.parse(storedFilters);
+      const typeField = document.querySelector("#cmbType");
+      const methodField = document.querySelector("#cmbProcMethod");
+      const natureField = document.querySelector("#procNature");
+      if (typeField && methodField && natureField) {
+        const selectedFields = [
+          [typeField, procurementType],
+          [methodField, procurementMethod],
+          [natureField, procurementNature],
+        ];
+        for (const [field, value] of selectedFields) {
+          if (value === "") continue;
+          field.value = value;
+          field.dispatchEvent(new Event("input", { bubbles: true }));
+          field.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        if (tenderId) {
+          const tenderField = document.querySelector('#alltenderFrm input[name="tenderId"][id="tenderId"]');
+          if (tenderField) {
+            tenderField.value = String(tenderId);
+            tenderField.dispatchEvent(new Event("input", { bubbles: true }));
+            tenderField.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        }
+        const searchButton = document.querySelector("#alltenderFrm #btnSearch");
+        if (searchButton && !searchButton.disabled) {
+          sessionStorage.removeItem("inply:notice:filters");
+          searchButton.click();
+        }
+      }
+    } catch (error) {
+      console.warn("Could not apply notice search filters:", error);
+      sessionStorage.removeItem("inply:notice:filters");
+    }
+  }
+}

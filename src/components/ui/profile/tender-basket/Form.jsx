@@ -18,6 +18,7 @@ export default function TenderIDForm({ tenderId, onTenderIdChange, onSubmit, dis
           }}
           placeholder="Tender ID"
           required disabled={disabled} className="default" />
+        <span className="mt-1 block text-xs text-gray-500">e.g. 1234567</span>
       </label>
       <button type="submit" disabled={disabled || !tenderId.trim()} className="secondary flex items-center gap-1">
         <Plus size={14} aria-hidden="true" /> Add

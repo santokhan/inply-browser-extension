@@ -1,34 +1,52 @@
-// Feature-specific page actions for the Prepare Notice workflow.
-export function prepareNoticePageAction(action, expectedOrigin) {
-  function openAllTenders() {
-    if (window.location.origin !== expectedOrigin) {
-      return { ok: false, message: "The active page is not eProcure." };
+// Use the site's own link behavior so its navigation/session handlers run.
+export function openAllTenders(filters) {
+  const { procurementType = "", procurementMethod = "", procurementNature = "", tenderId = "" } = filters || {};
+
+  function setFieldsAndSearch() {
+    const form = document.querySelector("#alltenderFrm");
+    const fields = [
+      [form?.querySelector("#cmbType"), procurementType],
+      [form?.querySelector("#cmbProcMethod"), procurementMethod],
+      [form?.querySelector("#procNature"), procurementNature],
+    ];
+    if (fields.some(([field]) => !field)) {
+      return { ok: false, message: "The eGP search form is not ready." };
     }
 
-    const link = document.querySelector('a[href="/resources/common/AllTenders.jsp?h=f"]');
-    if (!link) {
-      return { ok: false, message: "All Tenders link not found on this page." };
+    for (const [field, value] of fields) {
+      if (value === "") continue;
+      field.value = String(value);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
-    link.click();
+    if (tenderId) {
+      const tenderField = form.querySelector('input[name="tenderId"][id="tenderId"]');
+      if (!tenderField) return { ok: false, message: "The Tender ID search field is not available." };
+      tenderField.value = String(tenderId);
+      tenderField.dispatchEvent(new Event("input", { bubbles: true }));
+      tenderField.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    const searchButton = form.querySelector("#btnSearch")
+      || [...form.querySelectorAll('button, input[type="button"], input[type="submit"]')]
+        .find((button) => button.value?.trim().toLowerCase() === "search"
+          || button.textContent?.trim().toLowerCase() === "search");
+    if (!searchButton || searchButton.disabled) {
+      return { ok: false, message: "The eGP Search button is not available." };
+    }
+    searchButton.click();
     return { ok: true };
   }
 
-  if (action === "install") {
-    if (window.InplyPrepareNoticeListenerInstalled) return;
-    window.InplyPrepareNoticeListenerInstalled = true;
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (message?.action !== "prepareNotice") return false;
-      try {
-        sendResponse(prepareNoticePageAction(message.task, message.expectedOrigin));
-      } catch (error) {
-        sendResponse({ ok: false, message: error.message || "Prepare Notice failed." });
-      }
-      return false;
-    });
-    return;
+  if (window.location.pathname.endsWith("/AllTenders.jsp")) {
+    return setFieldsAndSearch();
   }
 
-  if (action === "openAllTenders") return openAllTenders();
-  return { ok: false, message: `Unknown Prepare Notice action: ${action}.` };
+  const link = document.querySelector('a[href="/resources/common/AllTenders.jsp?h=f"]');
+  if (!link) return { ok: false, message: "All Tenders link not found on this page." };
+
+  sessionStorage.setItem("inply:notice:filters", JSON.stringify({ procurementType, procurementMethod, procurementNature }));
+  link.click();
+  return { ok: true };
 }

@@ -56,12 +56,12 @@ export default function CustomersSection() {
               )}
             </div>
             <LoggedInCustomer customer={currentCustomer} />
+            <NoticePreparationSection />
           </>
           :
           <CustomerAccounts />
         }
       </section>
-      <NoticePreparationSection />
     </>
   );
 }

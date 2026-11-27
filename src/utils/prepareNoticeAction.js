@@ -1,20 +1,42 @@
-import { SITE_ORIGIN } from "../config/site.js";
-import { prepareNoticePageAction } from "../content/prepareNotice.js";
+import { openAllTenders } from "../content/prepareNotice.js";
+import { getActiveTabSafe } from "./chrome.js";
+import { isSiteUrl } from "../config/site.js";
 
-export async function clickAllTendersLink(tabId) {
-  const message = { action: "prepareNotice", task: "openAllTenders", expectedOrigin: SITE_ORIGIN };
-  try {
-    const result = await chrome.tabs.sendMessage(tabId, message, { frameId: 0 });
-    if (typeof result?.ok === "boolean") return result;
-  } catch (error) {
-    if (!String(error?.message || error).includes("Receiving end does not exist")) throw error;
+export async function clickAllTendersLink(tabId, filters) {
+  const [execution] = await chrome.scripting.executeScript({
+    target: { tabId, frameIds: [0] },
+    func: openAllTenders,
+    args: [filters],
+  });
+  return execution?.result ?? { ok: false, message: "Could not open All Tenders." };
+}
+
+function setNoticeFilterOnPage(field, value) {
+  if (!window.location.pathname.endsWith("/AllTenders.jsp")) {
+    return { ok: false, message: "The All Tenders search form is not open." };
   }
 
-  // Install the feature listener in tabs that were already open during reload.
+  const selectors = {
+    procurementType: "#cmbType",
+    procurementMethod: "#cmbProcMethod",
+    procurementNature: "#procNature",
+  };
+  const element = document.querySelector(selectors[field]);
+  if (!element) return { ok: false, message: "The eGP search field is not available." };
+
+  element.value = String(value);
+  element.dispatchEvent(new Event("input", { bubbles: true }));
+  element.dispatchEvent(new Event("change", { bubbles: true }));
+  return { ok: true };
+}
+
+export async function syncNoticeFilter(field, value) {
+  const tab = await getActiveTabSafe();
+  if (!tab?.id || !isSiteUrl(tab.url) || tab.status !== "complete") return;
+
   await chrome.scripting.executeScript({
-    target: { tabId, frameIds: [0] },
-    func: prepareNoticePageAction,
-    args: ["install"],
+    target: { tabId: tab.id, frameIds: [0] },
+    func: setNoticeFilterOnPage,
+    args: [field, value],
   });
-  return chrome.tabs.sendMessage(tabId, message, { frameId: 0 });
 }
