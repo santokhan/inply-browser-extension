@@ -51,7 +51,28 @@ export default function Notices() {
     }
     const noticesQuery = query(collection(db, "notices", tenantUid, "items"), orderBy("createdAt", "desc"));
     return onSnapshot(noticesQuery, (snapshot) => {
-      setNotices(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
+      const loadedNotices = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+      setNotices(loadedNotices);
+      for (const notice of loadedNotices) {
+        const legacyFields = {};
+        for (const [tenderId, tender] of Object.entries(notice.tenders || {})) {
+          if (tender && Object.hasOwn(tender, "pageText")) {
+            legacyFields[`tenders.${tenderId}.pageText`] = deleteField();
+          }
+          if (tender && Object.hasOwn(tender, "pageTest")) {
+            legacyFields[`tenders.${tenderId}.pageTest`] = deleteField();
+          }
+          if (tender && Object.hasOwn(tender, "pageUrl")) {
+            legacyFields[`tenders.${tenderId}.pageUrl`] = deleteField();
+          }
+        }
+        if (Object.keys(legacyFields).length) {
+          updateDoc(doc(db, "notices", tenantUid, "items", notice.id), legacyFields)
+            .catch((cleanupError) => {
+              console.warn(`Could not remove stored page text and URL from notice ${notice.id}:`, cleanupError);
+            });
+        }
+      }
       setLoading(false);
       setError("");
     }, (err) => {
@@ -110,6 +131,10 @@ export default function Notices() {
       procurementMethod: row.procurementMethod,
       publishingDate: row.publishingDate,
       closingDate: row.closingDate,
+      security: row.security ?? null,
+      bankDraft: row.bankDraft ?? null,
+      credit: row.credit ?? null,
+      estimatedCost: row.estimatedCost ?? null,
     };
     try {
       await updateDoc(doc(db, "notices", tenantUid, "items", noticeId), {

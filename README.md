@@ -7,6 +7,9 @@ Firestore security rules.
 Tenant sign-in can be disabled with `tenants/{uid}.disabled` in Firestore. See
 [tenant access setup](docs/tenant-access.md) for manual controls and rule publishing.
 
+The notice **Build Table** workflow and its same-tab tender brief navigation are
+documented in [tender data collection](docs/tender-data-collection.md).
+
 <img width="944" height="936" alt="image" src="https://github.com/user-attachments/assets/0a02fcc5-3149-47a7-994d-e823fc936f79" />
 
 **Challenges**
