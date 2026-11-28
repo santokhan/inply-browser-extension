@@ -18,7 +18,9 @@ export default function NoticeDetails({
   const tenders = useMemo(() => Object.entries(notice.tenders || {}), [notice.tenders]);
   const tenderIds = useMemo(() => tenders.map(([id]) => id), [tenders]);
   const savedDataByTender = useMemo(
-    () => Object.fromEntries(tenders.map(([id, details]) => [id, details.collectedData])),
+    () => Object.fromEntries(
+      tenders.map(([id, details]) => [id, details.collectedData ?? details]),
+    ),
     [tenders],
   );
 

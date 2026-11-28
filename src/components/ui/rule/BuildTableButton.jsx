@@ -133,6 +133,10 @@ async function readTenderResult(tenderId) {
 }
 
 function restoreCollectedData(data) {
+  if (!data?.rows) {
+    return { rows: data?.tenderID ? [data] : [] };
+  }
+
   const rows = Array.isArray(data.rows)
     ? data.rows.map((row, index) => [`r${index}`, row])
     : Object.entries(data.rows || {}).sort(
@@ -162,7 +166,7 @@ function restoreCollectedData(data) {
 function initialTable(tenderIds, savedDataByTender = {}) {
   const saved = tenderIds
     .map((id) => savedDataByTender[id])
-    .filter((data) => data?.rows);
+    .filter((data) => data?.rows || data?.tenderID);
   if (saved.length) {
     const restored = saved.map(restoreCollectedData);
     return {

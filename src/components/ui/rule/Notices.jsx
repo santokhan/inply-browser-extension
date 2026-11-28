@@ -71,7 +71,23 @@ export default function Notices() {
       const id = normalizeTenderId(value);
       if (Object.hasOwn(notice.tenders || {}, id)) return;
       await updateDoc(doc(db, "notices", tenantUid, "items", noticeId), {
-        [`tenders.${id}`]: { est: null, title: "", type: "" },
+        [`tenders.${id}`]: {
+          tenderID: id,
+          procurementNature: "",
+          title: "",
+          ministry: "",
+          division: "",
+          organization: "",
+          pe: "",
+          procurementType: "",
+          procurementMethod: "",
+          publishingDate: "",
+          closingDate: "",
+          sd: "",
+          bd: "",
+          credit: "",
+          est: "",
+        },
       });
       setError("");
     } catch (err) {
@@ -84,28 +100,28 @@ export default function Notices() {
       throw new Error("Sign in again to save tender results.");
     }
     const id = normalizeTenderId(tenderId);
-    const firestoreSafeData = {
-      rows: collectedData.rows.map((row) => ({
-        tenderID: row.tenderID,
-        procurementNature: row.procurementNature,
-        title: row.title,
-        ministry: row.ministry,
-        division: row.division,
-        pe: row.pe,
-        procurementType: row.procurementType,
-        organization: row.organization,
-        procurementMethod: row.procurementMethod,
-        publishingDate: row.publishingDate,
-        closingDate: row.closingDate,
-        sd: row.sd,
-        bd: row.bd,
-        credit: row.credit,
-        est: row.est,
-      })),
+    const row = collectedData.rows[0];
+    if (!row) return;
+    const tenderData = {
+      tenderID: row.tenderID,
+      procurementNature: row.procurementNature,
+      title: row.title,
+      ministry: row.ministry,
+      division: row.division,
+      organization: row.organization,
+      pe: row.pe,
+      procurementType: row.procurementType,
+      procurementMethod: row.procurementMethod,
+      publishingDate: row.publishingDate,
+      closingDate: row.closingDate,
+      sd: row.sd,
+      bd: row.bd,
+      credit: row.credit,
+      est: row.est,
     };
     try {
       await updateDoc(doc(db, "notices", tenantUid, "items", noticeId), {
-        [`tenders.${id}.collectedData`]: firestoreSafeData,
+        [`tenders.${id}`]: tenderData,
       });
       setError("");
     } catch (err) {
