@@ -289,7 +289,7 @@ export default function BuildTableButton({
                         <strong>Price:</strong> {row.sd}
                       </p>
                       <p title="Security">
-                        <strong>BD:</strong> {row.bd}
+                        <strong>Security:</strong> {row.bd}
                       </p>
                       <p title="Bank Credit">
                         <strong>Credit:</strong> {row.credit}
