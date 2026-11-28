@@ -40,13 +40,14 @@ export function openAllTenders(filters) {
   }
 
   if (window.location.pathname.endsWith("/AllTenders.jsp")) {
+    sessionStorage.setItem("inply:notice:filters", JSON.stringify({ procurementType, procurementMethod, procurementNature, tenderId }));
     return setFieldsAndSearch();
   }
 
   const link = document.querySelector('a[href="/resources/common/AllTenders.jsp?h=f"]');
   if (!link) return { ok: false, message: "All Tenders link not found on this page." };
 
-  sessionStorage.setItem("inply:notice:filters", JSON.stringify({ procurementType, procurementMethod, procurementNature }));
+  sessionStorage.setItem("inply:notice:filters", JSON.stringify({ procurementType, procurementMethod, procurementNature, tenderId }));
   link.click();
   return { ok: true };
 }
