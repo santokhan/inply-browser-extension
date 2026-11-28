@@ -285,10 +285,10 @@ export default function BuildTableButton({
                   </td>
                   <td className="px-2 py-1.5">
                     <div className="space-y-0.5">
-                      <p title="Security Deposit">
-                        <strong>SD:</strong> {row.sd}
+                      <p title="Price">
+                        <strong>Price:</strong> {row.sd}
                       </p>
-                      <p title="Bank Draft">
+                      <p title="Security">
                         <strong>BD:</strong> {row.bd}
                       </p>
                       <p title="Bank Credit">
