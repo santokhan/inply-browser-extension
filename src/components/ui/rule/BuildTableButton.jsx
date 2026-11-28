@@ -323,7 +323,7 @@ export default function BuildTableButton({
                 Publishing Date,
                 <br /> Closing Date
               </th>
-              <th className="px-2 py-1.5 font-medium">Dashboard</th>
+              <th className="w-48 px-2 py-1.5 font-medium">Dashboard</th>
             </tr>
           </thead>
           <tbody>
@@ -338,49 +338,31 @@ export default function BuildTableButton({
                     {row.title || "—"}
                   </td>
                   <td className="px-2 py-1.5">
-                    {row.ministry || "—"}
+                    {row.ministry || "—"},
                     <br />
-                    {row.division || "—"}
+                    {row.division || "—"},
                     <br />
-                    {row.organization || "—"}
+                    {row.organization || "—"},
                     <br />
                     {row.pe || "—"}
                   </td>
                   <td className="px-2 py-1.5">
-                    {row.procurementType || "—"}
+                    {row.procurementType || "—"},
                     <br />
                     {row.procurementMethod || "—"}
                   </td>
                   <td className="px-2 py-1.5">
-                    <p>{row.publishingDate || "—"}</p>
-                    <p>{row.closingDate || "\u2014"}</p>
+                    {row.publishingDate || "—"},
+                    <br />
+                    {row.closingDate || "\u2014"}
                   </td>
                   <td className="px-2 py-1.5">
-                    {row.sd !== undefined ||
-                    row.bd !== undefined ||
-                    row.credit !== undefined ||
-                    row.est !== undefined ? (
-                      <div className="space-y-0.5">
-                        <div>
-                          <span className="font-medium">SD:</span>{" "}
-                          {row.sd || "—"}
-                        </div>
-                        <div>
-                          <span className="font-medium">BD:</span>{" "}
-                          {row.bd || "—"}
-                        </div>
-                        <div>
-                          <span className="font-medium">CREDIT:</span>{" "}
-                          {row.credit || "—"}
-                        </div>
-                        <div>
-                          <span className="font-medium">EST:</span>{" "}
-                          {row.est || "—"}
-                        </div>
-                      </div>
-                    ) : (
-                      "—"
-                    )}
+                    <div className="space-y-0.5">
+                      <p><span className="font-medium">SD:</span> {row.sd}</p>
+                      <p><span className="font-medium">BD:</span> {row.bd}</p>
+                      <p><span className="font-medium">CREDIT:</span> {row.credit}</p>
+                      <p><span className="font-medium">EST:</span> {row.est}</p>
+                    </div>
                   </td>
                 </tr>
               ))
