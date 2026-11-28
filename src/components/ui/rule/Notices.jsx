@@ -85,20 +85,27 @@ export default function Notices() {
     }
     const id = normalizeTenderId(tenderId);
     const firestoreSafeData = {
-      headers: Object.fromEntries(
-        collectedData.headers.map((header, index) => [`c${index}`, header]),
-      ),
-      rows: Object.fromEntries(
-        collectedData.rows.map((row, rowIndex) => [
-          `r${rowIndex}`,
-          Object.fromEntries(row.map((cell, index) => [`c${index}`, cell])),
-        ]),
-      ),
+      rows: collectedData.rows.map((row) => ({
+        tenderID: row.tenderID,
+        procurementNature: row.procurementNature,
+        title: row.title,
+        ministry: row.ministry,
+        division: row.division,
+        pe: row.pe,
+        procurementType: row.procurementType,
+        organization: row.organization,
+        procurementMethod: row.procurementMethod,
+        publishingDate: row.publishingDate,
+        closingDate: row.closingDate,
+        sd: row.sd,
+        bd: row.bd,
+        credit: row.credit,
+        est: row.est,
+      })),
     };
     try {
       await updateDoc(doc(db, "notices", tenantUid, "items", noticeId), {
         [`tenders.${id}.collectedData`]: firestoreSafeData,
-        [`tenders.${id}.collectedAt`]: serverTimestamp(),
       });
       setError("");
     } catch (err) {

@@ -13,115 +13,192 @@ async function readTenderResult(tenderId) {
     cell.innerText.replace(/\s+/g, " ").trim(),
   );
   const resultRows = [...table.querySelectorAll("tbody tr")]
-    .map((row) => [...row.querySelectorAll("td")])
-    .filter((cells) => cells.length === headers.length)
-    .map((cells) => ({
-      dashboardUrl: cells.at(-1)?.querySelector('a[title="Dashboard"]')?.href,
-      values: cells.map((cell, index) => {
-        if (index === 1) {
-          return cell.querySelector('input[name="id"]')?.value ||
-            cell.innerText.trim().split(",")[0].trim();
-        }
-        if (index === cells.length - 1) return null;
-        return cell.innerText.replace(/\s+/g, " ").trim() ||
-          cell.querySelector("a[title]")?.title ||
-          "";
-      }),
-    }));
+    .map((tableRow) => {
+      const [
+        ,
+        tenderCell,
+        natureCell,
+        organizationCell,
+        methodCell,
+        dateCell,
+        dashboardCell,
+      ] = tableRow.querySelectorAll("td");
+      const [publishingDate = "", closingDate = ""] = (
+        dateCell?.innerText.replace(/\s+/g, " ").trim() ||
+        dateCell?.querySelector("a[title]")?.title ||
+        ""
+      )
+        .split(",")
+        .map((date) => date.trim());
+      const [procurementType = "", procurementMethod = ""] = (
+        methodCell?.innerText.replace(/\s+/g, " ").trim() || ""
+      )
+        .split(",")
+        .map((value) => value.trim());
+      const [procurementNature = "", title = ""] = (
+        natureCell?.innerText.replace(/\s+/g, " ").trim() || ""
+      )
+        .split(",")
+        .map((value) => value.trim());
+      const [ministry = "", division = "", organization = "", pe = ""] = (
+        organizationCell?.innerText.replace(/\s+/g, " ").trim() || ""
+      )
+        .split(",")
+        .map((value) => value.trim());
+      return {
+        tenderID:
+          tenderCell?.querySelector('input[name="id"]')?.value ||
+          tenderCell?.innerText.trim().split(",")[0].trim() ||
+          "",
+        procurementNature,
+        title,
+        ministry,
+        division,
+        organization,
+        pe,
+        procurementType,
+        procurementMethod,
+        publishingDate,
+        closingDate,
+        dashboardUrl: dashboardCell?.querySelector('a[title="Dashboard"]')
+          ?.href,
+        hasExpectedColumns:
+          tableRow.querySelectorAll("td").length === headers.length,
+      };
+    })
+    .filter((row) => row.hasExpectedColumns);
 
   const expectedId = String(tenderId).trim();
-  if (!resultRows.some(({ values }) => values[1] === expectedId)) {
+  const matchingRow = resultRows.find((row) => row.tenderID === expectedId);
+  if (!matchingRow) {
     return null;
   }
 
-  const rows = await Promise.all(resultRows.map(async ({ dashboardUrl, values }) => {
-    const dashboard = { SD: "", BD: "", CREDIT: "", EST: "" };
-    if (dashboardUrl) {
-      try {
-        const response = await fetch(dashboardUrl, { credentials: "include" });
-        if (response.ok) {
-          const dashboardDocument = new DOMParser().parseFromString(await response.text(), "text/html");
-          const dashboardTableRows = [...dashboardDocument.querySelectorAll("tr")]
-            .map((row) => [...row.querySelectorAll("th, td")].map((cell) => cell.innerText.replace(/\s+/g, " ").trim()))
-            .filter((cells) => cells.length);
+  const rows = await Promise.all(
+    [matchingRow].map(
+      async ({ dashboardUrl, hasExpectedColumns, ...rowData }) => {
+        const dashboard = { SD: "", BD: "", CREDIT: "", EST: "" };
+        if (dashboardUrl) {
+          try {
+            const response = await fetch(dashboardUrl, {
+              credentials: "include",
+            });
+            if (response.ok) {
+              const dashboardDocument = new DOMParser().parseFromString(
+                await response.text(),
+                "text/html",
+              );
+              const dashboardTableRows = [
+                ...dashboardDocument.querySelectorAll("tr"),
+              ]
+                .map((row) =>
+                  [...row.querySelectorAll("th, td")].map((cell) =>
+                    cell.innerText.replace(/\s+/g, " ").trim(),
+                  ),
+                )
+                .filter((cells) => cells.length);
 
-          for (const field of Object.keys(dashboard)) {
-            const labelPattern = new RegExp(`(^|\\b)${field}(\\b|$)`, "i");
-            for (const cells of dashboardTableRows) {
-              const labelIndex = cells.findIndex((cell) => labelPattern.test(cell));
-              if (labelIndex < 0) continue;
-              const labelAndValue = cells[labelIndex].split(/\s*:\s*/, 2);
-              dashboard[field] = labelAndValue.length > 1
-                ? labelAndValue[1].trim()
-                : cells.slice(labelIndex + 1).find(Boolean) || "";
-              if (dashboard[field]) break;
+              for (const field of Object.keys(dashboard)) {
+                const labelPattern = new RegExp(`(^|\\b)${field}(\\b|$)`, "i");
+                for (const cells of dashboardTableRows) {
+                  const labelIndex = cells.findIndex((cell) =>
+                    labelPattern.test(cell),
+                  );
+                  if (labelIndex < 0) continue;
+                  const labelAndValue = cells[labelIndex].split(/\s*:\s*/, 2);
+                  dashboard[field] =
+                    labelAndValue.length > 1
+                      ? labelAndValue[1].trim()
+                      : cells.slice(labelIndex + 1).find(Boolean) || "";
+                  if (dashboard[field]) break;
+                }
+              }
             }
+          } catch (error) {
+            console.warn("Could not read tender dashboard fields:", error);
           }
         }
-      } catch (error) {
-        console.warn("Could not read tender dashboard fields:", error);
-      }
-    }
-    values[values.length - 1] = dashboard;
-    return values;
-  }));
+        return {
+          ...rowData,
+          sd: dashboard.SD,
+          bd: dashboard.BD,
+          credit: dashboard.CREDIT,
+          est: dashboard.EST,
+        };
+      },
+    ),
+  );
 
-  return { headers, rows };
+  return { rows };
 }
 
-const TENDER_HEADERS = [
-  "S. No.",
-  "Tender/Proposal ID, Reference No.",
-  "Procurement Nature, Title",
-  "Ministry, Division, Organization, PE",
-  "Type, Method",
-  "Publishing Date, Closing Date",
-  "Dashboard",
-];
-
 function restoreCollectedData(data) {
-  const sortByIndex = ([first], [second]) =>
-    Number(first.slice(1)) - Number(second.slice(1));
-  const headers = Array.isArray(data.headers)
-    ? data.headers
-    : Object.entries(data.headers || {}).sort(sortByIndex).map(([, header]) => header);
   const rows = Array.isArray(data.rows)
     ? data.rows.map((row, index) => [`r${index}`, row])
-    : Object.entries(data.rows || {}).sort(sortByIndex);
+    : Object.entries(data.rows || {}).sort(
+        ([first], [second]) => Number(first.slice(1)) - Number(second.slice(1)),
+      );
 
   return {
-    headers,
-    rows: rows.map(([, row]) =>
-      Array.isArray(row)
-        ? row
-        : headers.map((_, index) => row[`c${index}`] ?? ""),
-    ),
+    rows: rows.map(([, row]) => {
+      const { dashboard, ...fields } = row;
+      const dateParts = fields.publishingDate
+        ?.split(",")
+        .map((date) => date.trim());
+      return {
+        ...fields,
+        ...(!fields.closingDate && dateParts?.length > 1
+          ? { publishingDate: dateParts[0], closingDate: dateParts[1] }
+          : {}),
+        sd: dashboard?.SD ?? fields.sd ?? "",
+        bd: dashboard?.BD ?? fields.bd ?? "",
+        credit: dashboard?.CREDIT ?? fields.credit ?? "",
+        est: dashboard?.EST ?? fields.est ?? "",
+      };
+    }),
   };
 }
 
 function initialTable(tenderIds, savedDataByTender = {}) {
   const saved = tenderIds
     .map((id) => savedDataByTender[id])
-    .filter((data) => data?.headers && data.rows);
+    .filter((data) => data?.rows);
   if (saved.length) {
     const restored = saved.map(restoreCollectedData);
     return {
-      headers: restored[0].headers,
       rows: restored.flatMap((data) => data.rows),
     };
   }
   return {
-    headers: TENDER_HEADERS,
-    rows: tenderIds.map((id, index) => [
-      String(index + 1), String(id), "", "", "", "",
-      { SD: "", BD: "", CREDIT: "", EST: "" },
-    ]),
+    rows: tenderIds.map((id) => ({
+      tenderID: String(id),
+      procurementNature: "",
+      title: "",
+      ministry: "",
+      division: "",
+      procurementType: "",
+      organization: "",
+      pe: "",
+      procurementMethod: "",
+      publishingDate: "",
+      closingDate: "",
+      sd: "",
+      bd: "",
+      credit: "",
+      est: "",
+    })),
   };
 }
 
-export default function BuildTableButton({ tenderIds = [], savedDataByTender, onSave }) {
+export default function BuildTableButton({
+  tenderIds = [],
+  savedDataByTender,
+  onSave,
+}) {
   const [building, setBuilding] = useState(false);
-  const [table, setTable] = useState(() => initialTable(tenderIds, savedDataByTender));
+  const [table, setTable] = useState(() =>
+    initialTable(tenderIds, savedDataByTender),
+  );
 
   useEffect(() => {
     setTable(initialTable(tenderIds, savedDataByTender));
@@ -167,7 +244,8 @@ export default function BuildTableButton({ tenderIds = [], savedDataByTender, on
             !currentTab?.id ||
             !isSiteUrl(currentTab.url) ||
             currentTab.status !== "complete"
-          ) continue;
+          )
+            continue;
 
           const [execution] = await chrome.scripting.executeScript({
             target: { tabId: currentTab.id, frameIds: [0] },
@@ -184,17 +262,27 @@ export default function BuildTableButton({ tenderIds = [], savedDataByTender, on
           missing.push(tenderId);
           continue;
         }
-        collected.push(...result.rows);
-        setTable({ headers: result.headers, rows: [...collected] });
+        const existingTenderIds = new Set(collected.map((row) => row.tenderID));
+        for (const row of result.rows) {
+          if (!existingTenderIds.has(row.tenderID)) {
+            collected.push(row);
+            existingTenderIds.add(row.tenderID);
+          }
+        }
+        setTable({ rows: [...collected] });
         try {
           await onSave?.(tenderId, result);
         } catch (error) {
           console.error(`Could not save tender ${tenderId} results:`, error);
-          toast.error(`Tender ${tenderId} was collected, but could not be saved to Firebase.`);
+          toast.error(
+            `Tender ${tenderId} was collected, but could not be saved to Firebase.`,
+          );
         }
       }
       if (missing.length) {
-        toast.info(`No result found for tender ID${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}.`);
+        toast.info(
+          `No result found for tender ID${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}.`,
+        );
       }
     } catch (error) {
       console.error(error);
@@ -220,37 +308,85 @@ export default function BuildTableButton({ tenderIds = [], savedDataByTender, on
 
       <div className="overflow-x-auto rounded border border-gray-200">
         <table className="w-full min-w-300 text-left text-xs text-gray-600">
-          {table.headers.length > 0 && (
-            <thead className="bg-gray-50 text-gray-700">
-              <tr>
-                {table.headers.map((header, index) => (
-                  <th key={index} className="px-2 py-1.5 font-medium">
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-          )}
+          <thead className="bg-gray-50 text-gray-700">
+            <tr>
+              <th className="px-2 py-1.5 font-medium">S. No.</th>
+              <th className="px-2 py-1.5 font-medium">Tender/Proposal ID</th>
+              <th className="px-2 py-1.5 font-medium">
+                Procurement Nature, Title
+              </th>
+              <th className="px-2 py-1.5 font-medium">
+                Ministry, Division, Organization, PE
+              </th>
+              <th className="w-32 px-2 py-1.5 font-medium">Type, Method</th>
+              <th className="w-40 px-2 py-1.5 font-medium">
+                Publishing Date,
+                <br /> Closing Date
+              </th>
+              <th className="px-2 py-1.5 font-medium">Dashboard</th>
+            </tr>
+          </thead>
           <tbody>
-            {table.rows.length ? table.rows.map((row, rowIndex) => (
-              <tr key={rowIndex} className="border-t border-gray-200">
-                {row.map((cell, cellIndex) => (
-                  <td key={cellIndex} className="px-2 py-1.5">
-                    {cellIndex === 0 ? rowIndex + 1 : cell && typeof cell === "object" ? (
-                      <div className="space-y-0.5">
-                        {Object.entries(cell).map(([field, value]) => (
-                          <div key={field}>
-                            <span className="font-medium">{field}:</span> {value || "—"}
-                          </div>
-                        ))}
-                      </div>
-                    ) : cell || "—"}
+            {table.rows.length ? (
+              table.rows.map((row, rowIndex) => (
+                <tr key={rowIndex} className="border-t border-gray-200">
+                  <td className="px-2 py-1.5">{rowIndex + 1}</td>
+                  <td className="px-2 py-1.5">{row.tenderID || "—"}</td>
+                  <td className="px-2 py-1.5">
+                    {row.procurementNature || "—"}
+                    <br />
+                    {row.title || "—"}
                   </td>
-                ))}
-              </tr>
-            )) : (
+                  <td className="px-2 py-1.5">
+                    {row.ministry || "—"}
+                    <br />
+                    {row.division || "—"}
+                    <br />
+                    {row.organization || "—"}
+                    <br />
+                    {row.pe || "—"}
+                  </td>
+                  <td className="px-2 py-1.5">
+                    {row.procurementType || "—"}
+                    <br />
+                    {row.procurementMethod || "—"}
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <p>{row.publishingDate || "—"}</p>
+                    <p>{row.closingDate || "\u2014"}</p>
+                  </td>
+                  <td className="px-2 py-1.5">
+                    {row.sd !== undefined ||
+                    row.bd !== undefined ||
+                    row.credit !== undefined ||
+                    row.est !== undefined ? (
+                      <div className="space-y-0.5">
+                        <div>
+                          <span className="font-medium">SD:</span>{" "}
+                          {row.sd || "—"}
+                        </div>
+                        <div>
+                          <span className="font-medium">BD:</span>{" "}
+                          {row.bd || "—"}
+                        </div>
+                        <div>
+                          <span className="font-medium">CREDIT:</span>{" "}
+                          {row.credit || "—"}
+                        </div>
+                        <div>
+                          <span className="font-medium">EST:</span>{" "}
+                          {row.est || "—"}
+                        </div>
+                      </div>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                </tr>
+              ))
+            ) : (
               <tr className="border-t border-gray-200">
-                <td colSpan={table.headers.length} className="px-2 py-1.5">
+                <td colSpan={7} className="px-2 py-1.5">
                   Add a tender ID to this notice.
                 </td>
               </tr>
