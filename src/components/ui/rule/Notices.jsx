@@ -85,9 +85,14 @@ export default function Notices() {
     }
     const id = normalizeTenderId(tenderId);
     const firestoreSafeData = {
-      headers: collectedData.headers,
-      rows: collectedData.rows.map((row) =>
-        Object.fromEntries(row.map((cell, index) => [`c${index}`, cell])),
+      headers: Object.fromEntries(
+        collectedData.headers.map((header, index) => [`c${index}`, header]),
+      ),
+      rows: Object.fromEntries(
+        collectedData.rows.map((row, rowIndex) => [
+          `r${rowIndex}`,
+          Object.fromEntries(row.map((cell, index) => [`c${index}`, cell])),
+        ]),
       ),
     };
     try {

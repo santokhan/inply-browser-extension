@@ -79,18 +79,35 @@ const TENDER_HEADERS = [
   "Dashboard",
 ];
 
+function restoreCollectedData(data) {
+  const sortByIndex = ([first], [second]) =>
+    Number(first.slice(1)) - Number(second.slice(1));
+  const headers = Array.isArray(data.headers)
+    ? data.headers
+    : Object.entries(data.headers || {}).sort(sortByIndex).map(([, header]) => header);
+  const rows = Array.isArray(data.rows)
+    ? data.rows.map((row, index) => [`r${index}`, row])
+    : Object.entries(data.rows || {}).sort(sortByIndex);
+
+  return {
+    headers,
+    rows: rows.map(([, row]) =>
+      Array.isArray(row)
+        ? row
+        : headers.map((_, index) => row[`c${index}`] ?? ""),
+    ),
+  };
+}
+
 function initialTable(tenderIds, savedDataByTender = {}) {
   const saved = tenderIds
     .map((id) => savedDataByTender[id])
-    .filter((data) => data?.headers?.length && Array.isArray(data.rows));
+    .filter((data) => data?.headers && data.rows);
   if (saved.length) {
+    const restored = saved.map(restoreCollectedData);
     return {
-      headers: saved[0].headers,
-      rows: saved.flatMap((data) => data.rows.map((row) =>
-        Array.isArray(row)
-          ? row
-          : data.headers.map((_, index) => row[`c${index}`] ?? ""),
-      )),
+      headers: restored[0].headers,
+      rows: restored.flatMap((data) => data.rows),
     };
   }
   return {
