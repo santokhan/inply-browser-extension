@@ -56,6 +56,10 @@ export default function Notices() {
       for (const notice of loadedNotices) {
         const legacyFields = {};
         for (const [tenderId, tender] of Object.entries(notice.tenders || {})) {
+          if (tender && Object.hasOwn(tender, "bankDraft")) {
+            legacyFields[`tenders.${tenderId}.price`] = tender.price ?? tender.bankDraft;
+            legacyFields[`tenders.${tenderId}.bankDraft`] = deleteField();
+          }
           if (tender && Object.hasOwn(tender, "pageText")) {
             legacyFields[`tenders.${tenderId}.pageText`] = deleteField();
           }
@@ -132,7 +136,7 @@ export default function Notices() {
       publishingDate: row.publishingDate,
       closingDate: row.closingDate,
       security: row.security ?? null,
-      bankDraft: row.bankDraft ?? null,
+      price: row.price ?? null,
       credit: row.credit ?? null,
       estimatedCost: row.estimatedCost ?? null,
     };

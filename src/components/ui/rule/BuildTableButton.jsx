@@ -147,8 +147,9 @@ function readTenderPage() {
     break;
   }
 
-  const bankDraft = parseAmount(findLabeledValue(/bank draft(?: amount)?/i)
-    || findLabeledValue(/tender\/proposal document price\s*\(in bdt\)/i));
+  const price = parseAmount(findLabeledValue(/(?:tender\/proposal )?price(?: amount)?(?:\s*\(in bdt\))?/i)
+    || findLabeledValue(/tender\/proposal document price\s*\(in bdt\)/i)
+    || findLabeledValue(/bank draft(?: amount)?/i));
   const estimatedCost = parseAmount(findLabeledValue(
     /(?:estimated\s+(?:project\s+)?cost|estimated\s+(?:tender\s+)?value|project\s+cost|engineer(?:'s)?\s+estimate)/i,
   ));
@@ -156,7 +157,7 @@ function readTenderPage() {
   return {
     ok: true,
     security,
-    bankDraft,
+    price,
     estimatedCost,
   };
 }
@@ -174,14 +175,14 @@ function restoreCollectedData(data) {
 
   return {
     rows: rows.map(([, row]) => {
-      const { dashboard, sd, bd, est, ...fields } = row;
+      const { dashboard, sd, bd, est, bankDraft, ...fields } = row;
       const dateParts = fields.publishingDate
         ?.split(",")
         .map((date) => date.trim());
       return {
         ...fields,
         security: parseNumericAmount(fields.security),
-        bankDraft: parseNumericAmount(fields.bankDraft),
+        price: parseNumericAmount(fields.price ?? bankDraft),
         credit: parseNumericAmount(fields.credit),
         estimatedCost: parseNumericAmount(fields.estimatedCost),
         ...(!fields.closingDate && dateParts?.length > 1
@@ -216,7 +217,7 @@ function initialTable(tenderIds, savedDataByTender = {}) {
       publishingDate: "",
       closingDate: "",
       security: null,
-      bankDraft: null,
+      price: null,
       credit: null,
       estimatedCost: null,
     })),
@@ -370,7 +371,7 @@ export default function BuildTableButton({
                 const tenderDetails = {
                   ...collectedRow,
                   security: page.security,
-                  bankDraft: page.bankDraft,
+                  price: page.price,
                   estimatedCost: page.estimatedCost,
                 };
                 setTable({
@@ -466,8 +467,8 @@ export default function BuildTableButton({
                   </td>
                   <td className="px-2 py-1.5">
                     <div className="space-y-0.5">
-                      <p title="Bank Draft">
-                        <strong>Bank Draft:</strong> {row.bankDraft || "—"}
+                      <p title="Tender Price">
+                        <strong>Price:</strong> {row.price ?? "—"}
                       </p>
                       <p title="Tender Security">
                         <strong>Security:</strong> {row.security || "—"}

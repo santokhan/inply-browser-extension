@@ -22,7 +22,7 @@ flowchart TD
     More -->|No| Brief[Open last collected tender brief in the same tab]
     Brief --> Load[Wait for the brief page to load]
     Load --> ReadPage[Read page in memory]
-    ReadPage --> Extract[Extract tender security, bank draft and estimate]
+    ReadPage --> Extract[Extract price, tender security and estimate]
     Extract --> SavePage[Save financial amounts with tender data]
 ```
 
@@ -44,18 +44,17 @@ flowchart TD
   finish loading a new eProcure page and reads its contents in memory. Page text
   and URL are not saved.
 - It reads tender security from the lot table's Tender/Proposal Security column.
-  It reads Bank Draft from a labeled bank draft field, falling back to Tender/
-  Proposal Document Price (In BDT) when that is the available bank payment
-  amount. It reads the estimate from a labeled estimated/project cost field.
-  Values are saved as `security`, `bankDraft`, and `estimatedCost` and shown in
+  It reads Price from a labeled price or Tender/Proposal Document Price field,
+  with a Bank Draft label as a fallback. It reads the estimate from a labeled
+  estimated/project cost field. Values are saved as `price`, `security`, and
+  `estimatedCost` and shown in
   the table. The existing `credit` field remains visible and its saved value is
   carried forward when rebuilding the table. Financial amounts are stored as
   numbers; missing amounts are stored as `null` and displayed as a dash.
 - When notices load, any previously stored `pageText`, `pageTest`, and
   `pageUrl` fields are deleted from their tender entries in Firestore.
 - In the supplied notice markup, the lot security amount is `150000` and the
-  document price is `2500`, which is used as the bank draft amount when there is
-  no separately labeled bank draft value. The markup has no estimated project
+  document price is `2500`. The markup has no estimated project
   cost field, so `estimatedCost` will remain blank for that notice.
 - If an ID has no matching row, it is reported as missing. If the tender brief
   link cannot be found, collection remains complete and the failure is logged
