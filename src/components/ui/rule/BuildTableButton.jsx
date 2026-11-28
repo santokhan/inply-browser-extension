@@ -6,34 +6,28 @@ import { isSiteUrl } from "../../../config/site.js";
 import { clickAllTendersLink } from "../../../utils/prepareNoticeAction.js";
 
 function readTenderResult(tenderId) {
-  const tables = [...document.querySelectorAll("table")];
-  for (const table of tables) {
-    const rows = [...table.querySelectorAll("tr")]
-      .map((row) =>
-        [...row.querySelectorAll("th, td")].map((cell) =>
-          cell.innerText.trim(),
-        ),
-      )
-      .filter((cells) => cells.length);
-    const resultIndex = rows.findIndex((cells) =>
-      cells.some((cell) => cell.split(/\s+/).includes(String(tenderId))),
-    );
-    if (resultIndex < 0) continue;
+  const table = document.querySelector("#resultTable");
+  if (!table) return null;
 
-    const headerRows = rows
-      .slice(0, resultIndex)
-      .filter((cells) =>
-        cells.some((cell) =>
-          /tender\s*\/?\s*proposal\s*id|procurement nature/i.test(cell),
-        ),
-      );
-    const headers = headerRows.at(-1) || rows[resultIndex - 1] || [];
-    return {
-      headers,
-      rows: rows.slice(resultIndex).filter((cells) => cells.length),
-    };
+  const headers = [...table.querySelectorAll("thead th")].map((cell) =>
+    cell.innerText.replace(/\s+/g, " ").trim(),
+  );
+  const rows = [...table.querySelectorAll("tbody tr")]
+    .map((row) => [...row.querySelectorAll("td")])
+    .filter((cells) => cells.length === headers.length)
+    .map((cells) =>
+      cells.map((cell) =>
+        cell.innerText.replace(/\s+/g, " ").trim() ||
+        cell.querySelector("a[title]")?.title ||
+        "",
+      ),
+    );
+
+  const expectedId = String(tenderId).trim();
+  if (!rows.some((row) => row[1]?.split(/[\s,]+/).includes(expectedId))) {
+    return null;
   }
-  return null;
+  return { headers, rows };
 }
 
 const TENDER_HEADERS = [
@@ -42,13 +36,14 @@ const TENDER_HEADERS = [
   "Procurement Nature, Title",
   "Ministry, Division, Organization, PE",
   "Type, Method",
-  "Publishing Date and Time, Closing Date and Time",
+  "Publishing Date, Closing Date",
+  "Dashboard",
 ];
 
 function initialTable(tenderId) {
   return {
     headers: TENDER_HEADERS,
-    rows: tenderId ? [["1", String(tenderId), "", "", "", ""]] : [],
+    rows: tenderId ? [["1", String(tenderId), "", "", "", "", ""]] : [],
   };
 }
 
@@ -134,14 +129,6 @@ export default function BuildTableButton({ tenderId }) {
 
       <div className="overflow-x-auto rounded border border-gray-200">
         <table className="w-full min-w-300 text-left text-xs text-gray-600">
-          <colgroup>
-            <col className="w-20" />
-            <col className="w-72" />
-            <col className="w-56" />
-            <col className="w-64" />
-            <col className="w-40" />
-            <col className="w-64" />
-          </colgroup>
           {table.headers.length > 0 && (
             <thead className="bg-gray-50 text-gray-700">
               <tr>
