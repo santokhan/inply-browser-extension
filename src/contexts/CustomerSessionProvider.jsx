@@ -10,16 +10,13 @@ import { COLLECT_CUSTOMER_PROFILE_ACTION, CUSTOMER_DETAIL_FIELDS } from "../util
 import { refreshTenantWallet } from "../firebase/tenantWallet";
 import { profileCollectionDebit } from "../utils/tenantWallet";
 import { saveCollectedProfile } from "../utils/profileCollectionBilling";
-import { getActiveTabSafe } from "../utils/chrome";
-import { toast } from "react-toastify";
 
 export function CustomerSessionProvider({ children }) {
   const { tenant } = useTenantAuth();
   const [selected, setSelected] = useState(null);
-  const [hasLogout, setHasLogout] = useState(false);
   const sessionRevision = useRef(0);
   const tenantUid = tenant?.uid;
-  const currentCustomer = hasLogout && selected?.tenantUid === tenantUid ? selected : null;
+  const currentCustomer = selected?.tenantUid === tenantUid ? selected : null;
 
   useEffect(() => {
     const onSessionChanged = (changes, area) => {
@@ -50,31 +47,12 @@ export function CustomerSessionProvider({ children }) {
     return () => { active = false; };
   }, [tenantUid]);
 
-  useEffect(() => {
-    let active = true;
-    const checkLogoutButton = async () => {
-      try {
-        const tab = await getActiveTabSafe();
-        if (!tab?.id) {
-          throw new Error("Tab ID not found.")
-        }
-        const result = await chrome.tabs.sendMessage(tab.id, { action: "checkLogoutButton" });
-        if (active) setHasLogout(Boolean(result?.ok));
-      } catch (error) {
-        toast.error(error.message)
-      }
-    };
-    checkLogoutButton();
-    return () => { active = false; };
-  }, []);
-
   const recordCustomerLogin = useCallback(async (customer, loginResult) => {
     sessionRevision.current += 1;
     const active = await activateExtensionCustomer({ tenantUid, customer, loginResult },
       (values) => chrome.storage.local.set(values));
     if (active) {
       setSelected(active);
-      setHasLogout(true);
     }
   }, [tenantUid]);
 
@@ -84,7 +62,6 @@ export function CustomerSessionProvider({ children }) {
     if (!result?.ok) throw new Error(result?.message || "Could not log out of eProcure.");
     await chrome.storage.local.remove(ACTIVE_CUSTOMER_KEY);
     setSelected(null);
-    setHasLogout(false);
   }, []);
 
   const collectBusinessDetails = useCallback(async () => {
@@ -155,7 +132,7 @@ export function CustomerSessionProvider({ children }) {
   }, [currentCustomer, tenantUid]);
 
   return (
-    <CustomerSessionContext.Provider value={{ currentCustomer, hasLogout, recordCustomerLogin, signOutCustomer, collectBusinessDetails, saveBusinessDetails }}>
+    <CustomerSessionContext.Provider value={{ currentCustomer, recordCustomerLogin, signOutCustomer, collectBusinessDetails, saveBusinessDetails }}>
       {children}
     </CustomerSessionContext.Provider>
   );

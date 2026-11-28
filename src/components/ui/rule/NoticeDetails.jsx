@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import BuildTableButton from "./BuildTableButton";
 
@@ -9,12 +9,18 @@ export default function NoticeDetails({
   onRename,
   onAddTender,
   onRemoveTender,
+  onSaveTenderResults,
   error,
 }) {
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(notice.name || "");
-  const [tenderIds, setTenderIds] = useState([]);
-  const tenders = Object.entries(notice.tenders || {});
+  const [newTenderIds, setNewTenderIds] = useState([]);
+  const tenders = useMemo(() => Object.entries(notice.tenders || {}), [notice.tenders]);
+  const tenderIds = useMemo(() => tenders.map(([id]) => id), [tenders]);
+  const savedDataByTender = useMemo(
+    () => Object.fromEntries(tenders.map(([id, details]) => [id, details.collectedData])),
+    [tenders],
+  );
 
   async function saveName() {
     const saved = await onRename(notice.id, name);
@@ -112,7 +118,7 @@ export default function NoticeDetails({
       )}
 
       <div className="flex items-center gap-2">
-        {tenderIds.map((id, index) => (
+        {newTenderIds.map((id, index) => (
           <label key={index} className="flex items-center gap-2">
             <span className="sr-only">New tender ID {index + 1}</span>
             <input
@@ -120,7 +126,7 @@ export default function NoticeDetails({
               pattern="[0-9]+"
               value={id}
               onChange={(event) =>
-                setTenderIds((current) =>
+                setNewTenderIds((current) =>
                   current.map((value, i) =>
                     i === index ? event.target.value : value,
                   ),
@@ -135,7 +141,7 @@ export default function NoticeDetails({
         <button
           type="button"
           className="secondary flex w-full items-center justify-center gap-1"
-          onClick={() => setTenderIds((current) => [...current, ""])}
+          onClick={() => setNewTenderIds((current) => [...current, ""])}
         >
           <Plus size={16} /> Add ID
         </button>
@@ -145,7 +151,13 @@ export default function NoticeDetails({
           {error}
         </p>
       )}
-      <BuildTableButton tenderId={tenders[0]?.[0]} />
+      <BuildTableButton
+        tenderIds={tenderIds}
+        savedDataByTender={savedDataByTender}
+        onSave={(tenderId, data) =>
+          onSaveTenderResults(notice.id, tenderId, data)
+        }
+      />
     </section>
   );
 }

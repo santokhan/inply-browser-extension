@@ -79,6 +79,29 @@ export default function Notices() {
     }
   }
 
+  async function saveTenderResults(noticeId, tenderId, collectedData) {
+    if (!tenantUid || tenantAuth.currentUser?.uid !== tenantUid) {
+      throw new Error("Sign in again to save tender results.");
+    }
+    const id = normalizeTenderId(tenderId);
+    const firestoreSafeData = {
+      headers: collectedData.headers,
+      rows: collectedData.rows.map((row) =>
+        Object.fromEntries(row.map((cell, index) => [`c${index}`, cell])),
+      ),
+    };
+    try {
+      await updateDoc(doc(db, "notices", tenantUid, "items", noticeId), {
+        [`tenders.${id}.collectedData`]: firestoreSafeData,
+        [`tenders.${id}.collectedAt`]: serverTimestamp(),
+      });
+      setError("");
+    } catch (err) {
+      setError(err.message || "Could not save tender results.");
+      throw err;
+    }
+  }
+
   async function createNotice() {
     if (!tenantUid || tenantAuth.currentUser?.uid !== tenantUid) {
       setError("Sign in again to create a notice.");
@@ -155,7 +178,7 @@ export default function Notices() {
   return (
     <section aria-label="Notices" className="rounded-lg border border-gray-200 bg-white p-3 space-y-3">
       {noticeRouteId ? routeNotice ? (
-        <NoticeDetails notice={routeNotice} onBack={() => { window.location.hash = ""; }} onDelete={removeNotice} onRename={saveNoticeName} onAddTender={saveTenderIdToNotice} onRemoveTender={removeTenderId} error={error} />
+        <NoticeDetails notice={routeNotice} onBack={() => { window.location.hash = ""; }} onDelete={removeNotice} onRename={saveNoticeName} onAddTender={saveTenderIdToNotice} onRemoveTender={removeTenderId} onSaveTenderResults={saveTenderResults} error={error} />
       ) : loading ? (
         <p className="text-xs text-gray-500">Loading notice...</p>
       ) : (

@@ -5,28 +5,67 @@ import { getActiveTabSafe } from "../../../utils/chrome.js";
 import { isSiteUrl } from "../../../config/site.js";
 import { clickAllTendersLink } from "../../../utils/prepareNoticeAction.js";
 
-function readTenderResult(tenderId) {
+async function readTenderResult(tenderId) {
   const table = document.querySelector("#resultTable");
   if (!table) return null;
 
   const headers = [...table.querySelectorAll("thead th")].map((cell) =>
     cell.innerText.replace(/\s+/g, " ").trim(),
   );
-  const rows = [...table.querySelectorAll("tbody tr")]
+  const resultRows = [...table.querySelectorAll("tbody tr")]
     .map((row) => [...row.querySelectorAll("td")])
     .filter((cells) => cells.length === headers.length)
-    .map((cells) =>
-      cells.map((cell) =>
-        cell.innerText.replace(/\s+/g, " ").trim() ||
-        cell.querySelector("a[title]")?.title ||
-        "",
-      ),
-    );
+    .map((cells) => ({
+      dashboardUrl: cells.at(-1)?.querySelector('a[title="Dashboard"]')?.href,
+      values: cells.map((cell, index) => {
+        if (index === 1) {
+          return cell.querySelector('input[name="id"]')?.value ||
+            cell.innerText.trim().split(",")[0].trim();
+        }
+        if (index === cells.length - 1) return null;
+        return cell.innerText.replace(/\s+/g, " ").trim() ||
+          cell.querySelector("a[title]")?.title ||
+          "";
+      }),
+    }));
 
   const expectedId = String(tenderId).trim();
-  if (!rows.some((row) => row[1]?.split(/[\s,]+/).includes(expectedId))) {
+  if (!resultRows.some(({ values }) => values[1] === expectedId)) {
     return null;
   }
+
+  const rows = await Promise.all(resultRows.map(async ({ dashboardUrl, values }) => {
+    const dashboard = { SD: "", BD: "", CREDIT: "", EST: "" };
+    if (dashboardUrl) {
+      try {
+        const response = await fetch(dashboardUrl, { credentials: "include" });
+        if (response.ok) {
+          const dashboardDocument = new DOMParser().parseFromString(await response.text(), "text/html");
+          const dashboardTableRows = [...dashboardDocument.querySelectorAll("tr")]
+            .map((row) => [...row.querySelectorAll("th, td")].map((cell) => cell.innerText.replace(/\s+/g, " ").trim()))
+            .filter((cells) => cells.length);
+
+          for (const field of Object.keys(dashboard)) {
+            const labelPattern = new RegExp(`(^|\\b)${field}(\\b|$)`, "i");
+            for (const cells of dashboardTableRows) {
+              const labelIndex = cells.findIndex((cell) => labelPattern.test(cell));
+              if (labelIndex < 0) continue;
+              const labelAndValue = cells[labelIndex].split(/\s*:\s*/, 2);
+              dashboard[field] = labelAndValue.length > 1
+                ? labelAndValue[1].trim()
+                : cells.slice(labelIndex + 1).find(Boolean) || "";
+              if (dashboard[field]) break;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn("Could not read tender dashboard fields:", error);
+      }
+    }
+    values[values.length - 1] = dashboard;
+    return values;
+  }));
+
   return { headers, rows };
 }
 
@@ -40,30 +79,46 @@ const TENDER_HEADERS = [
   "Dashboard",
 ];
 
-function initialTable(tenderId) {
+function initialTable(tenderIds, savedDataByTender = {}) {
+  const saved = tenderIds
+    .map((id) => savedDataByTender[id])
+    .filter((data) => data?.headers?.length && Array.isArray(data.rows));
+  if (saved.length) {
+    return {
+      headers: saved[0].headers,
+      rows: saved.flatMap((data) => data.rows.map((row) =>
+        Array.isArray(row)
+          ? row
+          : data.headers.map((_, index) => row[`c${index}`] ?? ""),
+      )),
+    };
+  }
   return {
     headers: TENDER_HEADERS,
-    rows: tenderId ? [["1", String(tenderId), "", "", "", "", ""]] : [],
+    rows: tenderIds.map((id, index) => [
+      String(index + 1), String(id), "", "", "", "",
+      { SD: "", BD: "", CREDIT: "", EST: "" },
+    ]),
   };
 }
 
-export default function BuildTableButton({ tenderId }) {
+export default function BuildTableButton({ tenderIds = [], savedDataByTender, onSave }) {
   const [building, setBuilding] = useState(false);
-  const [table, setTable] = useState(() => initialTable(tenderId));
+  const [table, setTable] = useState(() => initialTable(tenderIds, savedDataByTender));
 
   useEffect(() => {
-    setTable(initialTable(tenderId));
-  }, [tenderId]);
+    setTable(initialTable(tenderIds, savedDataByTender));
+  }, [tenderIds, savedDataByTender]);
 
   async function buildTable() {
     if (building) return;
-    if (!tenderId) {
+    if (!tenderIds.length) {
       toast.info("Add a tender ID to this notice first.");
       return;
     }
 
     setBuilding(true);
-    setTable(initialTable(tenderId));
+    setTable(initialTable(tenderIds));
     try {
       const tab = await getActiveTabSafe();
       if (!tab?.id || !isSiteUrl(tab.url)) {
@@ -77,34 +132,53 @@ export default function BuildTableButton({ tenderId }) {
         return;
       }
 
-      const result = await clickAllTendersLink(tab.id, { tenderId });
-      if (!result?.ok) {
-        toast.info(result?.message || "Could not open All Tenders.");
-        return;
-      }
-
-      const deadline = Date.now() + 30000;
-      while (Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 900));
-        const currentTab = await getActiveTabSafe();
-        if (
-          !currentTab?.id ||
-          !isSiteUrl(currentTab.url) ||
-          currentTab.status !== "complete"
-        )
+      const collected = [];
+      const missing = [];
+      for (const tenderId of tenderIds) {
+        const search = await clickAllTendersLink(tab.id, { tenderId });
+        if (!search?.ok) {
+          missing.push(tenderId);
           continue;
+        }
 
-        const [execution] = await chrome.scripting.executeScript({
-          target: { tabId: currentTab.id, frameIds: [0] },
-          func: readTenderResult,
-          args: [tenderId],
-        });
-        if (execution?.result) {
-          setTable(execution.result);
-          return;
+        const deadline = Date.now() + 30000;
+        let result = null;
+        while (Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 900));
+          const currentTab = await getActiveTabSafe();
+          if (
+            !currentTab?.id ||
+            !isSiteUrl(currentTab.url) ||
+            currentTab.status !== "complete"
+          ) continue;
+
+          const [execution] = await chrome.scripting.executeScript({
+            target: { tabId: currentTab.id, frameIds: [0] },
+            func: readTenderResult,
+            args: [tenderId],
+          });
+          if (execution?.result) {
+            result = execution.result;
+            break;
+          }
+        }
+
+        if (!result) {
+          missing.push(tenderId);
+          continue;
+        }
+        collected.push(...result.rows);
+        setTable({ headers: result.headers, rows: [...collected] });
+        try {
+          await onSave?.(tenderId, result);
+        } catch (error) {
+          console.error(`Could not save tender ${tenderId} results:`, error);
+          toast.error(`Tender ${tenderId} was collected, but could not be saved to Firebase.`);
         }
       }
-      toast.info(`No search result found for tender ${tenderId}.`);
+      if (missing.length) {
+        toast.info(`No result found for tender ID${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}.`);
+      }
     } catch (error) {
       console.error(error);
       toast.error(
@@ -143,9 +217,17 @@ export default function BuildTableButton({ tenderId }) {
           <tbody>
             {table.rows.length ? table.rows.map((row, rowIndex) => (
               <tr key={rowIndex} className="border-t border-gray-200">
-                  {row.map((cell, cellIndex) => (
+                {row.map((cell, cellIndex) => (
                   <td key={cellIndex} className="px-2 py-1.5">
-                      {cellIndex === 0 ? rowIndex + 1 : cell || "—"}
+                    {cellIndex === 0 ? rowIndex + 1 : cell && typeof cell === "object" ? (
+                      <div className="space-y-0.5">
+                        {Object.entries(cell).map(([field, value]) => (
+                          <div key={field}>
+                            <span className="font-medium">{field}:</span> {value || "—"}
+                          </div>
+                        ))}
+                      </div>
+                    ) : cell || "—"}
                   </td>
                 ))}
               </tr>

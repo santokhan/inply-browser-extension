@@ -30,8 +30,7 @@
                 "src/content/signEncryptSave.js",
                 "src/content/parser.js",
                 "src/content/modalCloserEntry.js",
-                "src/content/customerProfileEntry.js",
-                "src/content/customerSessionEntry.js"
+                "src/content/customerProfileEntry.js"
             ],
             "run_at": "document_idle"
         }
