@@ -83,10 +83,6 @@ export default function Notices() {
           procurementMethod: "",
           publishingDate: "",
           closingDate: "",
-          sd: "",
-          bd: "",
-          credit: "",
-          est: "",
         },
       });
       setError("");
@@ -114,10 +110,6 @@ export default function Notices() {
       procurementMethod: row.procurementMethod,
       publishingDate: row.publishingDate,
       closingDate: row.closingDate,
-      sd: row.sd,
-      bd: row.bd,
-      credit: row.credit,
-      est: row.est,
     };
     try {
       await updateDoc(doc(db, "notices", tenantUid, "items", noticeId), {

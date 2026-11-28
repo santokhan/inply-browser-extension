@@ -14,15 +14,8 @@ async function readTenderResult(tenderId) {
   );
   const resultRows = [...table.querySelectorAll("tbody tr")]
     .map((tableRow) => {
-      const [
-        ,
-        tenderCell,
-        natureCell,
-        organizationCell,
-        methodCell,
-        dateCell,
-        dashboardCell,
-      ] = tableRow.querySelectorAll("td");
+      const [, tenderCell, natureCell, organizationCell, methodCell, dateCell] =
+        tableRow.querySelectorAll("td");
       const [publishingDate = "", closingDate = ""] = (
         dateCell?.innerText.replace(/\s+/g, " ").trim() ||
         dateCell?.querySelector("a[title]")?.title ||
@@ -60,8 +53,6 @@ async function readTenderResult(tenderId) {
         procurementMethod,
         publishingDate,
         closingDate,
-        dashboardUrl: dashboardCell?.querySelector('a[title="Dashboard"]')
-          ?.href,
         hasExpectedColumns:
           tableRow.querySelectorAll("td").length === headers.length,
       };
@@ -74,62 +65,8 @@ async function readTenderResult(tenderId) {
     return null;
   }
 
-  const rows = await Promise.all(
-    [matchingRow].map(
-      async ({ dashboardUrl, hasExpectedColumns, ...rowData }) => {
-        const dashboard = { SD: "", BD: "", CREDIT: "", EST: "" };
-        if (dashboardUrl) {
-          try {
-            const response = await fetch(dashboardUrl, {
-              credentials: "include",
-            });
-            if (response.ok) {
-              const dashboardDocument = new DOMParser().parseFromString(
-                await response.text(),
-                "text/html",
-              );
-              const dashboardTableRows = [
-                ...dashboardDocument.querySelectorAll("tr"),
-              ]
-                .map((row) =>
-                  [...row.querySelectorAll("th, td")].map((cell) =>
-                    cell.innerText.replace(/\s+/g, " ").trim(),
-                  ),
-                )
-                .filter((cells) => cells.length);
-
-              for (const field of Object.keys(dashboard)) {
-                const labelPattern = new RegExp(`(^|\\b)${field}(\\b|$)`, "i");
-                for (const cells of dashboardTableRows) {
-                  const labelIndex = cells.findIndex((cell) =>
-                    labelPattern.test(cell),
-                  );
-                  if (labelIndex < 0) continue;
-                  const labelAndValue = cells[labelIndex].split(/\s*:\s*/, 2);
-                  dashboard[field] =
-                    labelAndValue.length > 1
-                      ? labelAndValue[1].trim()
-                      : cells.slice(labelIndex + 1).find(Boolean) || "";
-                  if (dashboard[field]) break;
-                }
-              }
-            }
-          } catch (error) {
-            console.warn("Could not read tender dashboard fields:", error);
-          }
-        }
-        return {
-          ...rowData,
-          sd: dashboard.SD,
-          bd: dashboard.BD,
-          credit: dashboard.CREDIT,
-          est: dashboard.EST,
-        };
-      },
-    ),
-  );
-
-  return { rows };
+  const { hasExpectedColumns, ...tenderData } = matchingRow;
+  return { rows: [tenderData] };
 }
 
 function restoreCollectedData(data) {
@@ -145,7 +82,7 @@ function restoreCollectedData(data) {
 
   return {
     rows: rows.map(([, row]) => {
-      const { dashboard, ...fields } = row;
+      const { dashboard, sd, bd, credit, est, ...fields } = row;
       const dateParts = fields.publishingDate
         ?.split(",")
         .map((date) => date.trim());
@@ -154,10 +91,6 @@ function restoreCollectedData(data) {
         ...(!fields.closingDate && dateParts?.length > 1
           ? { publishingDate: dateParts[0], closingDate: dateParts[1] }
           : {}),
-        sd: dashboard?.SD ?? fields.sd ?? "",
-        bd: dashboard?.BD ?? fields.bd ?? "",
-        credit: dashboard?.CREDIT ?? fields.credit ?? "",
-        est: dashboard?.EST ?? fields.est ?? "",
       };
     }),
   };
@@ -186,10 +119,6 @@ function initialTable(tenderIds, savedDataByTender = {}) {
       procurementMethod: "",
       publishingDate: "",
       closingDate: "",
-      sd: "",
-      bd: "",
-      credit: "",
-      est: "",
     })),
   };
 }
@@ -335,37 +264,39 @@ export default function BuildTableButton({
               table.rows.map((row, rowIndex) => (
                 <tr key={rowIndex} className="border-t border-gray-200">
                   <td className="px-2 py-1.5">{rowIndex + 1}</td>
-                  <td className="px-2 py-1.5">{row.tenderID || "—"}</td>
+                  <td className="px-2 py-1.5">{row.tenderID}</td>
                   <td className="px-2 py-1.5">
-                    {row.procurementNature || "—"}
-                    <br />
-                    {row.title || "—"}
+                    <strong>{row.procurementNature}</strong>,
+                    <br />{row.title}
                   </td>
                   <td className="px-2 py-1.5">
-                    {row.ministry || "—"},
-                    <br />
-                    {row.division || "—"},
-                    <br />
-                    {row.organization || "—"},
-                    <br />
-                    {row.pe || "—"}
+                    {row.ministry},
+                    <br />{row.division},
+                    <br />{row.organization},
+                    <br />{row.pe}
                   </td>
                   <td className="px-2 py-1.5">
-                    {row.procurementType || "—"},
-                    <br />
-                    {row.procurementMethod || "—"}
+                    {row.procurementType},
+                    <br />{row.procurementMethod}
                   </td>
                   <td className="px-2 py-1.5">
-                    {row.publishingDate || "—"},
-                    <br />
-                    {row.closingDate || "\u2014"}
+                    {row.publishingDate},
+                    <br />{row.closingDate}
                   </td>
                   <td className="px-2 py-1.5">
                     <div className="space-y-0.5">
-                      <p><span className="font-medium">SD:</span> {row.sd}</p>
-                      <p><span className="font-medium">BD:</span> {row.bd}</p>
-                      <p><span className="font-medium">CREDIT:</span> {row.credit}</p>
-                      <p><span className="font-medium">EST:</span> {row.est}</p>
+                      <p title="Security Deposit">
+                        <strong>SD:</strong> {row.sd}
+                      </p>
+                      <p title="Bank Draft">
+                        <strong>BD:</strong> {row.bd}
+                      </p>
+                      <p title="Bank Credit">
+                        <strong>Credit:</strong> {row.credit}
+                      </p>
+                      <p title="Estimated Project Cost">
+                        <strong>EST:</strong> {row.est}
+                      </p>
                     </div>
                   </td>
                 </tr>
